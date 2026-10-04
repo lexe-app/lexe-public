@@ -33,7 +33,7 @@ import 'package:lexeapp/route/channels.dart'
         ChannelsListEntry,
         ChannelsPartyChip,
         channelsListEntryHeight;
-import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space, LxTheme;
 import 'package:lexeapp/types.dart';
 
 @immutable
@@ -198,7 +198,10 @@ class _CloseChannelChoosePageState extends State<CloseChannelChoosePage> {
                             .map(
                               (channel) => Material(
                                 elevation: 0.0,
-                                color: LxColors.clearW0,
+                                color: LxTheme.resolve(
+                                  context,
+                                  LxColors.clearW0,
+                                ),
                                 child: InkWell(
                                   onTap: () => this.onChannelSelected(channel),
                                   child: ChannelsListEntry(
@@ -396,9 +399,9 @@ class _CloseChannelConfirmPageState extends State<CloseChannelConfirmPage> {
               onTap: this.onConfirm,
               loading: estimatingFee,
               style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-                iconColor: LxColors.grey1000,
+                backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+                iconColor: LxTheme.resolve(context, LxColors.grey1000),
               ),
             ),
           ),

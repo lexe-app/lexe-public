@@ -57,7 +57,8 @@ import 'package:lexeapp/route/send/state.dart'
         SendState_NeedAmount,
         SendState_Preflighted;
 import 'package:lexeapp/string_ext.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, Space, LxTheme;
 
 /// The entry point for the send payment flow. This will dispatch to the right
 /// initial screen depending on the [SendState]. If [startNewFlow], then it
@@ -403,9 +404,12 @@ class _OptionalNotesState extends State<OptionalNotes> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Optional notes",
-          style: TextStyle(fontSize: Fonts.size200, color: LxColors.fgTertiary),
+          style: TextStyle(
+            fontSize: Fonts.size200,
+            color: LxTheme.resolve(context, LxColors.fgTertiary),
+          ),
         ),
         const SizedBox(height: Space.s200),
 
@@ -492,16 +496,16 @@ class LnurlPayRequestDetails extends StatelessWidget {
 class MetadataRow extends StatelessWidget {
   MetadataRow({super.key, required this.title, required this.value});
 
-  final TextStyle textStyleSecondary = TextStyle(
-    fontSize: Fonts.size300,
-    color: LxColors.grey550,
-    fontVariations: [],
-  );
   final String title;
   final String value;
 
   @override
   Widget build(BuildContext context) {
+    final textStyleSecondary = TextStyle(
+      fontSize: Fonts.size300,
+      color: LxTheme.resolve(context, LxColors.grey550),
+      fontVariations: [],
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Space.s200),
       child: Row(
@@ -511,11 +515,11 @@ class MetadataRow extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         spacing: Space.s400,
         children: [
-          Text(this.title, style: this.textStyleSecondary),
+          Text(this.title, style: textStyleSecondary),
           Flexible(
             child: Text(
               this.value,
-              style: this.textStyleSecondary.copyWith(fontSize: Fonts.size200),
+              style: textStyleSecondary.copyWith(fontSize: Fonts.size200),
               textAlign: TextAlign.end,
               maxLines: 5,
               overflow: TextOverflow.ellipsis,
@@ -695,21 +699,21 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
     final amountSatsStr = currency_format.formatSatsAmount(this.amountSats());
 
-    const textStylePrimary = TextStyle(
+    final textStylePrimary = TextStyle(
       fontSize: Fonts.size300,
-      color: LxColors.foreground,
+      color: LxTheme.resolve(context, LxColors.foreground),
       fontVariations: [Fonts.weightMedium],
     );
 
-    const textStyleSecondary = TextStyle(
+    final textStyleSecondary = TextStyle(
       fontSize: Fonts.size300,
-      color: LxColors.grey550,
+      color: LxTheme.resolve(context, LxColors.grey550),
       fontVariations: [],
     );
 
-    const textStyleFiat = TextStyle(
+    final textStyleFiat = TextStyle(
       fontSize: Fonts.size200,
-      color: LxColors.grey550,
+      color: LxTheme.resolve(context, LxColors.grey550),
     );
 
     final amountFiatStr = this.formatFiatAmount(this.amountSats());
@@ -835,14 +839,17 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                                   "≈ ${date_format.formatDurationCompact(confPriority.estConfDuration(), abbreviated: false, addAgo: false)}",
                                   style: textStyleFiat,
                                 ),
-                                const Padding(
+                                Padding(
                                   padding: EdgeInsets.symmetric(
                                     horizontal: Space.s200,
                                   ),
                                   child: Icon(
                                     LxIcons.edit,
                                     size: Fonts.size300,
-                                    color: LxColors.grey625,
+                                    color: LxTheme.resolve(
+                                      context,
+                                      LxColors.grey625,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1002,9 +1009,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                 onTap: this.onConfirm,
                 loading: isSending,
                 style: FilledButton.styleFrom(
-                  backgroundColor: LxColors.moneyGoUp,
-                  foregroundColor: LxColors.grey1000,
-                  iconColor: LxColors.grey1000,
+                  backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                  foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+                  iconColor: LxTheme.resolve(context, LxColors.grey1000),
                 ),
               ),
             ),
@@ -1038,7 +1045,7 @@ class ChooseOnchainFeeDialog extends StatelessWidget {
     final feeEstimatesHigh = this.feeEstimates.high;
 
     return SimpleDialog(
-      backgroundColor: LxColors.background,
+      backgroundColor: LxTheme.resolve(context, LxColors.background),
       title: const HeadingText(text: "Select network fee"),
       contentPadding: const EdgeInsets.only(bottom: Space.s500),
       children: [
@@ -1051,7 +1058,7 @@ class ChooseOnchainFeeDialog extends StatelessWidget {
             "Your payment will complete faster with a higher fee.",
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size200,
-              color: LxColors.fgSecondary,
+              color: LxTheme.resolve(context, LxColors.fgSecondary),
               height: 1.5,
             ),
           ),
@@ -1106,7 +1113,10 @@ class ChooseFeeDialogOption extends StatelessWidget {
 
     return ListTile(
       selected: this.isSelected,
-      selectedTileColor: LxColors.moneyGoUp.withAlpha(0x33),
+      selectedTileColor: LxTheme.resolve(
+        context,
+        LxColors.moneyGoUp,
+      ).withAlpha(0x33),
       contentPadding: const EdgeInsets.symmetric(horizontal: Space.s500),
       visualDensity: VisualDensity.standard,
       dense: false,
@@ -1127,7 +1137,7 @@ class ChooseFeeDialogOption extends StatelessWidget {
             "≈ $confDurationStr",
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size200,
-              color: LxColors.grey450,
+              color: LxTheme.resolve(context, LxColors.grey450),
             ),
           ),
           const Expanded(child: SizedBox()),

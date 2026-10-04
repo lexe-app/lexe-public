@@ -32,7 +32,8 @@ import 'package:lexeapp/route/claim/state.dart'
         ClaimState_NeedConfirm;
 import 'package:lexeapp/route/send/page.dart' show MetadataRow;
 import 'package:lexeapp/string_ext.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, Space, LxTheme;
 
 /// The entry point for the claim payment flow. This will dispatch to the right
 /// initial screen depending on the [ClaimState]. If [startNewFlow], then it
@@ -268,20 +269,15 @@ class ClaimPaymentConfirmPage extends StatefulWidget {
 
   static const _textStylePrimary = TextStyle(
     fontSize: Fonts.size300,
-    color: LxColors.foreground,
     fontVariations: [Fonts.weightMedium],
   );
 
   static const _textStyleSecondary = TextStyle(
     fontSize: Fonts.size300,
-    color: LxColors.grey550,
     fontVariations: [],
   );
 
-  static const _textStyleFiat = TextStyle(
-    fontSize: Fonts.size200,
-    color: LxColors.grey550,
-  );
+  static const _textStyleFiat = TextStyle(fontSize: Fonts.size200);
 
   /// Regex to strip "http://" or "https://" prefix and any "/trailing/path"
   static final _httpPrefixAndPathRe = RegExp(
@@ -384,9 +380,14 @@ class _ClaimPaymentConfirmPageState extends State<ClaimPaymentConfirmPage> {
 
   @override
   Widget build(BuildContext context) {
-    const textStyleSecondary = ClaimPaymentConfirmPage._textStyleSecondary;
-    const textStylePrimary = ClaimPaymentConfirmPage._textStylePrimary;
-    const textStyleFiat = ClaimPaymentConfirmPage._textStyleFiat;
+    final textStyleSecondary = ClaimPaymentConfirmPage._textStyleSecondary
+        .copyWith(color: LxTheme.resolve(context, LxColors.grey550));
+    final textStylePrimary = ClaimPaymentConfirmPage._textStylePrimary.copyWith(
+      color: LxTheme.resolve(context, LxColors.foreground),
+    );
+    final textStyleFiat = ClaimPaymentConfirmPage._textStyleFiat.copyWith(
+      color: LxTheme.resolve(context, LxColors.grey550),
+    );
 
     final shortPayer = this.payer();
 
@@ -536,9 +537,9 @@ class _ClaimPaymentConfirmPageState extends State<ClaimPaymentConfirmPage> {
                 onTap: this.onConfirm,
                 loading: isClaiming,
                 style: FilledButton.styleFrom(
-                  backgroundColor: LxColors.moneyGoUp,
-                  foregroundColor: LxColors.grey1000,
-                  iconColor: LxColors.grey1000,
+                  backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                  foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+                  iconColor: LxTheme.resolve(context, LxColors.grey1000),
                 ),
               ),
             ),

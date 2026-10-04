@@ -1,0 +1,20 @@
+<resources>
+  <!-- Dark splash and window background while Flutter initializes. -->
+  <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <item name="android:windowBackground">@color/background</item>
+    <item name="android:windowSplashScreenBackground">@color/background</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground_splash</item>
+    <item name="android:statusBarColor">@color/background</item>
+    <item name="android:navigationBarColor">@color/background</item>
+    <item name="android:windowLightStatusBar">false</item>
+  </style>
+
+  <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <item name="android:windowBackground">@color/background</item>
+    <item name="android:windowSplashScreenBackground">@color/background</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground_splash</item>
+    <item name="android:statusBarColor">@color/background</item>
+    <item name="android:navigationBarColor">@color/background</item>
+    <item name="android:windowLightStatusBar">false</item>
+  </style>
+</resources>

@@ -406,9 +406,11 @@ Your wallet always verifies your node's software before sharing any keys.
     // set the SystemUiOverlay bars to transparent so the background shader
     // shows through.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: LxTheme.systemOverlayStyleLightClearBg,
+      value: Theme.of(context).brightness == Brightness.dark
+          ? LxTheme.systemOverlayStyleDarkClearBg
+          : LxTheme.systemOverlayStyleLightClearBg,
       child: Scaffold(
-        backgroundColor: LxColors.background,
+        backgroundColor: LxTheme.resolve(context, LxColors.background),
         body: Stack(
           children: [
             // Background shader.
@@ -521,23 +523,24 @@ Your wallet always verifies your node's software before sharing any keys.
   }
 }
 
-final MarkdownStyleSheet _landingStyleSheet = MarkdownStyleSheet(
-  h1: Fonts.fontHero,
-  h1Padding: const EdgeInsets.only(bottom: Fonts.size800 * 0.5),
-  h2: Fonts.fontHero.copyWith(fontSize: Fonts.size700, height: 1.3),
-  h2Padding: const EdgeInsets.only(bottom: Fonts.size700 * 0.25),
-  p: Fonts.fontBody.copyWith(
-    fontSize: Fonts.size300,
-    color: LxColors.foreground,
-    letterSpacing: -0.5,
-  ),
-  pPadding: const EdgeInsets.symmetric(vertical: Fonts.size300 * 0.25),
-  strong: const TextStyle(fontVariations: [Fonts.weightBold]),
-  a: const TextStyle(
-    color: LxColors.foreground,
-    decoration: TextDecoration.underline,
-  ),
-);
+MarkdownStyleSheet _landingStyleSheet(BuildContext context) =>
+    MarkdownStyleSheet(
+      h1: Fonts.fontHero,
+      h1Padding: const EdgeInsets.only(bottom: Fonts.size800 * 0.5),
+      h2: Fonts.fontHero.copyWith(fontSize: Fonts.size700, height: 1.3),
+      h2Padding: const EdgeInsets.only(bottom: Fonts.size700 * 0.25),
+      p: Fonts.fontBody.copyWith(
+        fontSize: Fonts.size300,
+        color: LxTheme.resolve(context, LxColors.foreground),
+        letterSpacing: -0.5,
+      ),
+      pPadding: const EdgeInsets.symmetric(vertical: Fonts.size300 * 0.25),
+      strong: const TextStyle(fontVariations: [Fonts.weightBold]),
+      a: TextStyle(
+        color: LxTheme.resolve(context, LxColors.foreground),
+        decoration: TextDecoration.underline,
+      ),
+    );
 
 /// Called when a user hits a `[text](href)`.
 /// Currently just opens any https:// links in the browser.
@@ -549,9 +552,17 @@ Future<void> _onTapLink(String _text, String? href, String _title) async {
 }
 
 /// [MarkdownBody] but styled for the landing page.
-class LandingMarkdownBody extends MarkdownBody {
-  LandingMarkdownBody(final String data, {super.key})
-    : super(data: data, styleSheet: _landingStyleSheet, onTapLink: _onTapLink);
+class LandingMarkdownBody extends StatelessWidget {
+  const LandingMarkdownBody(this.data, {super.key});
+
+  final String data;
+
+  @override
+  Widget build(BuildContext context) => MarkdownBody(
+    data: this.data,
+    styleSheet: _landingStyleSheet(context),
+    onTapLink: _onTapLink,
+  );
 }
 
 /// A single page in the carousel.
@@ -909,7 +920,7 @@ class _LandingKeywordPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       borderRadius: BorderRadius.all(
         Radius.elliptical(LxRadius.r400, LxRadius.r400),
       ),
@@ -917,16 +928,22 @@ class _LandingKeywordPill extends StatelessWidget {
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [LxColors.clearW800, LxColors.clearW600],
+        colors: [
+          LxTheme.resolve(context, LxColors.clearW800),
+          LxTheme.resolve(context, LxColors.clearW600),
+        ],
       ),
       // thin glass-edge border highlight
       border: Border.fromBorderSide(
-        BorderSide(color: LxColors.clearW200, width: _borderWidth),
+        BorderSide(
+          color: LxTheme.resolve(context, LxColors.clearW200),
+          width: _borderWidth,
+        ),
       ),
       // soft shadow to add some slight contrast against the background
       boxShadow: [
         BoxShadow(
-          color: LxColors.clearB50,
+          color: LxTheme.resolve(context, LxColors.clearB50),
           blurRadius: 8.0,
           offset: Offset(0, 2.0),
         ),
@@ -998,9 +1015,9 @@ class LandingButtons extends StatelessWidget {
         LxFilledButton(
           onTap: this.onSignupPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: LxColors.foreground,
-            foregroundColor: LxColors.background,
-            iconColor: LxColors.background,
+            backgroundColor: LxTheme.resolve(context, LxColors.foreground),
+            foregroundColor: LxTheme.resolve(context, LxColors.background),
+            iconColor: LxTheme.resolve(context, LxColors.background),
             fixedSize: const Size(landingButtonsWidth, Space.s800),
           ),
           label: const Text("Create wallet"),

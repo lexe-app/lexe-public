@@ -179,7 +179,7 @@ your **backup password**.
 - With your recovery data, **you can always recover your funds**—even if Lexe goes away.
 ''',
           // styleSheet: LxTheme.buildMarkdownStyle(),
-          styleSheet: LxTheme.markdownStyle,
+          styleSheet: LxTheme.markdownStyleFor(context),
         ),
       ],
     );
@@ -313,9 +313,9 @@ class _GDriveBackupPasswordPageState extends State<GDriveBackupPasswordPage> {
               onTap: this.onSubmit,
               loading: isSettingUp,
               style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-                iconColor: LxColors.grey1000,
+                backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+                iconColor: LxTheme.resolve(context, LxColors.grey1000),
               ),
             ),
           ),
@@ -343,9 +343,9 @@ This password encrypts your recovery data so Google can't read it.
 Store it in a safe place, like a password manager—you **need this to
 recover your funds**.
 ''',
-      styleSheet: LxTheme.markdownStyle.copyWith(
-        pPadding: const EdgeInsets.symmetric(vertical: Space.s100),
-      ),
+      styleSheet: LxTheme.markdownStyleFor(
+        context,
+      ).copyWith(pPadding: const EdgeInsets.symmetric(vertical: Space.s100)),
     );
   }
 }

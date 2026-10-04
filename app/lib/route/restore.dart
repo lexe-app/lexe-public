@@ -280,7 +280,7 @@ Connect your Google Drive to restore from an existing Lexe Wallet backup.
 - Lexe cannot access any files in your Drive.
 ''',
             // styleSheet: LxTheme.buildMarkdownStyle(),
-            styleSheet: LxTheme.markdownStyle,
+            styleSheet: LxTheme.markdownStyleFor(context),
           ),
 
           // Error message
@@ -306,9 +306,15 @@ Connect your Google Drive to restore from an existing Lexe Wallet backup.
                   label: const Text("Connect Google Drive"),
                   icon: const Icon(LxIcons.next),
                   style: FilledButton.styleFrom(
-                    backgroundColor: LxColors.foreground,
-                    foregroundColor: LxColors.background,
-                    iconColor: LxColors.background,
+                    backgroundColor: LxTheme.resolve(
+                      context,
+                      LxColors.foreground,
+                    ),
+                    foregroundColor: LxTheme.resolve(
+                      context,
+                      LxColors.background,
+                    ),
+                    iconColor: LxTheme.resolve(context, LxColors.background),
                   ),
                 ),
               ),
@@ -563,9 +569,9 @@ class _RestorePasswordPageState extends State<RestorePasswordPage> {
               label: const Text("Restore"),
               icon: const Icon(LxIcons.next),
               style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-                iconColor: LxColors.grey1000,
+                backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+                iconColor: LxTheme.resolve(context, LxColors.grey1000),
               ),
             ),
           ),
@@ -874,9 +880,18 @@ class _RestoreSeedPhrasePageState extends State<RestoreSeedPhrasePage> {
                                   label: const Icon(LxIcons.next),
                                   icon: const Icon(null),
                                   style: FilledButton.styleFrom(
-                                    backgroundColor: LxColors.moneyGoUp,
-                                    foregroundColor: LxColors.grey1000,
-                                    iconColor: LxColors.grey1000,
+                                    backgroundColor: LxTheme.resolve(
+                                      context,
+                                      LxColors.moneyGoUp,
+                                    ),
+                                    foregroundColor: LxTheme.resolve(
+                                      context,
+                                      LxColors.grey1000,
+                                    ),
+                                    iconColor: LxTheme.resolve(
+                                      context,
+                                      LxColors.grey1000,
+                                    ),
                                   ),
                                 ),
                                 label: "Restore",
@@ -950,10 +965,10 @@ class SuggestionChip extends StatelessWidget {
         ),
         child: Text(
           word,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: Fonts.size200,
             fontVariations: [Fonts.weightMedium],
-            color: LxColors.linkText,
+            color: LxTheme.resolve(context, LxColors.linkText),
           ),
         ),
       ),

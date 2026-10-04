@@ -155,7 +155,7 @@ We'll re-encrypt your Google Drive backup with a new password.
 - We'll ask Google Drive for access.
 - Then you'll choose a new password.
 ''',
-            styleSheet: LxTheme.markdownStyle,
+            styleSheet: LxTheme.markdownStyleFor(context),
           ),
 
           // Error message
@@ -178,9 +178,9 @@ We'll re-encrypt your Google Drive backup with a new password.
               label: const Text("Continue"),
               icon: const Icon(LxIcons.next),
               style: FilledButton.styleFrom(
-                backgroundColor: LxColors.foreground,
-                foregroundColor: LxColors.background,
-                iconColor: LxColors.background,
+                backgroundColor: LxTheme.resolve(context, LxColors.foreground),
+                foregroundColor: LxTheme.resolve(context, LxColors.background),
+                iconColor: LxTheme.resolve(context, LxColors.background),
               ),
             ),
           ),
@@ -339,9 +339,9 @@ class _ChangeBackupPasswordFormPageState
               label: const Text("Change password"),
               icon: const Icon(LxIcons.next),
               style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-                iconColor: LxColors.grey1000,
+                backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                foregroundColor: LxTheme.resolve(context, LxColors.grey1000),
+                iconColor: LxTheme.resolve(context, LxColors.grey1000),
               ),
             ),
           ),
@@ -376,16 +376,16 @@ class ChangeBackupPasswordSuccessPage extends StatelessWidget {
           Align(
             alignment: Alignment.topCenter,
             child: Badge(
-              label: const Icon(
+              label: Icon(
                 LxIcons.completedBadge,
                 size: Fonts.size400,
-                color: LxColors.background,
+                color: LxTheme.resolve(context, LxColors.background),
               ),
-              backgroundColor: LxColors.moneyGoUp,
+              backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
               largeSize: Space.s500,
-              child: const DecoratedBox(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: LxColors.grey825,
+                  color: LxTheme.resolve(context, LxColors.grey825),
                   borderRadius: BorderRadius.all(
                     Radius.circular(Space.s800 / 2),
                   ),
@@ -395,7 +395,7 @@ class ChangeBackupPasswordSuccessPage extends StatelessWidget {
                   child: Icon(
                     LxIcons.gdrive,
                     size: Space.s650,
-                    color: LxColors.fgSecondary,
+                    color: LxTheme.resolve(context, LxColors.fgSecondary),
                     fill: 1.0,
                     weight: LxIcons.weightExtraLight,
                   ),
@@ -411,7 +411,7 @@ class ChangeBackupPasswordSuccessPage extends StatelessWidget {
             "Backup password updated",
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size300,
-              color: LxColors.fgTertiary,
+              color: LxTheme.resolve(context, LxColors.fgTertiary),
               fontVariations: [Fonts.weightNormal],
             ),
             textAlign: TextAlign.center,
@@ -427,7 +427,7 @@ class ChangeBackupPasswordSuccessPage extends StatelessWidget {
               fontSize: Fonts.size600,
               fontVariations: [Fonts.weightNormal],
               fontFeatures: [Fonts.featSlashedZero],
-              color: LxColors.moneyGoUp,
+              color: LxTheme.resolve(context, LxColors.moneyGoUp),
             ),
             textAlign: TextAlign.center,
           ),
@@ -439,7 +439,7 @@ class ChangeBackupPasswordSuccessPage extends StatelessWidget {
             "Your Google Drive backup is now protected with your new password.",
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size200,
-              color: LxColors.fgSecondary,
+              color: LxTheme.resolve(context, LxColors.fgSecondary),
             ),
           ),
         ],

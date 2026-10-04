@@ -26,7 +26,7 @@ import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/route/initial_deposit/state.dart' show DepositMethod;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, Space, LxTheme;
 import 'package:lexeapp/url.dart' as url;
 
 /// Minimum recommended amount for Lightning deposits.
@@ -148,23 +148,23 @@ class _MethodCard extends StatelessWidget {
     // Primary (Lightning): CTA-style with black background
     // Secondary (On-chain): subdued appearance
     final cardBgColor = this.isPrimary
-        ? LxColors.foreground
-        : LxColors.grey1000;
+        ? LxTheme.resolve(context, LxColors.foreground)
+        : LxTheme.resolve(context, LxColors.grey1000);
     final iconBgColor = this.isPrimary
-        ? LxColors.clearW100
-        : LxColors.fgTertiary.withValues(alpha: 0.1);
+        ? LxTheme.resolve(context, LxColors.clearW100)
+        : LxTheme.resolve(context, LxColors.fgTertiary).withValues(alpha: 0.1);
     final iconColor = this.isPrimary
-        ? LxColors.background
-        : LxColors.fgSecondary;
+        ? LxTheme.resolve(context, LxColors.background)
+        : LxTheme.resolve(context, LxColors.fgSecondary);
     final titleColor = this.isPrimary
-        ? LxColors.background
-        : LxColors.foreground;
+        ? LxTheme.resolve(context, LxColors.background)
+        : LxTheme.resolve(context, LxColors.foreground);
     final descriptionColor = this.isPrimary
-        ? LxColors.grey700
-        : LxColors.fgSecondary;
+        ? LxTheme.resolve(context, LxColors.grey700)
+        : LxTheme.resolve(context, LxColors.fgSecondary);
     final arrowColor = this.isPrimary
-        ? LxColors.background
-        : LxColors.fgTertiary;
+        ? LxTheme.resolve(context, LxColors.background)
+        : LxTheme.resolve(context, LxColors.fgTertiary);
 
     return Material(
       color: cardBgColor,
@@ -426,7 +426,7 @@ class _LowAmountWarningCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: Space.s500),
       child: Card.filled(
-        color: LxColors.grey1000,
+        color: LxTheme.resolve(context, LxColors.grey1000),
         margin: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(Space.s400),
@@ -436,14 +436,18 @@ class _LowAmountWarningCard extends StatelessWidget {
               // Title with warning icon
               Row(
                 children: [
-                  Icon(LxIcons.warning, size: 20, color: LxColors.warningText),
+                  Icon(
+                    LxIcons.warning,
+                    size: 20,
+                    color: LxTheme.resolve(context, LxColors.warningText),
+                  ),
                   const SizedBox(width: Space.s200),
                   Text(
                     "Insufficient initial deposit",
                     style: TextStyle(
                       fontSize: Fonts.size300,
                       fontVariations: [Fonts.weightSemiBold],
-                      color: LxColors.foreground,
+                      color: LxTheme.resolve(context, LxColors.foreground),
                     ),
                   ),
                 ],
@@ -470,9 +474,12 @@ class _LowAmountWarningCard extends StatelessWidget {
                           "Learn more",
                           style: TextStyle(
                             fontSize: Fonts.size200,
-                            color: LxColors.linkText,
+                            color: LxTheme.resolve(context, LxColors.linkText),
                             decoration: TextDecoration.underline,
-                            decorationColor: LxColors.linkText,
+                            decorationColor: LxTheme.resolve(
+                              context,
+                              LxColors.linkText,
+                            ),
                           ),
                         ),
                       ),
@@ -481,7 +488,7 @@ class _LowAmountWarningCard extends StatelessWidget {
                 ),
                 style: TextStyle(
                   fontSize: Fonts.size200,
-                  color: LxColors.fgSecondary,
+                  color: LxTheme.resolve(context, LxColors.fgSecondary),
                   height: 1.4,
                 ),
               ),
@@ -504,7 +511,7 @@ class _LowAmountWarningCard extends StatelessWidget {
                     "the channel reserve",
                     style: TextStyle(
                       fontSize: Fonts.size200,
-                      color: LxColors.fgSecondary,
+                      color: LxTheme.resolve(context, LxColors.fgSecondary),
                       height: 1.3,
                     ),
                   ),
@@ -553,16 +560,16 @@ class InitialDepositSuccessPage extends StatelessWidget {
           Align(
             alignment: Alignment.topCenter,
             child: Badge(
-              label: const Icon(
+              label: Icon(
                 LxIcons.completedBadge,
                 size: Fonts.size400,
-                color: LxColors.background,
+                color: LxTheme.resolve(context, LxColors.background),
               ),
-              backgroundColor: LxColors.moneyGoUp,
+              backgroundColor: LxTheme.resolve(context, LxColors.moneyGoUp),
               largeSize: Space.s500,
-              child: const DecoratedBox(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: LxColors.grey825,
+                  color: LxTheme.resolve(context, LxColors.grey825),
                   borderRadius: BorderRadius.all(
                     Radius.circular(Space.s800 / 2),
                   ),
@@ -572,7 +579,7 @@ class InitialDepositSuccessPage extends StatelessWidget {
                   child: Icon(
                     LxIcons.lightning,
                     size: Space.s700,
-                    color: LxColors.fgSecondary,
+                    color: LxTheme.resolve(context, LxColors.fgSecondary),
                     fill: 1.0,
                     weight: LxIcons.weightExtraLight,
                   ),
@@ -588,7 +595,7 @@ class InitialDepositSuccessPage extends StatelessWidget {
             "Received",
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size300,
-              color: LxColors.fgTertiary,
+              color: LxTheme.resolve(context, LxColors.fgTertiary),
               fontVariations: [Fonts.weightNormal],
             ),
             textAlign: TextAlign.center,
@@ -604,7 +611,7 @@ class InitialDepositSuccessPage extends StatelessWidget {
               fontSize: Fonts.size800,
               fontVariations: [Fonts.weightNormal],
               fontFeatures: [Fonts.featSlashedZero],
-              color: LxColors.moneyGoUp,
+              color: LxTheme.resolve(context, LxColors.moneyGoUp),
             ),
             textAlign: TextAlign.center,
           ),
@@ -625,7 +632,7 @@ class InitialDepositSuccessPage extends StatelessWidget {
                 "≈ $fiatAmountStr",
                 style: Fonts.fontUI.copyWith(
                   fontSize: Fonts.size300,
-                  color: LxColors.fgSecondary,
+                  color: LxTheme.resolve(context, LxColors.fgSecondary),
                 ),
                 textAlign: TextAlign.center,
               );
@@ -639,7 +646,7 @@ class InitialDepositSuccessPage extends StatelessWidget {
             "You're all set! Enjoy Lexe wallet.",
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size200,
-              color: LxColors.fgSecondary,
+              color: LxTheme.resolve(context, LxColors.fgSecondary),
             ),
             textAlign: TextAlign.center,
           ),
@@ -776,7 +783,7 @@ class _InitialDepositLightningPageState
 
               // Waiting indicator (only shown when invoice is loaded)
               if (invoice != null)
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(
@@ -784,7 +791,7 @@ class _InitialDepositLightningPageState
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: LxColors.fgTertiary,
+                        color: LxTheme.resolve(context, LxColors.fgTertiary),
                       ),
                     ),
                     SizedBox(width: Space.s300),
@@ -792,7 +799,7 @@ class _InitialDepositLightningPageState
                       "Waiting for payment...",
                       style: TextStyle(
                         fontSize: Fonts.size200,
-                        color: LxColors.fgSecondary,
+                        color: LxTheme.resolve(context, LxColors.fgSecondary),
                       ),
                     ),
                   ],
@@ -927,7 +934,7 @@ class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
 
               // Waiting indicator (only shown when address is loaded)
               if (address != null)
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(
@@ -935,7 +942,7 @@ class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: LxColors.fgTertiary,
+                        color: LxTheme.resolve(context, LxColors.fgTertiary),
                       ),
                     ),
                     SizedBox(width: Space.s300),
@@ -943,7 +950,7 @@ class _InitialDepositOnchainPageState extends State<InitialDepositOnchainPage> {
                       "Waiting for payment...",
                       style: TextStyle(
                         fontSize: Fonts.size200,
-                        color: LxColors.fgSecondary,
+                        color: LxTheme.resolve(context, LxColors.fgSecondary),
                       ),
                     ),
                   ],

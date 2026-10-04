@@ -22,7 +22,8 @@ import 'package:lexeapp/route/change_backup_password.dart'
     show ChangeBackupPasswordPage;
 import 'package:lexeapp/route/gdrive.dart' show GDriveAuthCtx, GDrivePage;
 import 'package:lexeapp/service/root_seed_store.dart' show RootSeedStore;
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, Space, LxTheme;
 import 'package:lexeapp/url.dart' as url;
 
 const accountDeletionRequestUrl =
@@ -174,12 +175,14 @@ class _SecurityPageState extends State<SecurityPage> {
 
           // View seed phrase
           InfoCard(
-            description: const Text.rich(
+            description: Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
                     text: "WARNING: ",
-                    style: TextStyle(color: LxColors.warningText),
+                    style: TextStyle(
+                      color: LxTheme.resolve(context, LxColors.warningText),
+                    ),
                   ),
                   TextSpan(
                     text:
@@ -273,7 +276,7 @@ class GDriveStatusCard extends StatelessWidget {
                   dimension: Fonts.size200,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.0,
-                    color: LxColors.grey750,
+                    color: LxTheme.resolve(context, LxColors.grey750),
                   ),
                 ),
                 GDriveStatus_Disabled() => Text("Connect Google Drive"),
@@ -288,8 +291,8 @@ class GDriveStatusCard extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: Space.s300, right: Space.s300),
           child: DefaultTextStyle(
-            style: const TextStyle(
-              color: LxColors.fgTertiary,
+            style: TextStyle(
+              color: LxTheme.resolve(context, LxColors.fgTertiary),
               fontSize: Fonts.size200,
               fontVariations: [Fonts.weightNormal],
             ),
@@ -376,9 +379,9 @@ class _SeedPhrasePageState extends State<SeedPhrasePage> {
                   style: TextStyle(fontSize: Fonts.size200, height: 1.4),
                 ),
                 contentPadding: EdgeInsets.zero,
-                inactiveTrackColor: LxColors.grey1000,
-                activeTrackColor: LxColors.moneyGoUp,
-                inactiveThumbColor: LxColors.grey850,
+                inactiveTrackColor: LxTheme.resolve(context, LxColors.grey1000),
+                activeTrackColor: LxTheme.resolve(context, LxColors.moneyGoUp),
+                inactiveThumbColor: LxTheme.resolve(context, LxColors.grey850),
                 controlAffinity: ListTileControlAffinity.leading,
               );
             },

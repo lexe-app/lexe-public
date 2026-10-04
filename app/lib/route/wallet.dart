@@ -106,7 +106,7 @@ import 'package:lexeapp/service/user_settings.dart' show UserSettingsService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, Space, LxTheme;
 import 'package:lexeapp/types.dart' show BalanceKind, BalanceState;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:lexeapp/url.dart' as url;
@@ -827,9 +827,6 @@ class WalletPageState extends State<WalletPage> {
   bool get showNotificationTab =>
       this.provisionService.shouldDisplayWarning.value;
 
-  Color? get appBarBackgroundColor =>
-      this.showNotificationTab ? LxColors.warningBackground : null;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1020,8 +1017,8 @@ class _WalletAppBar extends StatelessWidget implements PreferredSizeWidget {
             curve: Curves.easeInOut,
             duration: const Duration(milliseconds: 500),
             color: shouldDisplayWarning
-                ? LxColors.warningBackground
-                : LxColors.background,
+                ? LxTheme.resolve(context, LxColors.warningBackground)
+                : LxTheme.resolve(context, LxColors.background),
           ),
           AppBar(
             elevation: 0.0,
@@ -1115,7 +1112,7 @@ class _BackgroundErrorListEntryState extends State<BackgroundErrorListEntry> {
                   overflow: TextOverflow.ellipsis,
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size300,
-                    color: LxColors.fgSecondary,
+                    color: LxTheme.resolve(context, LxColors.fgSecondary),
                     fontVariations: [Fonts.weightMedium],
                   ),
                 ),
@@ -1135,7 +1132,7 @@ class _BackgroundErrorListEntryState extends State<BackgroundErrorListEntry> {
                       textAlign: TextAlign.end,
                       style: Fonts.fontUI.copyWith(
                         fontSize: Fonts.size200,
-                        color: LxColors.fgTertiary,
+                        color: LxTheme.resolve(context, LxColors.fgTertiary),
                       ),
                     );
                   },
@@ -1150,7 +1147,7 @@ class _BackgroundErrorListEntryState extends State<BackgroundErrorListEntry> {
                     this.widget.error.message,
                     style: Fonts.fontUI.copyWith(
                       fontSize: Fonts.size200,
-                      color: LxColors.grey500,
+                      color: LxTheme.resolve(context, LxColors.grey500),
                     ),
                   ),
                 )
@@ -1158,7 +1155,7 @@ class _BackgroundErrorListEntryState extends State<BackgroundErrorListEntry> {
           trailing: Icon(
             this._isExpanded ? LxIcons.expandUpSmall : LxIcons.expandDownSmall,
             size: Fonts.size400,
-            color: LxColors.fgTertiary,
+            color: LxTheme.resolve(context, LxColors.fgTertiary),
           ),
         ),
         if (this._isExpanded)
@@ -1243,7 +1240,7 @@ class NotificationTab extends StatelessWidget {
                 TextSpan(
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
-                    color: LxColors.grey300,
+                    color: LxTheme.resolve(context, LxColors.grey300),
                     fontVariations: [Fonts.weightMedium],
                   ),
                   children: [
@@ -1251,7 +1248,7 @@ class NotificationTab extends StatelessWidget {
                       child: Icon(
                         LxIcons.nodeInfo,
                         size: Fonts.size400,
-                        color: LxColors.grey300,
+                        color: LxTheme.resolve(context, LxColors.grey300),
                       ),
                     ),
                     TextSpan(text: " Could not connect to node."),
@@ -1261,11 +1258,11 @@ class NotificationTab extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Space.s100),
-          const Text(
+          Text(
             "Currently in offline mode. Try again later.",
             style: TextStyle(
               fontSize: Fonts.size100,
-              color: LxColors.grey300,
+              color: LxTheme.resolve(context, LxColors.grey300),
               fontVariations: [Fonts.weightMedium],
             ),
           ),
@@ -1284,7 +1281,7 @@ Future<void> _errorDialogBuilder(
     context: context,
     builder: (BuildContext context) {
       return Dialog(
-        backgroundColor: LxColors.background,
+        backgroundColor: LxTheme.resolve(context, LxColors.background),
         elevation: 0.0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(LxRadius.r300),
@@ -1303,11 +1300,11 @@ Future<void> _errorDialogBuilder(
             children: [
               const HeadingText(text: "Background errors"),
               const SizedBox(height: Space.s200),
-              const Text(
+              Text(
                 "A background task errored. This is usually temporary.",
                 style: TextStyle(
                   fontSize: Fonts.size300,
-                  color: LxColors.grey600,
+                  color: LxTheme.resolve(context, LxColors.grey600),
                 ),
               ),
               const SizedBox(height: Space.s400),
@@ -1516,9 +1513,9 @@ class WalletDrawer extends StatelessWidget {
                   ),
 
                   const SizedBox(height: Space.s500),
-                  const Divider(
+                  Divider(
                     height: 1.0,
-                    color: LxColors.grey700,
+                    color: LxTheme.resolve(context, LxColors.grey700),
                     indent: 100,
                     endIndent: 100,
                   ),
@@ -1532,29 +1529,29 @@ class WalletDrawer extends StatelessWidget {
                       IconButton(
                         onPressed: () => url.open("https://lexe.app"),
                         icon: const Icon(LxIcons.website, size: Fonts.size600),
-                        color: LxColors.foreground,
+                        color: LxTheme.resolve(context, LxColors.foreground),
                       ),
                       IconButton(
                         onPressed: () => this.onDocsMenuPressed?.call(),
                         icon: const Icon(LxIcons.docs, size: Fonts.size600),
-                        color: LxColors.foreground,
+                        color: LxTheme.resolve(context, LxColors.foreground),
                       ),
                       IconButton(
                         onPressed: () => url.open("https://x.com/lexeapp"),
                         icon: const Icon(LxIcons.x, size: Fonts.size600),
-                        color: LxColors.foreground,
+                        color: LxTheme.resolve(context, LxColors.foreground),
                       ),
                       IconButton(
                         onPressed: () =>
                             url.open("https://discord.gg/zybuBYgdbr"),
                         icon: const Icon(LxIcons.discord, size: Fonts.size600),
-                        color: LxColors.foreground,
+                        color: LxTheme.resolve(context, LxColors.foreground),
                       ),
                       IconButton(
                         onPressed: () =>
                             url.open("https://github.com/lexe-app/lexe-public"),
                         icon: const Icon(LxIcons.github, size: Fonts.size600),
-                        color: LxColors.foreground,
+                        color: LxTheme.resolve(context, LxColors.foreground),
                       ),
                     ],
                   ),
@@ -1572,7 +1569,7 @@ class WalletDrawer extends StatelessWidget {
                           "${userAgent.appName} · v${userAgent.version}",
                           textAlign: TextAlign.center,
                           style: Fonts.fontUI.copyWith(
-                            color: LxColors.grey600,
+                            color: LxTheme.resolve(context, LxColors.grey600),
                             fontSize: Fonts.size200,
                           ),
                         ),
@@ -1632,7 +1629,7 @@ class DrawerProfile extends StatelessWidget {
               "Human Bitcoin Address",
               style: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size300,
-                color: LxColors.grey600,
+                color: LxTheme.resolve(context, LxColors.grey600),
               ),
             ),
           },
@@ -1685,7 +1682,10 @@ class ClaimedHba extends StatelessWidget {
     padding: WidgetStateProperty.all(const EdgeInsets.all(Space.s200)),
     minimumSize: WidgetStateProperty.all(const Size(40, 40)),
     textStyle: WidgetStateProperty.all(
-      const TextStyle(fontSize: Fonts.size100, color: LxColors.fgSecondary),
+      TextStyle(
+        fontSize: Fonts.size100,
+        color: LxTheme.resolve(context, LxColors.fgSecondary),
+      ),
     ),
   );
 
@@ -1710,7 +1710,7 @@ class ClaimedHba extends StatelessWidget {
           style: Fonts.fontUI.copyWith(
             fontSize: this.fontSize,
             fontVariations: [Fonts.weightMedium],
-            color: LxColors.foreground,
+            color: LxTheme.resolve(context, LxColors.foreground),
           ),
         ),
         const SizedBox(height: Space.s300),
@@ -1764,7 +1764,11 @@ class DrawerListItem extends StatelessWidget {
       visualDensity: VisualDensity.standard,
       dense: false,
       leading: (this.icon != null)
-          ? Icon(this.icon!, color: LxColors.foreground, size: Fonts.size700)
+          ? Icon(
+              this.icon!,
+              color: LxTheme.resolve(context, LxColors.foreground),
+              size: Fonts.size700,
+            )
           : null,
       title: (this.title != null)
           ? Text(
@@ -1803,7 +1807,7 @@ class BalanceWidget extends StatelessWidget {
     final totalSats = this.state.totalSats();
     final totalSatsStyle = Fonts.fontUI.copyWith(
       fontSize: Fonts.size300,
-      color: LxColors.grey700,
+      color: LxTheme.resolve(context, LxColors.grey700),
       fontVariations: [Fonts.weightMedium],
     );
     final totalSatsOrPlaceholder = (totalSats != null)
@@ -1819,7 +1823,7 @@ class BalanceWidget extends StatelessWidget {
 
     final totalFiat = this.state.totalFiat();
     final totalFiatStyle = Fonts.fontUI.copyWith(
-      color: LxColors.foreground,
+      color: LxTheme.resolve(context, LxColors.foreground),
       fontSize: Fonts.size800,
       fontVariations: [Fonts.weightMedium],
       letterSpacing: -0.5,
@@ -1838,20 +1842,20 @@ class BalanceWidget extends StatelessWidget {
           );
 
     const iconSize = Space.s500;
-    const iconColor = LxColors.fgSecondary;
-    const iconBg = LxColors.background;
+    final iconColor = LxTheme.resolve(context, LxColors.fgSecondary);
+    final iconBg = LxColors.background;
     final icon = ValueListenableBuilder(
       valueListenable: this.settings.showSplitBalances,
       builder: (context, showSplitBalances, child) =>
           (showSplitBalances ?? false)
-          ? const ListIcon(
+          ? ListIcon(
               Icon(LxIcons.expandUpSmall, size: iconSize, color: iconColor),
               background: iconBg,
             )
           : ListIcon(
               Transform.translate(
                 offset: const Offset(0.0, 2.0),
-                child: const Icon(
+                child: Icon(
                   LxIcons.expandDownSmall,
                   size: iconSize,
                   color: iconColor,
@@ -1956,9 +1960,9 @@ class BalanceWidget extends StatelessWidget {
                   // Doesn't seem to be a vertical variant of this icon...
                   icon: Transform.rotate(
                     angle: 0.5 * math.pi,
-                    child: const Icon(
+                    child: Icon(
                       LxIcons.openCloseChannel,
-                      color: LxColors.fgSecondary,
+                      color: LxTheme.resolve(context, LxColors.fgSecondary),
                     ),
                   ),
                 ),
@@ -2057,7 +2061,9 @@ class WalletActionButton extends StatelessWidget {
           this.label,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size300,
-            color: (!isDisabled) ? LxColors.foreground : LxColors.grey725,
+            color: (!isDisabled)
+                ? LxTheme.resolve(context, LxColors.foreground)
+                : LxTheme.resolve(context, LxColors.grey725),
             fontVariations: [Fonts.weightSemiBold],
           ),
         ),
@@ -2112,7 +2118,7 @@ class WalletBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Space.s400),
       child: Material(
-        color: LxColors.grey1000,
+        color: LxTheme.resolve(context, LxColors.grey1000),
         borderRadius: BorderRadius.circular(LxRadius.r400),
         child: InkWell(
           onTap: this.onTap,
@@ -2126,10 +2132,17 @@ class WalletBanner extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: LxColors.moneyGoUp.withValues(alpha: 0.1),
+                    color: LxTheme.resolve(
+                      context,
+                      LxColors.moneyGoUp,
+                    ).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(LxRadius.r300),
                   ),
-                  child: Icon(this.icon, size: 20, color: LxColors.moneyGoUp),
+                  child: Icon(
+                    this.icon,
+                    size: 20,
+                    color: LxTheme.resolve(context, LxColors.moneyGoUp),
+                  ),
                 ),
                 const SizedBox(width: Space.s300),
 
@@ -2143,7 +2156,7 @@ class WalletBanner extends StatelessWidget {
                         style: Fonts.fontUI.copyWith(
                           fontSize: Fonts.size300,
                           fontVariations: [Fonts.weightSemiBold],
-                          color: LxColors.foreground,
+                          color: LxTheme.resolve(context, LxColors.foreground),
                         ),
                       ),
                       const SizedBox(height: Space.s100),
@@ -2151,7 +2164,7 @@ class WalletBanner extends StatelessWidget {
                         this.subtitle,
                         style: Fonts.fontUI.copyWith(
                           fontSize: Fonts.size200,
-                          color: LxColors.fgSecondary,
+                          color: LxTheme.resolve(context, LxColors.fgSecondary),
                           height: 1.3,
                         ),
                       ),
@@ -2160,7 +2173,11 @@ class WalletBanner extends StatelessWidget {
                 ),
 
                 // Chevron
-                const Icon(LxIcons.next, size: 20, color: LxColors.fgTertiary),
+                Icon(
+                  LxIcons.next,
+                  size: 20,
+                  color: LxTheme.resolve(context, LxColors.fgTertiary),
+                ),
               ],
             ),
           ),
@@ -2240,9 +2257,12 @@ class WalletHints extends StatelessWidget {
             const TextSpan(text: "To send Lightning payments, "),
             TextSpan(
               text: "open a channel!",
-              style: const TextStyle(
+              style: TextStyle(
                 decoration: TextDecoration.underline,
-                decorationColor: LxColors.grey600,
+                decorationColor: LxTheme.resolve(
+                  this.context,
+                  LxColors.grey600,
+                ),
               ),
               recognizer: TapGestureRecognizer()
                 ..onTap = this.onOpenChannelPage,
@@ -2254,8 +2274,8 @@ class WalletHints extends StatelessWidget {
     );
   }
 
-  static const TextStyle hintStyle = TextStyle(
-    color: LxColors.grey550,
+  TextStyle get hintStyle => TextStyle(
+    color: LxTheme.resolve(this.context, LxColors.grey550),
     fontSize: Fonts.size200,
     height: 1.4,
   );
@@ -2381,7 +2401,7 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
                   this.widget.filter.asTitle(),
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
-                    color: LxColors.fgTertiary,
+                    color: LxTheme.resolve(context, LxColors.fgTertiary),
                     fontVariations: [Fonts.weightMedium],
                   ),
                 ),
@@ -2445,13 +2465,16 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
               );
               return false;
             },
-            background: const ColoredBox(
-              color: LxColors.errorText,
+            background: ColoredBox(
+              color: LxTheme.resolve(context, LxColors.errorText),
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Padding(
                   padding: EdgeInsets.only(right: Space.s400),
-                  child: Icon(LxIcons.close, color: LxColors.grey1000),
+                  child: Icon(
+                    LxIcons.close,
+                    color: LxTheme.resolve(context, LxColors.grey1000),
+                  ),
                 ),
               ),
             ),
@@ -2541,7 +2564,7 @@ class PaymentsListEntry extends StatelessWidget {
       maxLines: 1,
       style: Fonts.fontUI.copyWith(
         fontSize: Fonts.size300,
-        color: LxColors.fgSecondary,
+        color: LxTheme.resolve(context, LxColors.fgSecondary),
         fontVariations: [Fonts.weightMedium],
       ),
     );
@@ -2553,13 +2576,25 @@ class PaymentsListEntry extends StatelessWidget {
 
     final Color primaryValueColor = switch ((status, direction)) {
       // Failed payments use tertiary color regardless of direction.
-      (PaymentStatus.failed, _) => LxColors.fgSecondary,
+      (PaymentStatus.failed, _) => LxTheme.resolve(
+        context,
+        LxColors.fgSecondary,
+      ),
       // Info payments use tertiary color (neutral, no balance change).
-      (_, PaymentDirection.info) => LxColors.fgTertiary,
+      (_, PaymentDirection.info) => LxTheme.resolve(
+        context,
+        LxColors.fgTertiary,
+      ),
       // Inbound payments use green to indicate money received.
-      (_, PaymentDirection.inbound) => LxColors.moneyGoUp,
+      (_, PaymentDirection.inbound) => LxTheme.resolve(
+        context,
+        LxColors.moneyGoUp,
+      ),
       // Outbound payments use secondary color.
-      (_, PaymentDirection.outbound) => LxColors.fgSecondary,
+      (_, PaymentDirection.outbound) => LxTheme.resolve(
+        context,
+        LxColors.fgSecondary,
+      ),
     };
 
     final String amountSatsStr = (displaySats != null)
@@ -2592,10 +2627,10 @@ class PaymentsListEntry extends StatelessWidget {
         children: <TextSpan>[
           // prefix with "Failed" to indicate problem w/ payment.
           if (status == PaymentStatus.failed)
-            const TextSpan(
+            TextSpan(
               text: "Failed",
               style: TextStyle(
-                color: LxColors.errorText,
+                color: LxTheme.resolve(context, LxColors.errorText),
                 // fontVariations: [Fonts.weightMedium],
               ),
             ),
@@ -2606,7 +2641,7 @@ class PaymentsListEntry extends StatelessWidget {
         ],
         style: Fonts.fontUI.copyWith(
           fontSize: Fonts.size200,
-          color: LxColors.fgTertiary,
+          color: LxTheme.resolve(context, LxColors.fgTertiary),
         ),
       ),
       maxLines: 1,
@@ -2636,7 +2671,7 @@ class PaymentsListEntry extends StatelessWidget {
           textAlign: TextAlign.end,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size200,
-            color: LxColors.fgTertiary,
+            color: LxTheme.resolve(context, LxColors.fgTertiary),
           ),
         );
       },

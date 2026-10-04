@@ -31,7 +31,8 @@ import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
 import 'package:lexeapp/route/uri/state.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, Space, LxTheme;
 
 class NeedUriPage extends StatelessWidget {
   const NeedUriPage({
@@ -379,7 +380,7 @@ class SendOrClaimChoiceSheet extends StatelessWidget {
     required PaymentMethod paymentMethod,
     required ClaimMethod claimMethod,
   }) => showModalBottomSheet(
-    backgroundColor: LxColors.background,
+    backgroundColor: LxTheme.resolve(context, LxColors.background),
     enableDrag: true,
     isScrollControlled: true,
     isDismissible: true,
@@ -421,9 +422,9 @@ class SendOrClaimChoiceSheet extends StatelessWidget {
           LxFilledButton(
             onTap: () => Navigator.of(context).pop(UriChoice.send),
             style: FilledButton.styleFrom(
-              backgroundColor: LxColors.grey1000,
-              foregroundColor: LxColors.foreground,
-              iconColor: LxColors.foreground,
+              backgroundColor: LxTheme.resolve(context, LxColors.grey1000),
+              foregroundColor: LxTheme.resolve(context, LxColors.foreground),
+              iconColor: LxTheme.resolve(context, LxColors.foreground),
               fixedSize: const Size(300.0, Space.s800),
             ),
             label: Text("Pay via $sendKind"),
@@ -432,9 +433,9 @@ class SendOrClaimChoiceSheet extends StatelessWidget {
           LxFilledButton(
             onTap: () => Navigator.of(context).pop(UriChoice.claim),
             style: FilledButton.styleFrom(
-              backgroundColor: LxColors.grey1000,
-              foregroundColor: LxColors.foreground,
-              iconColor: LxColors.foreground,
+              backgroundColor: LxTheme.resolve(context, LxColors.grey1000),
+              foregroundColor: LxTheme.resolve(context, LxColors.foreground),
+              iconColor: LxTheme.resolve(context, LxColors.foreground),
               fixedSize: const Size(300.0, Space.s800),
             ),
             label: Text("Withdraw via $claimKind"),

@@ -208,9 +208,9 @@ class _ScanPageState extends State<ScanPage> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         // transparent bg header
-        backgroundColor: LxColors.clearB0,
+        backgroundColor: LxTheme.resolve(context, LxColors.clearB0),
         scrolledUnderElevation: 0.0,
-        surfaceTintColor: LxColors.clearB0,
+        surfaceTintColor: LxTheme.resolve(context, LxColors.clearB0),
 
         // X - quit scanning
         leadingWidth: Space.appBarLeadingWidth,
@@ -223,11 +223,21 @@ class _ScanPageState extends State<ScanPage> {
         // * Make the top status bar transparent, so the whole screen includes
         //   the camera view.
         // * Make the bottom nav thing `foreground` instead of black.
-        systemOverlayStyle: LxTheme.systemOverlayStyleLight.copyWith(
-          statusBarColor: LxColors.clearW0,
-          systemNavigationBarColor: LxColors.foreground,
-          systemNavigationBarDividerColor: LxColors.foreground,
-        ),
+        systemOverlayStyle:
+            (Theme.of(context).brightness == Brightness.dark
+                    ? LxTheme.systemOverlayStyleDark
+                    : LxTheme.systemOverlayStyleLight)
+                .copyWith(
+                  statusBarColor: LxTheme.resolve(context, LxColors.clearW0),
+                  systemNavigationBarColor:
+                      Theme.of(context).brightness == Brightness.dark
+                      ? LxColors.grey100
+                      : LxColors.foreground,
+                  systemNavigationBarDividerColor:
+                      Theme.of(context).brightness == Brightness.dark
+                      ? LxColors.grey100
+                      : LxColors.foreground,
+                ),
       ),
       // TODO(phlip9): just show a file picker or something for non-mobile
       //               OS like macOS, linux, windows.
@@ -246,16 +256,21 @@ class _ScanPageState extends State<ScanPage> {
         tryInverted: true,
 
         // Show this while the camera is still loading.
-        loading: const DecoratedBox(
-          decoration: BoxDecoration(color: LxColors.foreground),
+        loading: DecoratedBox(
+          decoration: BoxDecoration(
+            color: LxTheme.resolve(context, LxColors.foreground),
+          ),
           child: Center(),
         ),
 
         // The partially transparent overlay outside of the main scan region.
-        scannerOverlay: const FixedScannerOverlay(
-          borderColor: LxColors.grey975,
+        scannerOverlay: FixedScannerOverlay(
+          borderColor: LxTheme.resolve(context, LxColors.grey975),
           // grey900 x clear700
-          overlayColor: Color(0xb2eff3f5),
+          overlayColor: LxTheme.resolve(
+            context,
+            LxColors.grey900,
+          ).withValues(alpha: LxColors.clearB700.a),
           borderRadius: LxRadius.r400,
           borderLength: 120.0,
           borderWidth: 8.0,

@@ -8,7 +8,7 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SubheadingText;
 import 'package:lexeapp/result.dart' show Err, FfiError, Ok, Result;
-import 'package:lexeapp/style.dart' show Fonts, LxColors, Space;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, Space, LxTheme;
 
 class RawDataPage extends StatefulWidget {
   const RawDataPage({
@@ -65,7 +65,7 @@ class _RawDataPageState extends State<RawDataPage> {
   Widget _buildDataContent() {
     switch (this._resultData) {
       case null:
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.only(top: Space.s400, bottom: Space.s400),
           child: Align(
             alignment: Alignment.topCenter,
@@ -73,7 +73,7 @@ class _RawDataPageState extends State<RawDataPage> {
               dimension: 20.0,
               child: CircularProgressIndicator(
                 strokeWidth: 2.0,
-                color: LxColors.fgTertiary,
+                color: LxTheme.resolve(context, LxColors.fgTertiary),
               ),
             ),
           ),
@@ -94,7 +94,7 @@ class _RawDataPageState extends State<RawDataPage> {
             'Error: $err',
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size200,
-              color: LxColors.foreground,
+              color: LxTheme.resolve(context, LxColors.foreground),
               fontVariations: [Fonts.weightNormal],
             ),
           ),

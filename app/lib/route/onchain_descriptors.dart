@@ -16,7 +16,7 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/share.dart' show LxShare;
-import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart' show LxColors, LxIcons, Space, LxTheme;
 
 /// Shows the user's on-chain wallet descriptors, so they can import them into
 /// a watch-only wallet or on-chain transaction tracker.
@@ -84,14 +84,14 @@ class _OnchainDescriptorsPageState extends State<OnchainDescriptorsPage> {
             valueListenable: this.descriptors,
             builder: (_context, descriptors, _widget) => switch (descriptors) {
               // Loading
-              null => const Padding(
+              null => Padding(
                 padding: EdgeInsets.only(top: Space.s1000),
                 child: Center(
                   child: SizedBox.square(
                     dimension: 20.0,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.0,
-                      color: LxColors.fgTertiary,
+                      color: LxTheme.resolve(context, LxColors.fgTertiary),
                     ),
                   ),
                 ),
