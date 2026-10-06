@@ -90,6 +90,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentMethod_Offer,
         PaymentMethod_Onchain,
         PaymentStatus,
+        PaymentUpdatedIndex,
         RequesterBranding,
         RequesterDisplay,
         RevocableClient,
@@ -447,10 +448,22 @@ class MockAppHandle extends AppHandle {
   Future<void> setupGdrive({
     required GDriveSignupCredentials gdriveSignupCredentials,
   }) => Future.delayed(const Duration(milliseconds: 1000), () {});
+
+  PaymentUpdatedIndex? latestUpdatedIndex() {
+    final index = this.payments
+        .map((payment) => payment.updatedIndex().field0)
+        .maxOrNull;
+    return index == null ? null : PaymentUpdatedIndex(field0: index);
+  }
+
   @override
   Future<PaymentSyncSummary> syncPayments() => Future.delayed(
     const Duration(milliseconds: 1500),
-    () => const PaymentSyncSummary(numNew: 0, numUpdated: 1),
+    () => PaymentSyncSummary(
+      latestUpdatedIndex: this.latestUpdatedIndex(),
+      numNew: 0,
+      numUpdated: 0,
+    ),
   );
 
   @override
@@ -923,8 +936,13 @@ class MockAppHandleScreenshots extends MockAppHandle {
   Future<void> provision() => Future.value();
 
   @override
-  Future<PaymentSyncSummary> syncPayments() =>
-      Future.value(const PaymentSyncSummary(numNew: 0, numUpdated: 0));
+  Future<PaymentSyncSummary> syncPayments() => Future.value(
+    PaymentSyncSummary(
+      latestUpdatedIndex: this.latestUpdatedIndex(),
+      numNew: 0,
+      numUpdated: 0,
+    ),
+  );
 
   @override
   Future<FiatRates> fiatRates() => Future.value(

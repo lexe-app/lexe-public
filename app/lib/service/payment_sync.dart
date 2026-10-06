@@ -1,4 +1,6 @@
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
+import 'package:app_rs_dart/ffi/types.dart' show PaymentUpdatedIndex;
+import 'package:app_rs_dart/ffi/types.ext.dart' show PaymentUpdatedIndexExt;
 import 'package:flutter/foundation.dart';
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
 import 'package:lexeapp/prelude.dart';
@@ -15,12 +17,17 @@ class PaymentSyncService {
 
   bool isDisposed = false;
 
+  /// The max [PaymentUpdatedIndex] the [PaymentSyncService] has observed from
+  /// sync. This is `null` at startup or if there are no payments. Used to
+  /// determine if there are any new/updated payments after a sync.
+  PaymentUpdatedIndex? _latestUpdatedIndex;
+
   /// Notifies after each completed sync, successful or otherwise.
   final LxChangeNotifier _completed = LxChangeNotifier();
   Listenable get completed => this._completed;
 
-  /// Notifies every time we've successfully completed a sync and observed new
-  /// or updated payments.
+  /// Notifies when a successful sync observes a newer update index,
+  /// including updates synced by other callers.
   final LxChangeNotifier _updated = LxChangeNotifier();
   Listenable get updated => this._updated;
 
@@ -42,7 +49,9 @@ class PaymentSyncService {
 
     switch (res) {
       case Ok(:final ok):
-        final anyChanged = ok.numNew > 0 || ok.numUpdated > 0;
+        final latestUpdatedIndex = ok.latestUpdatedIndex;
+        final anyChanged = this._latestUpdatedIndex < latestUpdatedIndex;
+        this._latestUpdatedIndex = latestUpdatedIndex;
         if (anyChanged) this._updated.notify();
         info("payment-sync: anyChanged = $anyChanged");
       case Err(:final err):
