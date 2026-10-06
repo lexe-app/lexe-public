@@ -16,6 +16,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ClaimMethod,
         ClientPaymentId,
         Config,
+        Payment,
         PaymentCreatedIndex,
         PaymentDirection,
         PaymentKind_BuyCashApp,
@@ -393,7 +394,7 @@ class WalletPageState extends State<WalletPage> {
     info("WalletPage: uriEvent: auth-flowResult: $flowResult");
     if (!this.mounted || flowResult == null) return null;
 
-    return const UriFlowResult_Auth();
+    return UriFlowResult_Auth(flowResult);
   }
 
   /// When a user taps a payment URI (ex: "lightning:") in another app/browser,
@@ -712,13 +713,22 @@ class WalletPageState extends State<WalletPage> {
   ///
   /// For lightning payments, we'll also start burst refreshing, so we can
   /// quickly pick up any status changes.
+  ///
+  /// An approved LexeConnect request instead opens the client credentials
+  /// page, which lists the new credential.
   Future<void> onUriFlowSuccess(UriFlowResult flowResult) async {
-    final payment = switch (flowResult) {
-      UriFlowResult_Send(:final sendFlowResult) => sendFlowResult.payment,
-      UriFlowResult_Claim(:final claimFlowResult) => claimFlowResult.payment,
-      UriFlowResult_Auth() => null,
-    };
-    if (payment == null) return;
+    final Payment payment;
+    switch (flowResult) {
+      case UriFlowResult_Send(:final sendFlowResult):
+        payment = sendFlowResult.payment;
+      case UriFlowResult_Claim(:final claimFlowResult):
+        payment = claimFlowResult.payment;
+      case UriFlowResult_Auth(:final lexeConnectFlowResult):
+        if (lexeConnectFlowResult == LexeConnectFlowResult.approved) {
+          this.onClientsMenuPressed();
+        }
+        return;
+    }
 
     // Lightning payments actually have a chance to finalize in the next few
     // seconds, so start a burst refresh.

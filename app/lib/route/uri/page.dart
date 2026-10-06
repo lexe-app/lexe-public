@@ -182,7 +182,7 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     );
     if (!this.mounted || flowResult == null) return null;
 
-    return const UriFlowResult_Auth();
+    return UriFlowResult_Auth(flowResult);
   }
 
   Future<void> onNext() async {

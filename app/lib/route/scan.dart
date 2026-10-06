@@ -191,7 +191,7 @@ class _ScanPageState extends State<ScanPage> {
     info("ScanPage (auth): flowResult: $flowResult, mounted: ${this.mounted}");
     if (!this.mounted || flowResult == null) return null;
 
-    return const UriFlowResult_Auth();
+    return UriFlowResult_Auth(flowResult);
   }
 
   @override

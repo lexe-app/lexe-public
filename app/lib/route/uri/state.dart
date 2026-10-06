@@ -19,7 +19,9 @@ import 'package:lexeapp/address_format.dart'
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/claim/state.dart'
     show ClaimFlowResult, ClaimState, ClaimState_NeedAmount;
-import 'package:lexeapp/route/send/state.dart';
+import 'package:lexeapp/route/lexe_connect.dart' show LexeConnectFlowResult;
+import 'package:lexeapp/route/send/state.dart'
+    show SendFlowResult, SendState, SendState_NeedAmount;
 
 /// The outcome of a successful URI flow.
 @immutable
@@ -37,9 +39,9 @@ class UriFlowResult_Claim implements UriFlowResult {
   final ClaimFlowResult claimFlowResult;
 }
 
-/// An answered auth request, which has no payment to show.
 class UriFlowResult_Auth implements UriFlowResult {
-  const UriFlowResult_Auth();
+  const UriFlowResult_Auth(this.lexeConnectFlowResult);
+  final LexeConnectFlowResult lexeConnectFlowResult;
 }
 
 /// Initial state if we're beginning a URI-based flow with no extra user input.
