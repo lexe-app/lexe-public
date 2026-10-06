@@ -29,17 +29,20 @@ use lexe_serde::hexstr_or_bytes;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{
-    bounded_string::BoundedString,
-    continuation::LdkRouteContinuation,
-    invoice::Invoice,
-    offer::{MaxQuantity, Offer},
-    payer_proof::PayerProof,
-    payments::{
-        ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentKind,
-        PaymentUpdatedIndex,
+use crate::{
+    types::{
+        bounded_string::BoundedString,
+        continuation::LdkRouteContinuation,
+        invoice::Invoice,
+        offer::{MaxQuantity, Offer},
+        payer_proof::PayerProof,
+        payments::{
+            ClientPaymentId, PaymentCreatedIndex, PaymentId, PaymentKind,
+            PaymentUpdatedIndex,
+        },
+        username::Username,
     },
-    username::Username,
+    vfs::{SINGLETON_DIRECTORY, VfsFileId},
 };
 
 // --- General --- //
@@ -195,10 +198,6 @@ pub struct SetupGDrive {
 }
 
 /// Lexe-related settings which the user configures on their node.
-///
-/// This is persisted at [`USER_SETTINGS_FILE_ID`].
-///
-/// [`USER_SETTINGS_FILE_ID`]: crate::vfs::USER_SETTINGS_FILE_ID
 //
 // A setting belongs here if it affects node behavior. Settings which only
 // affect how the app presents things belong in the app's own `SettingsRs`
@@ -208,6 +207,11 @@ pub struct SetupGDrive {
 pub struct UserSettings {
     /// The user-preferred fiat currency. `None` if the user never set one.
     pub preferred_fiat_currency: Option<IsoCurrencyCode>,
+}
+
+impl UserSettings {
+    pub const VFS_FILE_ID: &'static VfsFileId =
+        &VfsFileId::new_const(SINGLETON_DIRECTORY, "user_settings");
 }
 
 /// A partial update to the user's [`UserSettings`].

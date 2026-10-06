@@ -19,6 +19,7 @@ use self::{
     models::UpdateClientRequest,
     scopes::{ClientPermissions, Scope},
 };
+use crate::vfs::{SINGLETON_DIRECTORY, VfsFileId};
 
 /// Request and response types for the revocable client endpoints.
 pub mod models;
@@ -76,6 +77,9 @@ pub struct RevocableClients {
 }
 
 impl RevocableClients {
+    pub const VFS_FILE_ID: &'static VfsFileId =
+        &VfsFileId::new_const(SINGLETON_DIRECTORY, "revocable_clients");
+
     /// A user shouldn't need more than 100 clients.
     pub const MAX_LEN: usize = 100;
 

@@ -55,11 +55,6 @@ pub const PW_ENC_ROOT_SEED_FILENAME: &str = "password_encrypted_root_seed";
 pub const WALLET_CHANGESET_LEGACY_FILENAME: &str = "bdk_wallet_changeset";
 pub const WALLET_CHANGESET_V2_FILENAME: &str = "bdk_wallet_changeset_v2";
 
-pub static REVOCABLE_CLIENTS_FILE_ID: VfsFileId =
-    VfsFileId::new_const(SINGLETON_DIRECTORY, "revocable_clients");
-pub static USER_SETTINGS_FILE_ID: VfsFileId =
-    VfsFileId::new_const(SINGLETON_DIRECTORY, "user_settings");
-
 // --- Trait --- //
 
 /// Lexe's async persistence interface.

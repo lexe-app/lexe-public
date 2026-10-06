@@ -174,7 +174,7 @@ pub(super) async fn update_user_settings(
     let retries = Retries::from_count(1);
     state
         .persister
-        .persist_json(vfs::USER_SETTINGS_FILE_ID.clone(), &updated, retries)
+        .persist_json(UserSettings::VFS_FILE_ID.clone(), &updated, retries)
         .await
         .map_err(NodeApiError::command)?;
 

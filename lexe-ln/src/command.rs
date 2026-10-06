@@ -53,7 +53,7 @@ use lexe_api::{
         retries::Retries,
         username::Username,
     },
-    vfs::{REVOCABLE_CLIENTS_FILE_ID, Vfs},
+    vfs::Vfs,
 };
 use lexe_common::{
     api::{
@@ -2595,7 +2595,7 @@ pub async fn create_revocable_client(
         }
 
         persister.encrypt_json::<RevocableClients>(
-            REVOCABLE_CLIENTS_FILE_ID.clone(),
+            RevocableClients::VFS_FILE_ID.clone(),
             &revocable_clients,
         )
     };
@@ -2705,7 +2705,7 @@ pub async fn update_revocable_client(
 
         // Generate the new file
         let updated_file = persister.encrypt_json::<RevocableClients>(
-            REVOCABLE_CLIENTS_FILE_ID.clone(),
+            RevocableClients::VFS_FILE_ID.clone(),
             &revocable_clients,
         );
 

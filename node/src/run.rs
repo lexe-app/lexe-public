@@ -27,9 +27,7 @@ use lexe_api::{
         payments::OfferId, ports::RunPorts, retries::Retries,
         sealed_seed::SealedSeedId,
     },
-    vfs::{
-        self, REVOCABLE_CLIENTS_FILE_ID, USER_SETTINGS_FILE_ID, Vfs, VfsFileId,
-    },
+    vfs::{self, Vfs, VfsFileId},
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
@@ -401,8 +399,8 @@ impl UserNode {
             persister.read_wallet_changeset(),
             persister.read_scids(),
             pending_payments_fut,
-            persister.read_json::<RevocableClients>(&REVOCABLE_CLIENTS_FILE_ID),
-            persister.read_json::<UserSettings>(&USER_SETTINGS_FILE_ID),
+            persister.read_json::<RevocableClients>(RevocableClients::VFS_FILE_ID),
+            persister.read_json::<UserSettings>(UserSettings::VFS_FILE_ID),
             lexe_ln::persister::read_channel_monitor_bytes(&persister),
         );
         let initial_migrations = try_initial_migrations?;
