@@ -1144,7 +1144,8 @@ Sync payments from the user node to the local payments cache.
 Call periodically to keep local payment data up to date.
 
 Returns:
-    A :class:`PaymentSyncSummary` with counts of new and updated payments.
+    A :class:`PaymentSyncSummary`. Callers can use this to determine if there
+    are new/updated payments after the sync.
 
 Raises:
     FfiError: If the node is unreachable.
@@ -1153,6 +1154,7 @@ Example::
 
     summary = wallet.sync_payments()
     print(f"New: {summary.num_new}, Updated: {summary.num_updated}")
+    print(f"Latest payment updated index: {summary.latest_updated_index}")
 """)
 
 _set_method_doc(LexeWallet, "list_payments", """\
@@ -2166,7 +2168,8 @@ Sync payments from the user node to the local payments cache.
 Call periodically to keep local payment data up to date.
 
 Returns:
-    A :class:`PaymentSyncSummary` with counts of new and updated payments.
+    A :class:`PaymentSyncSummary`. Callers can use this to determine if there
+    are new/updated payments after the sync.
 
 Raises:
     FfiError: If the node is unreachable.
@@ -2175,6 +2178,7 @@ Example::
 
     summary = await wallet.sync_payments()
     print(f"New: {summary.num_new}, Updated: {summary.num_updated}")
+    print(f"Latest payment updated index: {summary.latest_updated_index}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "list_payments", """\
@@ -2787,6 +2791,10 @@ lexe.PaymentSyncSummary.__doc__ = """\
 Summary of a payment sync operation.
 
 Attributes:
+    latest_updated_index: The latest payment ``updated_index`` synced to the
+        local payment db, or ``None`` if empty. If the caller's previous
+        observed index is less than this one, new payments or payment updates
+        have been synced.
     num_new: Number of new payments added to the local DB.
     num_updated: Number of existing payments that were updated.
 """

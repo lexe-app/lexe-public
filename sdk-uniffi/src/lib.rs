@@ -76,6 +76,7 @@ use lexe::{
             PayOnchainRequest as SdkPayOnchainRequest,
             PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
             PayerProofDisclosures as SdkPayerProofDisclosures,
+            PaymentSyncSummary as SdkPaymentSyncSummary,
             RevokeClientRequest as SdkRevokeClientRequest,
             UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
@@ -1471,10 +1472,7 @@ impl AsyncLexeWallet {
     /// Returns an error if local persistence is disabled for this wallet.
     pub async fn sync_payments(&self) -> Result<PaymentSyncSummary, FfiError> {
         let summary = self.inner.sync_payments().await?;
-        Ok(PaymentSyncSummary {
-            num_new: summary.num_new as u64,
-            num_updated: summary.num_updated as u64,
-        })
+        Ok(PaymentSyncSummary::from(summary))
     }
 
     /// List payments from local storage with cursor-based pagination.
@@ -2605,10 +2603,7 @@ impl BlockingLexeWallet {
     /// Returns an error if local persistence is disabled for this wallet.
     pub fn sync_payments(&self) -> Result<PaymentSyncSummary, FfiError> {
         let summary = self.inner.sync_payments()?;
-        Ok(PaymentSyncSummary {
-            num_new: summary.num_new as u64,
-            num_updated: summary.num_updated as u64,
-        })
+        Ok(PaymentSyncSummary::from(summary))
     }
 
     /// List payments from local storage with cursor-based pagination.
@@ -3407,10 +3402,27 @@ impl From<SdkPayment> for Payment {
 /// Summary of a payment sync operation.
 #[derive(Clone, uniffi::Record)]
 pub struct PaymentSyncSummary {
+    /// The latest payment `updated_index` index synced to the local payment
+    /// db, or `None` if empty. If the caller's previous observed index is
+    /// less than this one, new payments or payment updates have been
+    /// synced.
+    pub latest_updated_index: Option<String>,
     /// Number of new payments added to the local DB.
     pub num_new: u64,
     /// Number of existing payments that were updated.
     pub num_updated: u64,
+}
+
+impl From<SdkPaymentSyncSummary> for PaymentSyncSummary {
+    fn from(summary: SdkPaymentSyncSummary) -> Self {
+        Self {
+            latest_updated_index: summary
+                .latest_updated_index
+                .map(|idx| idx.to_string()),
+            num_new: summary.num_new as u64,
+            num_updated: summary.num_updated as u64,
+        }
+    }
 }
 
 /// Response from listing payments.
