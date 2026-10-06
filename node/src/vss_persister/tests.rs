@@ -51,8 +51,8 @@ fn batch_to_request() {
 fn lexe_tls_hosts() {
     for (host, is_lexe, is_loopback) in [
         ("lexe.app", true, false),
-        ("vss.lexe.app", true, false),
-        ("vss.lexe.app.", true, false),
+        ("vss.lexe.app", false, false),
+        ("vss.lexe.app.", false, false),
         ("vss.lx", true, false),
         ("backend.prod.lx.", true, false),
         ("evillexe.app", false, false),
@@ -72,6 +72,16 @@ fn lexe_tls_hosts() {
             );
         }
     }
+}
+
+// ```bash
+// $ cargo test -p node --lib -- --ignored lexe_external
+// ```
+#[ignore = "Makes requests to Lexe external VSS"]
+#[tokio::test]
+async fn lexe_external() {
+    let headers = BTreeMap::new();
+    provider_roundtrip("lexe", "https://vss.lexe.app/vss", headers).await;
 }
 
 // ```bash

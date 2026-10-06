@@ -199,8 +199,11 @@ impl VssProvider {
                 .trim_matches(['[', ']'])
                 .parse::<IpAddr>()
                 .is_ok_and(|ip| ip.is_loopback());
+        // External VSS uses WebPKI TLS
+        let is_lexe_external = host == "vss.lexe.app";
+
         host == "lexe.app"
-            || host.ends_with(".lexe.app")
+            || (host.ends_with(".lexe.app") && !is_lexe_external)
             || host.ends_with(".lx")
             || (deploy_env.is_dev() && is_loopback)
     }
