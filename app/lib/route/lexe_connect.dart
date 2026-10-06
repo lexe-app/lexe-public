@@ -8,10 +8,13 @@ import 'dart:convert' show utf8;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
+        AuthMethod_LexeConnect,
+        BestPaymentUriMethods,
         CredentialDecision,
         CredentialDecision_Approve,
         CredentialDecision_Reject,
         CredentialRequest,
+        Network,
         RequesterDisplay,
         RequesterDisplay_Unverified,
         RequesterDisplay_Verified,
@@ -30,11 +33,13 @@ import 'package:lexeapp/components.dart'
         LxCloseButton,
         LxCloseButtonKind,
         LxOutlinedButton,
-        ScrollableSinglePageBody;
+        ScrollableSinglePageBody,
+        showModalAsyncFlow;
 import 'package:lexeapp/date_time_ext.dart';
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/clients.dart'
     show ExpirationRow, ScopeExt, formatExpiration;
+import 'package:lexeapp/route/scan.dart' show QrScanner;
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
@@ -455,6 +460,77 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
       ),
     );
   }
+}
+
+/// Scans a LexeConnect QR code, then opens its [LexeConnectPage]. Pops with
+/// the delivered [LexeConnectFlowResult], or null if the user backs out.
+class LexeConnectScanPage extends StatefulWidget {
+  const LexeConnectScanPage({
+    super.key,
+    required this.app,
+    required this.network,
+  });
+
+  final AppHandle app;
+  final Network network;
+
+  @override
+  State<LexeConnectScanPage> createState() => _LexeConnectScanPageState();
+}
+
+class _LexeConnectScanPageState extends State<LexeConnectScanPage> {
+  Future<void> onScan(String text) async {
+    final result = await showModalAsyncFlow(
+      context: this.context,
+      future: this.resolveRequest(text),
+      errorBuilder: (context, err) => AlertDialog(
+        title: const Text("Issue with LexeConnect QR code"),
+        content: Text(err),
+        scrollable: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+    final request = result?.ok;
+    if (!this.mounted || request == null) return;
+
+    final LexeConnectFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) =>
+                LexeConnectPage(app: this.widget.app, request: request),
+          ),
+        );
+    if (!this.mounted || flowResult == null) return;
+
+    await Navigator.of(this.context).maybePop(flowResult);
+  }
+
+  Future<Result<CredentialRequest, String>> resolveRequest(String text) async {
+    final result = await Result.tryFfiAsync(
+      () => this.widget.app.resolveBest(
+        network: this.widget.network,
+        uriStr: text,
+      ),
+    );
+    return switch (result) {
+      Ok(
+        ok: BestPaymentUriMethods(
+          authMethod: AuthMethod_LexeConnect(:final field0),
+        ),
+      ) =>
+        Ok(field0),
+      Ok() => const Err("This QR code isn't a LexeConnect request."),
+      Err(:final err) => Err(err.message),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) => QrScanner(onScan: this.onScan);
 }
 
 /// Names the requester and where the credentials will be sent.

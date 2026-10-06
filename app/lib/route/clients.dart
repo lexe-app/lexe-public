@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:app_rs_dart/ffi/api.dart'
     show CreateClientRequest, CreateClientResponse, RevokeClientRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
-import 'package:app_rs_dart/ffi/types.dart' show RevocableClient, Scope;
+import 'package:app_rs_dart/ffi/types.dart'
+    show Network, RevocableClient, Scope;
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
@@ -19,6 +20,7 @@ import 'package:lexeapp/components.dart'
         LxBackButton,
         LxCloseButton,
         LxFilledButton,
+        LxOutlinedButton,
         LxRefreshButton,
         ScrollableSinglePageBody,
         SheetDragHandle,
@@ -29,14 +31,17 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/date_time_ext.dart';
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/route/lexe_connect.dart'
+    show LexeConnectFlowResult, LexeConnectScanPage;
 import 'package:lexeapp/service/clients.dart' show ClientsService;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// This page lets users add, edit, and revoke client credentials.
 class ClientsPage extends StatefulWidget {
-  const ClientsPage({super.key, required this.app});
+  const ClientsPage({super.key, required this.app, required this.network});
 
   final AppHandle app;
+  final Network network;
 
   @override
   State<ClientsPage> createState() => _ClientsPageState();
@@ -81,6 +86,21 @@ class _ClientsPageState extends State<ClientsPage> {
         builder: (context) => ShowCredentialsPage(response: flowResult),
       ),
     );
+  }
+
+  Future<void> onScanPressed() async {
+    final LexeConnectFlowResult? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => LexeConnectScanPage(
+              app: this.widget.app,
+              network: this.widget.network,
+            ),
+          ),
+        );
+    if (!this.mounted || flowResult != LexeConnectFlowResult.approved) return;
+
+    this.triggerRefresh();
   }
 
   Future<void> onRevokePressed(RevocableClient client) async {
@@ -183,13 +203,27 @@ class _ClientsPageState extends State<ClientsPage> {
             },
           ),
         ],
-        // Create button
+        // Scan and create buttons
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
-          child: LxFilledButton.strong(
-            label: const Text("Create credentials"),
-            icon: const Icon(LxIcons.add),
-            onTap: this.onCreatePressed,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: LxOutlinedButton(
+                  label: const Text("LexeConnect QR"),
+                  icon: const Icon(LxIcons.scan),
+                  onTap: this.onScanPressed,
+                ),
+              ),
+              const SizedBox(height: Space.s300),
+              LxFilledButton.strong(
+                label: const Text("Create credentials"),
+                icon: const Icon(LxIcons.add),
+                onTap: this.onCreatePressed,
+              ),
+            ],
           ),
         ),
       ),

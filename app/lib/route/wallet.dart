@@ -786,7 +786,10 @@ class WalletPageState extends State<WalletPage> {
   void onClientsMenuPressed() {
     Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (context) => ClientsPage(app: this.widget.app),
+        builder: (context) => ClientsPage(
+          app: this.widget.app,
+          network: this.widget.config.network,
+        ),
       ),
     );
   }

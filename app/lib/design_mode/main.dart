@@ -1298,12 +1298,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       }),
       Component(
         "SdkClientsPage",
-        (_) => ClientsPage(app: mockApp),
+        (_) => ClientsPage(app: mockApp, network: this.widget.config.network),
         sublist: [
           Component(
             "SdkClientsPage",
             subtitle: "error",
-            (_) => ClientsPage(app: mockAppErr),
+            (_) => ClientsPage(
+              app: mockAppErr,
+              network: this.widget.config.network,
+            ),
           ),
         ],
       ),
