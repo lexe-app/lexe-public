@@ -30,6 +30,7 @@ use lexe_api::{
             PaymentDirection as PaymentDirectionRs,
             PaymentKind as PaymentKindRs, PaymentRail as PaymentRailRs,
             PaymentStatus as PaymentStatusRs,
+            PaymentUpdatedIndex as PaymentUpdatedIndexRs,
         },
         username::Username as UsernameRs,
     },
@@ -427,6 +428,24 @@ impl TryFrom<PaymentCreatedIndex> for PaymentCreatedIndexRs {
     }
 }
 
+/// See [`lexe_api::types::payments::PaymentUpdatedIndex`].
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct PaymentUpdatedIndex(pub String);
+
+impl From<PaymentUpdatedIndexRs> for PaymentUpdatedIndex {
+    fn from(value: PaymentUpdatedIndexRs) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl TryFrom<PaymentUpdatedIndex> for PaymentUpdatedIndexRs {
+    type Error = anyhow::Error;
+    fn try_from(value: PaymentUpdatedIndex) -> Result<Self, Self::Error> {
+        PaymentUpdatedIndexRs::from_str(&value.0)
+    }
+}
+
 /// Just the info we need to display an entry in the payments list UI.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -521,7 +540,20 @@ pub struct Payment {
     pub personal_note: Option<String>,
 
     pub created_at: i64,
+    pub updated_at: i64,
     pub finalized_at: Option<i64>,
+}
+
+impl Payment {
+    /// flutter_rust_bridge:sync
+    pub fn updated_index(&self) -> anyhow::Result<PaymentUpdatedIndex> {
+        let index = PaymentCreatedIndexRs::from_str(&self.index.0)?;
+        let updated_at = TimestampMs::try_from(self.updated_at)?;
+        Ok(PaymentUpdatedIndex::from(PaymentUpdatedIndexRs {
+            updated_at,
+            id: index.id,
+        }))
+    }
 }
 
 impl From<&BasicPaymentV2Rs> for Payment {
@@ -558,6 +590,7 @@ impl From<&BasicPaymentV2Rs> for Payment {
             personal_note: payment.personal_note.as_deref().map(String::from),
 
             created_at: payment.created_at.to_i64(),
+            updated_at: payment.updated_at.to_i64(),
             finalized_at: payment.finalized_at.map(|t| t.to_i64()),
         }
     }
@@ -602,6 +635,7 @@ impl From<PaymentRs> for Payment {
             personal_note: value.personal_note.as_deref().map(String::from),
 
             created_at: value.created_at.to_i64(),
+            updated_at: value.updated_at.to_i64(),
             finalized_at: value.finalized_at.map(TimestampMs::to_i64),
         }
     }

@@ -17,7 +17,7 @@ import 'types.dart';
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_client_payment_id_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
@@ -376,6 +376,18 @@ sealed class PayOnchainRequest with _$PayOnchainRequest {
 sealed class PayOnchainResponse with _$PayOnchainResponse {
   const factory PayOnchainResponse({required PaymentCreatedIndex index}) =
       _PayOnchainResponse;
+}
+
+/// See `lexe::types::command::PaymentSyncSummary`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PaymentSyncSummary with _$PaymentSyncSummary {
+  const factory PaymentSyncSummary({
+    PaymentUpdatedIndex? latestUpdatedIndex,
+    required int numNew,
+    required int numUpdated,
+  }) = _PaymentSyncSummary;
 }
 
 /// See `lexe::types::command::RevokeClientRequest`.

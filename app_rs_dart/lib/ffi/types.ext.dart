@@ -25,6 +25,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentRail_Unknown,
         PaymentRail_WaivedFee,
         PaymentStatus,
+        PaymentUpdatedIndex,
         ShortPayment;
 
 //
@@ -41,6 +42,19 @@ extension PaymentCreatedIndexExt on PaymentCreatedIndex {
     } else {
       return paymentCreatedIndex.substring(splitIdx + 1);
     }
+  }
+}
+
+//
+// PaymentUpdatedIndex
+//
+
+extension PaymentUpdatedIndexExt on PaymentUpdatedIndex? {
+  /// Ordering matches Rust's `Option<PaymentUpdatedIndex>`.
+  bool operator <(PaymentUpdatedIndex? other) {
+    final index = this;
+    return other != null &&
+        (index == null || index.field0.compareTo(other.field0) < 0);
   }
 }
 
@@ -92,6 +106,7 @@ extension PaymentExt on Payment {
     String? message,
     String? personalNote,
     int? createdAt,
+    int? updatedAt,
     int? finalizedAt,
   }) => Payment(
     index: index ?? this.index,
@@ -115,6 +130,7 @@ extension PaymentExt on Payment {
     message: message ?? this.message,
     personalNote: personalNote ?? this.personalNote,
     createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
     finalizedAt: finalizedAt ?? this.finalizedAt,
   );
 

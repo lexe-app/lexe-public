@@ -41,6 +41,7 @@ import 'package:app_rs_dart/ffi/api.dart'
         PayOnchainPreflightResponse,
         PayOnchainRequest,
         PayOnchainResponse,
+        PaymentSyncSummary,
         RevokeClientRequest,
         UpdatePersonalNote,
         UpdateUserSettingsRequest,
@@ -243,7 +244,7 @@ class MockAppHandle extends AppHandle {
     () => const PayOnchainResponse(
       index: PaymentCreatedIndex(
         field0:
-            "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+            "0000001687385080000-os_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
       ),
     ),
   );
@@ -447,8 +448,10 @@ class MockAppHandle extends AppHandle {
     required GDriveSignupCredentials gdriveSignupCredentials,
   }) => Future.delayed(const Duration(milliseconds: 1000), () {});
   @override
-  Future<bool> syncPayments() =>
-      Future.delayed(const Duration(milliseconds: 1500), () => true);
+  Future<PaymentSyncSummary> syncPayments() => Future.delayed(
+    const Duration(milliseconds: 1500),
+    () => const PaymentSyncSummary(numNew: 0, numUpdated: 1),
+  );
 
   @override
   Payment? getPaymentByCreatedIndex({required PaymentCreatedIndex createdIdx}) {
@@ -920,7 +923,8 @@ class MockAppHandleScreenshots extends MockAppHandle {
   Future<void> provision() => Future.value();
 
   @override
-  Future<bool> syncPayments() => Future.value(false);
+  Future<PaymentSyncSummary> syncPayments() =>
+      Future.value(const PaymentSyncSummary(numNew: 0, numUpdated: 0));
 
   @override
   Future<FiatRates> fiatRates() => Future.value(
@@ -1247,6 +1251,7 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
       statusStr: "completed",
       personalNote: "Initial Lexe deposit",
       createdAt: depositCreatedAt,
+      updatedAt: depositCreatedAt + const Duration(minutes: 2).inMilliseconds,
       finalizedAt: depositCreatedAt + const Duration(minutes: 2).inMilliseconds,
       replacement: null,
     ),
@@ -1277,6 +1282,8 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
       statusStr: "completed",
       personalNote: "stacker.news",
       createdAt: stackerNewsCreatedAt,
+      updatedAt:
+          stackerNewsCreatedAt + const Duration(minutes: 2).inMilliseconds,
       finalizedAt:
           stackerNewsCreatedAt + const Duration(minutes: 2).inMilliseconds,
     ),
@@ -1306,6 +1313,7 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
       statusStr: "completed",
       personalNote: "Lunch at Cecilia's",
       createdAt: lunchCreatedAt,
+      updatedAt: lunchCreatedAt + const Duration(minutes: 2).inMilliseconds,
       finalizedAt: lunchCreatedAt + const Duration(minutes: 2).inMilliseconds,
     ),
   ].sortedBy((payment) => payment.index.field0);
@@ -1324,7 +1332,7 @@ MockAppHandle appStoreWalletMockApp({DateTime? now}) => MockAppHandle(
 const Payment dummyOnchainInboundPending01 = Payment(
   index: PaymentCreatedIndex(
     field0:
-        "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+        "0000001687309696000-or_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
   ),
   kind: PaymentKind_Onchain(),
   direction: PaymentDirection.inbound,
@@ -1337,6 +1345,7 @@ const Payment dummyOnchainInboundPending01 = Payment(
   statusStr: "partially confirmed (1-5 confirmations)",
   personalNote: "On-chain top up",
   createdAt: 1687309696000,
+  updatedAt: 1687309696000,
   finalizedAt: null,
   replacement: null,
 );
@@ -1344,7 +1353,7 @@ const Payment dummyOnchainInboundPending01 = Payment(
 const Payment dummyOnchainInboundCompleted01 = Payment(
   index: PaymentCreatedIndex(
     field0:
-        "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
+        "0000001670090492000-or_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
   ),
   kind: PaymentKind_Onchain(),
   direction: PaymentDirection.inbound,
@@ -1357,6 +1366,7 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
   statusStr: "fully confirmed (6+ confirmations)",
   personalNote: "Initial deposit to Lexe",
   createdAt: 1670090492000,
+  updatedAt: 1670090502000,
   finalizedAt: 1670090502000,
   replacement: null,
 );
@@ -1364,7 +1374,7 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
 const Payment dummyOnchainInboundCompleted02 = Payment(
   index: PaymentCreatedIndex(
     field0:
-        "0000001739386001000-bc_70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1",
+        "0000001739386001000-or_70596383fb7dd5c578a5ef348ec77c5979a65ecb4b10bae0ce60e814c35f04f1",
   ),
   kind: PaymentKind_Onchain(),
   direction: PaymentDirection.inbound,
@@ -1377,6 +1387,7 @@ const Payment dummyOnchainInboundCompleted02 = Payment(
   statusStr: "fully confirmed (6+ confirmations)",
   personalNote: "Exchange → Lexe wallet",
   createdAt: 1739386001000,
+  updatedAt: 1739386501000,
   finalizedAt: 1739386501000,
   replacement: null,
 );
@@ -1384,7 +1395,7 @@ const Payment dummyOnchainInboundCompleted02 = Payment(
 const Payment dummyOnchainOutboundCompleted01 = Payment(
   index: PaymentCreatedIndex(
     field0:
-        "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+        "0000001687385080000-os_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
   ),
   kind: PaymentKind_Onchain(),
   direction: PaymentDirection.outbound,
@@ -1397,13 +1408,14 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
   statusStr: "fully confirmed (6+ confirmations)",
   personalNote: "Funding exchange",
   createdAt: 1687385080000,
+  updatedAt: 1687385380000,
   finalizedAt: 1687385380000,
 );
 
 const Payment dummyOnchainOutboundFailed01 = Payment(
   index: PaymentCreatedIndex(
     field0:
-        "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
+        "0000001671818392000-os_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
   ),
   kind: PaymentKind_Onchain(),
   direction: PaymentDirection.outbound,
@@ -1416,6 +1428,7 @@ const Payment dummyOnchainOutboundFailed01 = Payment(
   statusStr: "dropped from mempool",
   personalNote: "Sweep from Muun",
   createdAt: 1671818392000,
+  updatedAt: 1671918392000,
   finalizedAt: 1671918392000,
   replacement: null,
 );
@@ -1435,6 +1448,7 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
   statusStr: "pending",
   personalNote: "😎⚡️🚀😩",
   createdAt: 1686938392000,
+  updatedAt: 1686938392000,
 );
 
 const Payment dummyInvoiceOutboundPending01 = Payment(
@@ -1462,6 +1476,7 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
   statusStr: "pending",
   personalNote: null,
   createdAt: 1686744442000,
+  updatedAt: 1686744442000,
 );
 
 /// Completed outbound invoice payment (3000 sats "Coffee in El Salvador").
@@ -1490,6 +1505,7 @@ const Payment dummyInvoiceOutboundCompleted02 = Payment(
   statusStr: "completed",
   personalNote: null,
   createdAt: 1686744442000,
+  updatedAt: 1686744445000,
   finalizedAt: 1686744445000,
 );
 
@@ -1520,6 +1536,7 @@ const Payment dummyLnInvoiceInboundPendingToComplete = Payment(
   personalNote:
       "To be, or not to be, that is the question: Whether 'tis nobler in the mind to suffer The slings and arrows of outrageous fortune, Or to take arms against a sea of troubles And by opposing end them.",
   createdAt: 1687140003000,
+  updatedAt: 1687140003000,
 );
 
 // Junk payment
@@ -1548,6 +1565,7 @@ const Payment dummyInvoiceInboundPending02 = Payment(
   statusStr: "claiming",
   personalNote: null,
   createdAt: 1714432815000,
+  updatedAt: 1714432815000,
 );
 
 const Payment dummyInvoiceInboundCompleted01 = Payment(
@@ -1575,6 +1593,7 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
   statusStr: "completed",
   personalNote: null,
   createdAt: 1687100002000,
+  updatedAt: 1687100005000,
   finalizedAt: 1687100005000,
 );
 
@@ -1603,6 +1622,7 @@ const Payment dummyInvoiceInboundCompleted02 = Payment(
   statusStr: "completed",
   personalNote: "Lunch at Celia's",
   createdAt: 1739490952000,
+  updatedAt: 1739490955000,
   finalizedAt: 1739490955000,
 );
 
@@ -1632,6 +1652,7 @@ const Payment dummyInvoiceInboundCompleted03 = Payment(
   statusStr: "completed",
   personalNote: "Initial Lightning deposit",
   createdAt: 1740000000000,
+  updatedAt: 1740000003000,
   finalizedAt: 1740000003000,
 );
 
@@ -1661,6 +1682,7 @@ const Payment dummyInvoiceInboundCompleted04 = Payment(
   statusStr: "completed",
   personalNote: "",
   createdAt: 1740000000000,
+  updatedAt: 1740000003000,
   finalizedAt: 1740000003000,
 );
 
@@ -1690,6 +1712,7 @@ const Payment dummyInvoiceInboundFailed01 = Payment(
   statusStr: "expired",
   personalNote: null,
   createdAt: 1700222815000,
+  updatedAt: 1700222815000,
 );
 
 const Payment dummyInvoiceOutboundCompleted01 = Payment(
@@ -1717,6 +1740,7 @@ const Payment dummyInvoiceOutboundCompleted01 = Payment(
   statusStr: "completed",
   personalNote: "stacker.news",
   createdAt: 1739487454000,
+  updatedAt: 1739487458000,
   finalizedAt: 1739487458000,
 );
 
@@ -1746,6 +1770,7 @@ const Payment dummyOfferOutboundPayment01 = Payment(
   message: "Thanks for building this project.",
   personalNote: "Donation",
   createdAt: 1748993362000,
+  updatedAt: 1748993364000,
   finalizedAt: 1748993364000,
 );
 
@@ -1771,6 +1796,7 @@ const Payment dummyOfferInboundPayment01 = Payment(
       "Looking forward to collaborating on the project.",
   personalNote: null,
   createdAt: 1748999074000,
+  updatedAt: 1748999075000,
   finalizedAt: 1748999075000,
 );
 
@@ -1778,7 +1804,7 @@ const Payment dummyOfferInboundPayment01 = Payment(
 const Payment dummyWaivedChannelFee01 = Payment(
   index: PaymentCreatedIndex(
     field0:
-        "0000001749100000000-wf_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+        "0000001749100000000-ln_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
   ),
   kind: PaymentKind_WaivedChannelFee(),
   direction: PaymentDirection.info,
@@ -1790,6 +1816,7 @@ const Payment dummyWaivedChannelFee01 = Payment(
   statusStr: "completed",
   personalNote: null,
   createdAt: 1749100000000,
+  updatedAt: 1749100001000,
   finalizedAt: 1749100001000,
 );
 
@@ -1819,6 +1846,7 @@ const Payment dummyBuyCashAppInbound01 = Payment(
   statusStr: "completed",
   personalNote: null,
   createdAt: 1749200000000,
+  updatedAt: 1749200003000,
   finalizedAt: 1749200003000,
 );
 
@@ -1850,6 +1878,7 @@ const Payment dummyLightningAddressInbound01 = Payment(
   message: "Thanks for the coffee!",
   personalNote: null,
   createdAt: 1749210000000,
+  updatedAt: 1749210002000,
   finalizedAt: 1749210002000,
 );
 
@@ -1874,6 +1903,7 @@ const Payment dummyHumanBitcoinAddressInbound01 = Payment(
   message: "Sats for the ramen 🍜",
   personalNote: null,
   createdAt: 1749220000000,
+  updatedAt: 1749220002000,
   finalizedAt: 1749220002000,
 );
 

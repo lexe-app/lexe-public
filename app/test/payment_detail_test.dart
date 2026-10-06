@@ -54,6 +54,7 @@ Payment _paymentWithPayerFields(
     message: message ?? base.message,
     personalNote: base.personalNote,
     createdAt: base.createdAt,
+    updatedAt: base.updatedAt,
     finalizedAt: base.finalizedAt,
   );
 }

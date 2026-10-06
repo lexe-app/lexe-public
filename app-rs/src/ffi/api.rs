@@ -11,6 +11,7 @@ use lexe::types::{
         CreateClientRequest as CreateClientRequestRs,
         CreateClientResponse as CreateClientResponseRs,
         GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs,
+        PaymentSyncSummary as PaymentSyncSummaryRs,
         RevokeClientRequest as RevokeClientRequestRs,
         UpdatePersonalNoteRequest as UpdatePersonalNoteRequestRs,
         WithdrawLnurlRequest as WithdrawLnurlRequestRs,
@@ -70,8 +71,8 @@ use lexe_crypto::ed25519;
 
 use crate::ffi::types::{
     ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
-    LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind, Scope,
-    UserChannelId,
+    LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind,
+    PaymentUpdatedIndex, Scope, UserChannelId,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -818,6 +819,27 @@ impl From<WithdrawLnurlRequest> for WithdrawLnurlRequestRs {
             amount: Some(Amount::from_msat(value.amount_msat)),
             description: value.description,
             personal_note: value.personal_note,
+        }
+    }
+}
+
+/// See `lexe::types::command::PaymentSyncSummary`.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct PaymentSyncSummary {
+    pub latest_updated_index: Option<PaymentUpdatedIndex>,
+    pub num_new: usize,
+    pub num_updated: usize,
+}
+
+impl From<PaymentSyncSummaryRs> for PaymentSyncSummary {
+    fn from(summary: PaymentSyncSummaryRs) -> Self {
+        Self {
+            latest_updated_index: summary
+                .latest_updated_index
+                .map(PaymentUpdatedIndex::from),
+            num_new: summary.num_new,
+            num_updated: summary.num_updated,
         }
     }
 }

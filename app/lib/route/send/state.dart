@@ -318,6 +318,7 @@ class SendState_Preflighted implements SendState {
     };
 
     final res = await Result.tryFfiAsync(() => this.app.payOnchain(req: req));
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     return res.map(
       (resp) => SendFlowResult(
         payment: Payment(
@@ -332,7 +333,8 @@ class SendState_Preflighted implements SendState {
           // response.
 
           // TODO(phlip9): get this from resp/index
-          createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+          createdAt: now,
+          updatedAt: now,
           // TODO(phlip9): get from resp
           amountSats: preflighted.amountSats,
           // TODO(phlip9): get from resp
@@ -362,6 +364,7 @@ class SendState_Preflighted implements SendState {
     );
 
     final res = await Result.tryFfiAsync(() => this.app.payInvoice(req: req));
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     return res.map(
       (resp) => SendFlowResult(
         payment: Payment(
@@ -378,7 +381,8 @@ class SendState_Preflighted implements SendState {
           // response.
 
           // TODO(phlip9): get from resp/index
-          createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+          createdAt: now,
+          updatedAt: now,
           // TODO(phlip9): get from resp
           amountSats: preflighted.preflight.amountSats,
           // TODO(phlip9): get from resp
@@ -406,6 +410,7 @@ class SendState_Preflighted implements SendState {
     );
 
     final res = await Result.tryFfiAsync(() => this.app.payOffer(req: req));
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     return res.map(
       (resp) => SendFlowResult(
         payment: Payment(
@@ -423,7 +428,8 @@ class SendState_Preflighted implements SendState {
           // response.
 
           // TODO(phlip9): get from resp/index
-          createdAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+          createdAt: now,
+          updatedAt: now,
           // TODO(phlip9): get from resp
           amountSats: preflighted.preflight.amountSats,
           // TODO(phlip9): get from resp

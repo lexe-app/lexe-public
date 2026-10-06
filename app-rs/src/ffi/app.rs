@@ -53,9 +53,9 @@ use crate::ffi::{
         PayInvoiceRequest, PayInvoiceResponse, PayOfferPreflightRequest,
         PayOfferPreflightResponse, PayOfferRequest, PayOfferResponse,
         PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-        PayOnchainRequest, PayOnchainResponse, RevokeClientRequest,
-        UpdatePersonalNote, UpdateUserSettingsRequest, UserSettings,
-        WithdrawLnurlRequest,
+        PayOnchainRequest, PayOnchainResponse, PaymentSyncSummary,
+        RevokeClientRequest, UpdatePersonalNote, UpdateUserSettingsRequest,
+        UserSettings, WithdrawLnurlRequest,
     },
     app_data::AppDataDb,
     settings::SettingsDb,
@@ -463,14 +463,11 @@ impl AppHandle {
     }
 
     /// Sync the local payment DB to the remote node.
-    ///
-    /// Returns `true` if any payment changed, so we know whether to reload the
-    /// payment list UI.
-    pub async fn sync_payments(&self) -> anyhow::Result<bool> {
+    pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
         self.inner
             .sync_payments()
             .await
-            .map(|summary| summary.num_new > 0 || summary.num_updated > 0)
+            .map(PaymentSyncSummary::from)
     }
 
     /// flutter_rust_bridge:sync

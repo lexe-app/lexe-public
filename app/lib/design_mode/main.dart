@@ -250,12 +250,14 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           completedFeesSats = p.feesSats;
         }
 
+        final finalizedAt = DateTime.now().millisecondsSinceEpoch;
         notifier.value = p.copyWith(
           amountSats: completedAmountSats,
           feesSats: completedFeesSats,
           status: PaymentStatus.completed,
           statusStr: "completed",
-          finalizedAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: finalizedAt,
+          finalizedAt: finalizedAt,
         );
       }),
     );

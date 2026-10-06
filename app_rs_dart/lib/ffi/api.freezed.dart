@@ -2122,6 +2122,68 @@ String toString() {
 
 
 /// @nodoc
+mixin _$PaymentSyncSummary {
+
+ PaymentUpdatedIndex? get latestUpdatedIndex; int get numNew; int get numUpdated;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentSyncSummary&&(identical(other.latestUpdatedIndex, latestUpdatedIndex) || other.latestUpdatedIndex == latestUpdatedIndex)&&(identical(other.numNew, numNew) || other.numNew == numNew)&&(identical(other.numUpdated, numUpdated) || other.numUpdated == numUpdated));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,latestUpdatedIndex,numNew,numUpdated);
+
+@override
+String toString() {
+  return 'PaymentSyncSummary(latestUpdatedIndex: $latestUpdatedIndex, numNew: $numNew, numUpdated: $numUpdated)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _PaymentSyncSummary implements PaymentSyncSummary {
+  const _PaymentSyncSummary({this.latestUpdatedIndex, required this.numNew, required this.numUpdated});
+  
+
+@override final  PaymentUpdatedIndex? latestUpdatedIndex;
+@override final  int numNew;
+@override final  int numUpdated;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PaymentSyncSummary&&(identical(other.latestUpdatedIndex, latestUpdatedIndex) || other.latestUpdatedIndex == latestUpdatedIndex)&&(identical(other.numNew, numNew) || other.numNew == numNew)&&(identical(other.numUpdated, numUpdated) || other.numUpdated == numUpdated));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,latestUpdatedIndex,numNew,numUpdated);
+
+@override
+String toString() {
+  return 'PaymentSyncSummary(latestUpdatedIndex: $latestUpdatedIndex, numNew: $numNew, numUpdated: $numUpdated)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$RevokeClientRequest {
 
  String get pubkey;

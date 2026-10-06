@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`, `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 int get hbaClaimMinBalanceSats =>
@@ -528,6 +528,7 @@ sealed class Onchain with _$Onchain {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Payment with _$Payment {
+  const Payment._();
   const factory Payment({
     required PaymentCreatedIndex index,
     required PaymentKind kind,
@@ -550,8 +551,13 @@ sealed class Payment with _$Payment {
     String? message,
     String? personalNote,
     required int createdAt,
+    required int updatedAt,
     int? finalizedAt,
   }) = _Payment;
+
+  /// flutter_rust_bridge:sync
+  PaymentUpdatedIndex updatedIndex() =>
+      AppRs.instance.api.crateFfiTypesPaymentUpdatedIndex(that: this);
 }
 
 /// See [`lexe_api::types::payments::PaymentCreatedIndex`].
@@ -614,6 +620,15 @@ sealed class PaymentRail with _$PaymentRail {
 }
 
 enum PaymentStatus { pending, completed, failed }
+
+/// See [`lexe_api::types::payments::PaymentUpdatedIndex`].
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class PaymentUpdatedIndex with _$PaymentUpdatedIndex {
+  const factory PaymentUpdatedIndex({required String field0}) =
+      _PaymentUpdatedIndex;
+}
 
 /// A verified REQUESTER's own name and icon, from its `requester_name` and
 /// `requester_icon` params.

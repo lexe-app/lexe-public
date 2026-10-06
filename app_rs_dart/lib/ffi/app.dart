@@ -298,10 +298,7 @@ class AppHandle {
   );
 
   /// Sync the local payment DB to the remote node.
-  ///
-  /// Returns `true` if any payment changed, so we know whether to reload the
-  /// payment list UI.
-  Future<bool> syncPayments() =>
+  Future<PaymentSyncSummary> syncPayments() =>
       AppRs.instance.api.crateFfiAppAppHandleSyncPayments(that: this);
 
   /// Claim or update the user's custom Human Bitcoin Address.

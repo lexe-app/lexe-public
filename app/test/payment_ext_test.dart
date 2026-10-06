@@ -42,6 +42,7 @@ const Payment paymentAllFields = Payment(
   message: "thanks for the coffee",
   personalNote: "my own note",
   createdAt: 1687140003000,
+  updatedAt: 1687140004000,
   finalizedAt: 1687140004000,
 );
 

@@ -42,7 +42,7 @@ class PaymentSyncService {
 
     switch (res) {
       case Ok(:final ok):
-        final anyChanged = ok;
+        final anyChanged = ok.numNew > 0 || ok.numUpdated > 0;
         if (anyChanged) this._updated.notify();
         info("payment-sync: anyChanged = $anyChanged");
       case Err(:final err):
