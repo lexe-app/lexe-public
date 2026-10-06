@@ -35,28 +35,7 @@ class ScanPage extends StatefulWidget {
 }
 
 class _ScanPageState extends State<ScanPage> {
-  ValueNotifier<bool> isProcessing = ValueNotifier(false);
-
-  @override
-  void dispose() {
-    this.isProcessing.dispose();
-
-    super.dispose();
-  }
-
-  Future<void> onScan(final Code code) async {
-    final text = code.text;
-
-    // flutter_zxing doesn't call our callback w/ invalid codes, but `Code`
-    // stuffs both valid/error cases in one struct...
-    if (text == null) return;
-
-    // Skip any new results if we're still processing a prev. scanned QR code.
-    if (this.isProcessing.value) return;
-
-    // Start loading animation
-    this.isProcessing.value = true;
-
+  Future<void> onScan(String text) async {
     // Try resolving the payment URI to "best" payment and claim methods
     // TODO(nicole): 2x showModalAsyncFlow causes a flicker effect; need to fix
     final resolveResult = await showModalAsyncFlow(
@@ -74,13 +53,9 @@ class _ScanPageState extends State<ScanPage> {
         ],
       ),
     );
-    if (!this.mounted) return;
 
     // User canceled
-    if (resolveResult == null) {
-      this.isProcessing.value = false;
-      return;
-    }
+    if (!this.mounted || resolveResult == null) return;
 
     // Check the resolve result
     final BestPaymentUriMethods best;
@@ -89,7 +64,6 @@ class _ScanPageState extends State<ScanPage> {
         best = ok;
       case Err(:final err):
         error("ScanPage: URI resolution error: $err");
-        this.isProcessing.value = false;
         return;
     }
 
@@ -102,11 +76,7 @@ class _ScanPageState extends State<ScanPage> {
           paymentMethod: paymentMethod,
           claimMethod: claimMethod,
         );
-        if (!this.mounted) return;
-        if (userChoice == null) {
-          this.isProcessing.value = false;
-          return;
-        }
+        if (!this.mounted || userChoice == null) return;
         flowResult = switch (userChoice) {
           UriChoice.send => await this._handlePaymentMethod(paymentMethod),
           UriChoice.claim => await this._handleClaimMethod(claimMethod),
@@ -125,13 +95,10 @@ class _ScanPageState extends State<ScanPage> {
         error(
           "ScanPage: Failed to resolve scanned URI -- this is a bug, please report.",
         );
-        this.isProcessing.value = false;
         return;
     }
 
-    if (!this.mounted) return;
-    this.isProcessing.value = false;
-    if (flowResult == null) return;
+    if (!this.mounted || flowResult == null) return;
 
     // Successfully processed payment -- return result to parent page.
     await Navigator.of(this.context).maybePop(flowResult);
@@ -225,6 +192,39 @@ class _ScanPageState extends State<ScanPage> {
     if (!this.mounted || flowResult == null) return null;
 
     return const UriFlowResult_Auth();
+  }
+
+  @override
+  Widget build(BuildContext context) => QrScanner(onScan: this.onScan);
+}
+
+/// A full-screen camera QR code scanner. Passes each scanned code's text to
+/// [onScan], ignoring new codes until it completes.
+class QrScanner extends StatefulWidget {
+  const QrScanner({super.key, required this.onScan});
+
+  final Future<void> Function(String text) onScan;
+
+  @override
+  State<QrScanner> createState() => _QrScannerState();
+}
+
+class _QrScannerState extends State<QrScanner> {
+  bool isProcessing = false;
+
+  Future<void> onScan(Code code) async {
+    final text = code.text;
+
+    // flutter_zxing doesn't call our callback w/ invalid codes, but `Code`
+    // stuffs both valid/error cases in one struct...
+    if (text == null || this.isProcessing) return;
+
+    this.isProcessing = true;
+    try {
+      await this.widget.onScan(text);
+    } finally {
+      this.isProcessing = false;
+    }
   }
 
   @override
