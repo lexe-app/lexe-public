@@ -124,6 +124,11 @@ mod test {
             |params: &mut rcgen::CertificateParams| {
                 params.is_ca =
                     rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+                params.use_authority_key_identifier_extension = true;
+                params.key_usages = vec![
+                    rcgen::KeyUsagePurpose::KeyCertSign,
+                    rcgen::KeyUsagePurpose::CrlSign,
+                ];
                 params.name_constraints = None;
             },
         );
