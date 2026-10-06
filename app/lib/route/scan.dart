@@ -95,6 +95,7 @@ class _ScanPageState extends State<ScanPage> {
           paymentMethod: paymentMethod,
           claimMethod: claimMethod,
         );
+        if (!this.mounted) return;
         if (userChoice == null) {
           this.isProcessing.value = false;
           return;
@@ -124,8 +125,9 @@ class _ScanPageState extends State<ScanPage> {
         return;
     }
 
+    if (!this.mounted) return;
     this.isProcessing.value = false;
-    if (!this.mounted || flowResult == null) return;
+    if (flowResult == null) return;
 
     // Successfully processed payment -- return result to parent page.
     await Navigator.of(this.context).maybePop(flowResult);
