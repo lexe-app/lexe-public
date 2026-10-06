@@ -118,6 +118,13 @@ class ScrollableSinglePageBody extends StatelessWidget {
     final bodySlivers = this.bodySlivers;
     final bottom = this.bottom;
 
+    // Keep the bottom widgets clear of system insets, like Android's
+    // navigation bar, which edge-to-edge pages draw underneath.
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomPadding = this.bottomPadding.copyWith(
+      bottom: max(this.bottomPadding.bottom, bottomInset + Space.s200),
+    );
+
     final sliversPrePadding = <Widget>[
       // The primary body widgets (if sliver widgets).
       if (bodySlivers != null) ...bodySlivers,
@@ -131,7 +138,7 @@ class ScrollableSinglePageBody extends StatelessWidget {
           hasScrollBody: false,
           child: Align(
             alignment: this.bottomAlignment,
-            child: Padding(padding: this.bottomPadding, child: bottom),
+            child: Padding(padding: bottomPadding, child: bottom),
           ),
         ),
     ];
