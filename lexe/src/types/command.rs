@@ -805,6 +805,10 @@ pub struct CreatePayerProofResponse {
 /// Summary of changes from a payment sync operation.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentSyncSummary {
+    /// The latest [`PaymentUpdatedIndex`] synced to the local payment db, or
+    /// `None` if empty. If the caller's previous observed index is less than
+    /// this one, new payments or payment updates have been synced.
+    pub latest_updated_index: Option<PaymentUpdatedIndex>,
     /// Number of new payments added to the local database.
     pub num_new: usize,
     /// Number of existing payments that were updated.

@@ -1941,11 +1941,15 @@ impl SyncPaymentsArgs {
         let PaymentSyncSummary {
             num_new,
             num_updated,
+            latest_updated_index,
         } = summary;
         println!(
             "Local payments cache synced to user node data: \
              {num_new} new, {num_updated} updated",
         );
+        if let Some(index) = latest_updated_index {
+            println!("Latest payment updated index: {index}");
+        }
         Ok(())
     }
 }

@@ -160,9 +160,8 @@ pub(crate) async fn sync_payments<F: Ffs>(
 ) -> anyhow::Result<PaymentSyncSummary> {
     assert!(batch_size > 0);
 
-    let mut start_index = db.state.read().unwrap().latest_updated_index();
-
     let mut summary = PaymentSyncSummary {
+        latest_updated_index: db.latest_updated_index(),
         num_new: 0,
         num_updated: 0,
     };
@@ -175,7 +174,7 @@ pub(crate) async fn sync_payments<F: Ffs>(
         .await
         .context("Failed to fetch the latest payment update")?
         .latest_update;
-    if latest_update <= start_index {
+    if latest_update <= summary.latest_updated_index {
         // Record the local-clock sync time, even if nothing changed, so we can
         // later tell users how fresh their local cache is.
         db.record_synced_at(TimestampMs::now())
@@ -189,7 +188,7 @@ pub(crate) async fn sync_payments<F: Ffs>(
         let req = command::GetUpdatedPayments {
             // Remember, this start index is _exclusive_.
             // The payment w/ this index will _NOT_ be included in the response.
-            start_index,
+            start_index: summary.latest_updated_index,
             limit: Some(batch_size),
         };
 
@@ -206,9 +205,7 @@ pub(crate) async fn sync_payments<F: Ffs>(
             .context("Failed to upsert payments")?;
         summary.num_new += new;
         summary.num_updated += updated;
-
-        // Update the `start_index` we'll use for the next batch.
-        start_index = latest_updated_index;
+        summary.latest_updated_index = latest_updated_index;
 
         // If the node returned fewer payments than our requested batch size,
         // then we are done (there are no more new payments after this batch).
@@ -1275,6 +1272,7 @@ mod test {
         assert_eq!(mock_node.call_counter.get(), 0);
         assert_eq!(summary.num_new, 0);
         assert_eq!(summary.num_updated, 0);
+        assert_eq!(summary.latest_updated_index, None);
         assert!(db.last_synced_at().is_some());
         db.debug_assert_invariants();
     }
@@ -1380,7 +1378,7 @@ mod test {
 
                 // Sync empty DB from node
                 let db = PaymentsDb::empty(mock_ffs);
-                rt.block_on(sync_payments(
+                let summary = rt.block_on(sync_payments(
                     &db,
                     &mock_gateway,
                     &mock_node,
@@ -1388,6 +1386,10 @@ mod test {
                     req_batch_size,
                 ))
                 .unwrap();
+                assert_eq!(
+                    summary.latest_updated_index,
+                    db.latest_updated_index(),
+                );
                 assert_db_payments_eq(
                     &db.state.read().unwrap().payments,
                     &mock_node.payments.borrow(),
@@ -1397,7 +1399,7 @@ mod test {
                 // Reread db from ffs and resync - should still match node
                 let mock_ffs = db.ffs;
                 let db = PaymentsDb::read(mock_ffs).unwrap();
-                rt.block_on(sync_payments(
+                let summary = rt.block_on(sync_payments(
                     &db,
                     &mock_gateway,
                     &mock_node,
@@ -1405,6 +1407,13 @@ mod test {
                     req_batch_size,
                 ))
                 .unwrap();
+                assert_eq!(summary.num_new, 0);
+                assert_eq!(summary.num_updated, 0);
+                assert_eq!(
+                    summary.latest_updated_index,
+                    db.latest_updated_index(),
+                );
+                assert!(summary.latest_updated_index.is_some());
                 assert_db_payments_eq(
                     &db.state.read().unwrap().payments,
                     &mock_node.payments.borrow(),
@@ -1485,7 +1494,7 @@ mod test {
                 finalize_some_payments();
 
                 // resync -- should pick up the finalized payments
-                rt.block_on(sync_payments(
+                let summary = rt.block_on(sync_payments(
                     &db,
                     &mock_gateway,
                     &mock_node,
@@ -1493,6 +1502,10 @@ mod test {
                     req_batch_size,
                 ))
                 .unwrap();
+                assert_eq!(
+                    summary.latest_updated_index,
+                    db.latest_updated_index(),
+                );
 
                 assert_db_payments_eq(
                     &db.state.read().unwrap().payments,
