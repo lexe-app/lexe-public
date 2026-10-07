@@ -2,9 +2,46 @@ package app.lexe.lexeapp
 
 // import android.content.Context
 // import android.os.Bundle
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerClient.InstallReferrerResponse
+import com.android.installreferrer.api.InstallReferrerStateListener
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        // Keep in sync with <app/lib/uri_events.dart::_installReferrerConnectUri>
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.lexe/install_referrer")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInstallReferrer" -> getInstallReferrer(result)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    // Replies with the Play Store install referrer, or null if unavailable.
+    private fun getInstallReferrer(result: MethodChannel.Result) {
+        val client = InstallReferrerClient.newBuilder(this).build()
+        client.startConnection(object : InstallReferrerStateListener {
+            override fun onInstallReferrerSetupFinished(responseCode: Int) {
+                val referrer = if (responseCode == InstallReferrerResponse.OK) {
+                    runCatching { client.installReferrer.installReferrer }.getOrNull()
+                } else {
+                    null
+                }
+                client.endConnection()
+                result.success(referrer)
+            }
+
+            // The Dart caller times out if setup never finishes.
+            override fun onInstallReferrerServiceDisconnected() {}
+        })
+    }
 
     // TODO(phlip9): uncomment when I actually need this
     // //

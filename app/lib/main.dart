@@ -52,7 +52,10 @@ Future<void> main() async {
       maybeApp = null;
   }
 
-  final uriEvents = await UriEvents.prod();
+  // If this is a brand new wallet, also look for a Google Play post-install
+  // "referrer" code, which may be e.g. a LexeConnect code from our
+  // https://lexe.app/connect landing page.
+  final uriEvents = await UriEvents.prod(fromInstallReferrer: maybeApp == null);
 
   // Determine the current system locale and set the global `Intl.systemLocale`.
   await intl_standalone.findSystemLocale();
