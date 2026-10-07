@@ -1,6 +1,6 @@
 [package]
 name = "lexe-uri"
-version = "0.1.25"
+version = "0.1.26"
 license = "MIT"
 description = "Minimal URI parsing and encoding"
 documentation = "https://docs.rs/lexe-uri"
