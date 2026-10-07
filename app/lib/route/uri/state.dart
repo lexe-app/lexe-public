@@ -39,9 +39,13 @@ class UriFlowResult_Claim implements UriFlowResult {
   final ClaimFlowResult claimFlowResult;
 }
 
-class UriFlowResult_Auth implements UriFlowResult {
-  const UriFlowResult_Auth(this.lexeConnectFlowResult);
+class UriFlowResult_LexeConnect implements UriFlowResult {
+  const UriFlowResult_LexeConnect(this.lexeConnectFlowResult);
   final LexeConnectFlowResult lexeConnectFlowResult;
+}
+
+class UriFlowResult_LnurlAuth implements UriFlowResult {
+  const UriFlowResult_LnurlAuth();
 }
 
 /// Initial state if we're beginning a URI-based flow with no extra user input.

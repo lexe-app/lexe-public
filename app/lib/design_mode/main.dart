@@ -26,6 +26,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         CredentialRequest,
         GDriveStatus,
         Invoice,
+        LnurlAuthAction,
+        LnurlAuthRequest,
         LnurlPay,
         LnurlPayRequest,
         LnurlPayRequestMetadata,
@@ -95,6 +97,7 @@ import 'package:lexeapp/route/initial_deposit/page.dart'
     show InitialDepositPage, InitialDepositSuccessPage;
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/lexe_connect.dart' show LexeConnectPage;
+import 'package:lexeapp/route/lnurl_auth.dart' show LnurlAuthPage;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/onchain_descriptors.dart'
     show OnchainDescriptorsPage;
@@ -1404,6 +1407,41 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 label: "BillSplit App",
                 expiresAt: null,
               ),
+            ),
+          ),
+        ],
+      ),
+      Component(
+        "LnurlAuthPage",
+        subtitle: "login",
+        (_) =>
+            LnurlAuthPage(app: mockApp, request: mocks.defaultLnurlAuthRequest),
+        sublist: [
+          for (final action in [
+            LnurlAuthAction.register,
+            LnurlAuthAction.link,
+            LnurlAuthAction.auth,
+            null,
+          ])
+            Component(
+              "LnurlAuthPage",
+              subtitle: action?.name ?? "no action",
+              (_) => LnurlAuthPage(
+                app: mockApp,
+                request: LnurlAuthRequest(
+                  baseUrl: mocks.defaultLnurlAuthRequest.baseUrl,
+                  domain: mocks.defaultLnurlAuthRequest.domain,
+                  k1: mocks.defaultLnurlAuthRequest.k1,
+                  action: action,
+                ),
+              ),
+            ),
+          Component(
+            "LnurlAuthPage",
+            subtitle: "lookalike domain, error on approve",
+            (_) => LnurlAuthPage(
+              app: mockAppErr,
+              request: mocks.lookalikeLnurlAuthRequest,
             ),
           ),
         ],

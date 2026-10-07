@@ -3,6 +3,7 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         AuthMethod,
         AuthMethod_LexeConnect,
+        AuthMethod_LnurlAuth,
         BestPaymentUriMethods,
         ClaimMethod,
         ClaimMethod_LnurlWithdraw,
@@ -31,6 +32,8 @@ import 'package:lexeapp/route/claim/page.dart' show ClaimPaymentPage;
 import 'package:lexeapp/route/claim/state.dart' show ClaimFlowResult;
 import 'package:lexeapp/route/lexe_connect.dart'
     show LexeConnectFlowResult, LexeConnectPage;
+import 'package:lexeapp/route/lnurl_auth.dart'
+    show LnurlAuthFlowResult, LnurlAuthPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
@@ -374,7 +377,21 @@ Future<UriFlowResult?> pushAuthFlow(
         ),
       );
       info("pushAuthFlow: LexeConnect flowResult: $flowResult");
-      return (flowResult != null) ? UriFlowResult_Auth(flowResult) : null;
+      return (flowResult != null)
+          ? UriFlowResult_LexeConnect(flowResult)
+          : null;
+
+    case AuthMethod_LnurlAuth(:final field0):
+      final LnurlAuthFlowResult? flowResult = await navigator.push(
+        MaterialPageRoute(
+          builder: (_) => LnurlAuthPage(app: app, request: field0),
+        ),
+      );
+      info("pushAuthFlow: LNURL-auth flowResult: $flowResult");
+      return switch (flowResult) {
+        LnurlAuthFlowResult.approved => const UriFlowResult_LnurlAuth(),
+        null => null,
+      };
   }
 }
 

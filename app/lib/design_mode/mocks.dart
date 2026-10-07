@@ -57,6 +57,7 @@ import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
         AuthMethod_LexeConnect,
+        AuthMethod_LnurlAuth,
         BackupInfo,
         BestPaymentUriMethods,
         ClaimMethod_LnurlWithdraw,
@@ -66,6 +67,8 @@ import 'package:app_rs_dart/ffi/types.dart'
         GDriveSignupCredentials,
         GDriveStatus,
         Invoice,
+        LnurlAuthAction,
+        LnurlAuthRequest,
         LnurlPay,
         LnurlPayRequest,
         LnurlPayRequestMetadata,
@@ -599,6 +602,10 @@ class MockAppHandle extends AppHandle {
   }) => Future.delayed(const Duration(milliseconds: 1000), () => null);
 
   @override
+  Future<void> approveLnurlAuth({required LnurlAuthRequest request}) =>
+      Future.delayed(const Duration(milliseconds: 1000));
+
+  @override
   Future<BestPaymentUriMethods> resolveBest({
     required Network network,
     required String uriStr,
@@ -622,6 +629,12 @@ class MockAppHandle extends AppHandle {
           LnurlPay(payRequest: defaultLnurlPayRequest, lnurl: defaultLnurl),
         ),
         claimMethod: null,
+      );
+    }
+
+    if (uriStr.startsWith("keyauth")) {
+      return BestPaymentUriMethods(
+        authMethod: AuthMethod_LnurlAuth(defaultLnurlAuthRequest),
       );
     }
 
@@ -861,6 +874,15 @@ class MockAppHandleErr extends MockAppHandle {
       "[106=Command] Failed to create credential: Unknown scope: fly",
     ).toFfi(),
   );
+
+  @override
+  Future<void> approveLnurlAuth({required LnurlAuthRequest request}) =>
+      Future.delayed(
+        const Duration(milliseconds: 1000),
+        () => throw const FfiError(
+          "LNURL-auth failed: Invalid signature",
+        ).toFfi(),
+      );
 
   @override
   Future<List<RevocableClient>> listClients() => Future.delayed(
@@ -2113,6 +2135,21 @@ final LnurlWithdrawRequest defaultLnurlWithdrawRequest = LnurlWithdrawRequest(
   defaultDescription: "Withdraw from Laisee.org",
   minWithdrawableMsat: 2000,
   maxWithdrawableMsat: 10000,
+);
+
+final LnurlAuthRequest defaultLnurlAuthRequest = LnurlAuthRequest(
+  baseUrl: "https://accounts.example.com/lnurl-auth?tag=login",
+  domain: "accounts.example.com",
+  k1: U8Array32(Uint8List(32)),
+  action: LnurlAuthAction.login,
+);
+
+/// Imitates `wallet.legit-money.site` with `vv`, `1`, `rn`, and `0`.
+final LnurlAuthRequest lookalikeLnurlAuthRequest = LnurlAuthRequest(
+  baseUrl: "https://vvallet.1egit-rn0ney.site/lnurl-auth?tag=login",
+  domain: "vvallet.1egit-rn0ney.site",
+  k1: U8Array32(Uint8List(32)),
+  action: LnurlAuthAction.login,
 );
 
 const CredentialRequest defaultCredentialRequest = CredentialRequest(

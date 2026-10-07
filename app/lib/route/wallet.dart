@@ -94,8 +94,9 @@ import 'package:lexeapp/route/uri/state.dart'
     show
         NeedUriState,
         UriFlowResult,
-        UriFlowResult_Auth,
         UriFlowResult_Claim,
+        UriFlowResult_LexeConnect,
+        UriFlowResult_LnurlAuth,
         UriFlowResult_Send;
 import 'package:lexeapp/service/background_error.dart'
     show BackgroundError, BackgroundErrorKind, BackgroundErrorService;
@@ -706,10 +707,12 @@ class WalletPageState extends State<WalletPage> {
         payment = sendFlowResult.payment;
       case UriFlowResult_Claim(:final claimFlowResult):
         payment = claimFlowResult.payment;
-      case UriFlowResult_Auth(:final lexeConnectFlowResult):
+      case UriFlowResult_LexeConnect(:final lexeConnectFlowResult):
         if (lexeConnectFlowResult == LexeConnectFlowResult.approved) {
           this.onClientsMenuPressed();
         }
+        return;
+      case UriFlowResult_LnurlAuth():
         return;
     }
 
