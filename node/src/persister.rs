@@ -994,34 +994,34 @@ impl PaymentsPersisterMethods for NodePersister {
         &self,
         ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentV2>> {
-        if ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let token = self.get_token().await?;
-        Ok(self
-            .backend_api
-            .get_payments_by_ids(VecPaymentId { ids }, token)
-            .await
-            .context("Could not fetch payments by IDs")?
-            .payments)
+        let token = &self.get_token().await?;
+        persister::fetch_by_ids_chunked(ids, move |ids| async move {
+            let req = VecPaymentId { ids };
+            let resp = self
+                .backend_api
+                .get_payments_by_ids(req, token.clone())
+                .await
+                .context("Could not fetch payments by IDs")?;
+            Ok(resp.payments)
+        })
+        .await
     }
 
     async fn get_payment_metadatas_by_ids(
         &self,
         ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentMetadata>> {
-        if ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let token = self.get_token().await?;
-        Ok(self
-            .backend_api
-            .get_payment_metadata_by_ids(VecPaymentId { ids }, token)
-            .await
-            .context("Could not fetch metadata by IDs")?
-            .metadatas)
+        let token = &self.get_token().await?;
+        persister::fetch_by_ids_chunked(ids, move |ids| async move {
+            let req = VecPaymentId { ids };
+            let resp = self
+                .backend_api
+                .get_payment_metadata_by_ids(req, token.clone())
+                .await
+                .context("Could not fetch metadata by IDs")?;
+            Ok(resp.metadatas)
+        })
+        .await
     }
 
     fn decrypt_payment_with_metadata(

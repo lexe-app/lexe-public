@@ -1,6 +1,7 @@
 use std::{
     cmp,
     collections::{HashMap, HashSet},
+    future::Future,
     io::Cursor,
     str::FromStr,
     sync::Arc,
@@ -359,6 +360,25 @@ where
 
     chain_monitor.flush(deferred_ops, logger);
     Ok(())
+}
+
+// --- Payments by-IDs helper --- //
+
+/// Fetches items by payment ID in concurrent chunks of
+/// [`MAX_PAYMENTS_BATCH_SIZE`](constants::MAX_PAYMENTS_BATCH_SIZE), the
+/// backend's limit on by-IDs requests.
+pub async fn fetch_by_ids_chunked<T, F, Fut>(
+    ids: Vec<PaymentId>,
+    fetch: F,
+) -> anyhow::Result<Vec<T>>
+where
+    F: Fn(Vec<PaymentId>) -> Fut,
+    Fut: Future<Output = anyhow::Result<Vec<T>>>,
+{
+    let chunk_size = usize::from(constants::MAX_PAYMENTS_BATCH_SIZE);
+    let futs = ids.chunks(chunk_size).map(|chunk| fetch(chunk.to_vec()));
+    let chunks = futures::future::try_join_all(futs).await?;
+    Ok(chunks.into_iter().flatten().collect())
 }
 
 // --- LightningPersisterMethods --- //
