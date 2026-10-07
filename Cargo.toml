@@ -317,7 +317,7 @@ lightning-types = "0.4.0-beta1"
 # Required by tokio
 mio = "0.8"
 # Used by node to encode and decode NWC requests
-nostr = { version = "0.44", features = ["nip44"] }
+nostr = { version = "0.44.8", features = ["nip44"] }
 # Safe and small crypto primitives based on BoringSSL
 ring = "0.17"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
@@ -414,10 +414,6 @@ lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch =
 # * fortanix: replacing `insecure_time` with `free` usercall in `Waker`
 mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2025_12_02" }
 # mio = { path = "../mio" }
-
-# * license: Add dual license information
-# * pool+chore: remove clone on relay pool, decrease min tokio version
-nostr = { git = "https://github.com/lexe-app/nostr", branch = "lexe-v0.44.0-2025_11_11" }
 
 # * license: Add dual license information
 # * lint: allow `mismatched_lifetime_syntaxes`
