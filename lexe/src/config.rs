@@ -178,17 +178,13 @@ impl WalletEnvConfig {
         }
     }
 
-    /// Construct a [`WalletEnvConfig`].
+    /// Construct a [`WalletEnvConfig`] with a custom gateway URL.
     #[cfg(feature = "unstable")]
-    pub fn new(
-        wallet_env: WalletEnv,
-        gateway_url: Cow<'static, str>,
-        user_agent: Cow<'static, str>,
-    ) -> Self {
+    pub fn new(wallet_env: WalletEnv, gateway_url: Cow<'static, str>) -> Self {
         Self {
             wallet_env,
             gateway_url,
-            user_agent,
+            user_agent: Cow::Borrowed(*SDK_USER_AGENT),
         }
     }
 

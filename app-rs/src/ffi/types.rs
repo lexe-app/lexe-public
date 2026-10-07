@@ -160,6 +160,7 @@ pub struct Config {
     pub use_sgx: bool,
     pub lexe_data_dir: String,
     pub use_mock_secret_store: bool,
+    /// "app-ios/0.10.7+62"
     pub user_agent: String,
 }
 
@@ -204,8 +205,9 @@ impl Config {
         WalletEnvConfig::new(
             self.wallet_env(),
             Cow::Owned(self.gateway_url.clone()),
-            Cow::Owned(self.user_agent.clone()),
         )
+        // Final user agent: e.g. "app-ios/0.10.7+62 lexe/0.1.25 node/0.10.6"
+        .with_user_agent_prefix(&self.user_agent)
     }
 
     /// flutter_rust_bridge:ignore

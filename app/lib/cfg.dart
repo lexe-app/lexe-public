@@ -173,7 +173,7 @@ Future<Config> build(final UserAgent userAgent) async {
     gatewayUrl: gatewayUrl,
     lexeDataDir: lexeDataDir.path,
     useMockSecretStore: false,
-    userAgent: userAgent.toCompactApiString(),
+    userAgent: userAgent.toUserAgentToken(),
   );
 }
 
@@ -189,7 +189,7 @@ Future<Config> buildTest({UserAgent? userAgent}) async {
     gatewayUrl: "<no-dev-gateway-url>",
     lexeDataDir: lexeDataDir.path,
     useMockSecretStore: true,
-    userAgent: (userAgent ?? UserAgent.dummy()).toCompactApiString(),
+    userAgent: (userAgent ?? UserAgent.dummy()).toUserAgentToken(),
   );
 }
 
@@ -236,9 +236,9 @@ final class UserAgent {
     };
   }
 
-  /// Return a compact string for use as an HTTP request user agent.
-  /// ex: "app-ios-0.6.2+5"
-  String toCompactApiString() => "app-${this.osName}-${this.version}";
+  /// The app's HTTP user agent token; the SDK appends its own.
+  /// ex: "app-ios/0.6.2+5"
+  String toUserAgentToken() => "app-${this.osName}/${this.version}";
 
   @override
   String toString() =>
