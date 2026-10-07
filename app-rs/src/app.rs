@@ -10,7 +10,7 @@ use std::{
     time::Instant,
 };
 
-use anyhow::{Context, anyhow, bail};
+use anyhow::{Context, bail};
 use lexe::{
     config::{
         WalletEnv, WalletEnvConfig, WalletEnvDbConfig, WalletUserConfig,
@@ -285,21 +285,7 @@ impl App {
     }
 
     pub async fn provision(&self) -> anyhow::Result<()> {
-        let secret_store = SecretStore::new(
-            self.use_mock_secret_store,
-            self.wallet_env(),
-            self.user_db_config.env_db_dir(),
-        );
-        let maybe_root_seed = secret_store
-            .read_root_seed()
-            .context("Failed to read root seed from SecretStore")?;
-
-        // If there's nothing in the secret store, this must be a fresh install;
-        // we can just return here.
-        let root_seed = match maybe_root_seed {
-            None => return Err(anyhow!("No root seed found")),
-            Some(s) => s,
-        };
+        let root_seed = self.read_root_seed()?;
 
         let credentials = CredentialsRef::from(&root_seed);
         let allow_gvfs_access = true;
@@ -322,16 +308,7 @@ impl App {
         backup_password: &str,
         google_auth_code: String,
     ) -> anyhow::Result<()> {
-        let secret_store = SecretStore::new(
-            self.use_mock_secret_store,
-            self.wallet_env(),
-            self.user_db_config.env_db_dir(),
-        );
-        let root_seed = secret_store
-            .read_root_seed()
-            .context("Failed to read root seed from SecretStore")?
-            .context("Couldn't find root seed in SecretStore")?;
-
+        let root_seed = self.read_root_seed()?;
         let encrypted_seed = root_seed
             .password_encrypt(backup_password)
             .context("Could not encrypt root seed under password")?;
@@ -371,6 +348,17 @@ impl App {
 
     pub fn lnurl_client(&self) -> &lnurl::LnurlClient {
         self.wallet.lnurl_client()
+    }
+
+    pub fn read_root_seed(&self) -> anyhow::Result<SdkRootSeed> {
+        SecretStore::new(
+            self.use_mock_secret_store,
+            self.wallet_env(),
+            self.user_db_config.env_db_dir(),
+        )
+        .read_root_seed()
+        .context("Failed to read root seed from SecretStore")?
+        .context("Couldn't find root seed in SecretStore")
     }
 
     fn wallet_env(&self) -> WalletEnv {

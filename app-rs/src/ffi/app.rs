@@ -62,9 +62,9 @@ use crate::ffi::{
     types::{
         AppUserInfo, AuthMethod, BackupInfo, BestPaymentUriMethods,
         ClaimMethod, Config, CredentialDecision, GDriveSignupCredentials,
-        Invoice, LnurlPayRequest, Network, Payment, PaymentCreatedIndex,
-        PaymentMethod, RevocableClient, RootSeed, Scope, ShortPayment,
-        Username,
+        Invoice, LnurlAuthRequest, LnurlPayRequest, Network, Payment,
+        PaymentCreatedIndex, PaymentMethod, RevocableClient, RootSeed, Scope,
+        ShortPayment, Username,
     },
 };
 pub(crate) use crate::{
@@ -737,6 +737,20 @@ impl AppHandle {
             credential: resp.client_credentials.export_string(),
             expires_at,
         })
+    }
+
+    /// Approve an LNURL-auth request.
+    #[instrument(skip_all, name = "(approve-lnurl-auth)")]
+    pub async fn approve_lnurl_auth(
+        &self,
+        request: LnurlAuthRequest,
+    ) -> anyhow::Result<()> {
+        let auth_req = lexe_payment_uri::LnurlAuthRequest::from(request);
+        let root_seed = self.inner.read_root_seed()?;
+        self.inner
+            .lnurl_client()
+            .resolve_auth_request(&auth_req, root_seed.unstable())
+            .await
     }
 
     /// Resolve a [`LnurlPayRequest`] that we just received + the amount in

@@ -35,6 +35,12 @@ class AppHandle {
   AppDataDb appDataDb() =>
       AppRs.instance.api.crateFfiAppAppHandleAppDataDb(that: this);
 
+  /// Approve an LNURL-auth request.
+  Future<void> approveLnurlAuth({required LnurlAuthRequest request}) => AppRs
+      .instance
+      .api
+      .crateFfiAppAppHandleApproveLnurlAuth(that: this, request: request);
+
   Future<BackupInfo> backupInfo() =>
       AppRs.instance.api.crateFfiAppAppHandleBackupInfo(that: this);
 
