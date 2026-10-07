@@ -1,0 +1,2 @@
+- Fixed: the payments list now refreshes reliably when payments arrive or update
+- Fixed: lexe.app/connect links now open directly in the Lexe app on iPhone
