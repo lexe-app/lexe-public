@@ -1,0 +1,4 @@
+- New: LexeConnect. Approve a 3rd party request to connect to your wallet by scanning a QR or opening a lexe.app/connect link.
+- Client credentials can now be created with expirations attached. Pick a preset, custom date, or never, and see each one's expiration.
+- Fixed bottom buttons hidden under the Android navigation bar
+- Fixed claimed payments not opening after claiming from a link
