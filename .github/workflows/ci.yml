@@ -185,10 +185,15 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Allow `-Zrustdoc-mergeable-info` on stable.
+      # See: `just/rustdoc-bootstrap.sh`
+      __CARGO_TEST_CHANNEL_OVERRIDE_DO_NOT_USE_THIS: nightly
+      RUSTDOC: ${{ github.workspace }}/just/rustdoc-bootstrap.sh
     steps:
       - uses: actions/checkout@v6
       - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --locked --no-deps --document-private-items
+      - run: cargo doc -Zrustdoc-mergeable-info --locked --no-deps --document-private-items
       # don't cache built docs, they take up a lot of space and rebuild quickly
       - run: rm -rf target/doc/
 
