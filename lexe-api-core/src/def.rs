@@ -94,8 +94,8 @@ use crate::{
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
             DbNwcClientFields, GetNwcClients, ListNwcClientResponse,
-            NostrPkStruct, NostrSignedEvent, NwcRequest,
-            UpdateNwcClientRequest, UpdateNwcClientResponse, VecDbNwcClient,
+            NostrPkStruct, UpdateNwcClientRequest, UpdateNwcClientResponse,
+            VecDbNwcClient,
         },
         runner::{
             MegaNodeApiUserEvictRequest, MegaNodeApiUserRunRequest,
@@ -649,15 +649,12 @@ pub trait LexeNodeRunApi {
         req: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError>;
 
-    /// POST /lexe/nwc_request [`NwcRequest`] -> [`NostrSignedEvent`]
+    /// POST /lexe/nwc_request [`Bytes`] -> [`Bytes`]
     ///
-    /// Processes an encrypted NWC request from the nostr-bridge.
-    /// The node will decrypt the request, execute the command, and return
-    /// an encrypted response.
-    async fn nwc_request(
-        &self,
-        req: NwcRequest,
-    ) -> Result<NostrSignedEvent, NodeApiError>;
+    /// Request and response bodies are signed Nostr events encoded as JSON.
+    /// The node decrypts and executes the request, and
+    /// returns a signed event containing the encrypted response.
+    async fn nwc_request(&self, req: Bytes) -> Result<Bytes, NodeApiError>;
 }
 
 /// Defines the API the runner exposes to mega nodes.

@@ -14,16 +14,6 @@ use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-/// A 32-byte Nostr event id.
-#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[repr(transparent)]
-pub struct NostrEventId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
-
-lexe_byte_array::impl_byte_array!(NostrEventId, 32);
-lexe_byte_array::impl_debug_display_as_hex!(NostrEventId);
-
 /// A Nostr x-only public key. Like `nostr::PublicKey`, it isn't validated as a
 /// curve point.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
@@ -188,30 +178,13 @@ pub struct VecDbNwcClient {
     pub nwc_clients: Vec<DbNwcClient>,
 }
 
-// ---- Requests and responses  Nostr-bridge <-> Node ---- //
+// ---- Nostr events ---- //
 
-/// Request from nostr-bridge to user node with an encrypted NWC request.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct NwcRequest {
-    /// The nostr PK of the sender of the message (also, the NWC client app).
-    pub client_nostr_pk: NostrPk,
-    /// The Nostr PK of the recipient (the wallet service PK).
-    pub wallet_nostr_pk: NostrPk,
-    /// The nostr event hex id. Used to build the response nostr event.
-    pub event_id: NostrEventId,
-    /// The NIP-44 v2 encrypted payload containing the NWC request.
-    #[serde(with = "base64_or_bytes")]
-    pub nip44_payload: Vec<u8>,
-}
-
-/// Generic signed nostr event.
-///
-/// Used for to forward nostr events from the node to nostr-bridge.
+/// A signed Nostr event in a JSON API message.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct NostrSignedEvent {
-    /// Base64 encoded string of the Json-encoded event.
+    /// The event, serialized as JSON.
     #[serde(with = "base64_or_bytes")]
     pub event: Vec<u8>,
 }
@@ -579,18 +552,8 @@ mod test {
     }
 
     #[test]
-    fn nwc_request_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<NwcRequest>();
-    }
-
-    #[test]
     fn nostr_signed_event_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<NostrSignedEvent>();
-    }
-
-    #[test]
-    fn nostr_event_id_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<NostrEventId>();
     }
 
     #[test]

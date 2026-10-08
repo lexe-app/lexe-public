@@ -7,11 +7,11 @@ use lexe_api::{
     models::{
         command::{CreateInvoiceRequest, CreateInvoiceResponse, ResyncRequest},
         nwc::{
-            NostrSignedEvent, NwcRequest,
+            NostrPk,
             nip47::{NwcRequestPayload, NwcResponsePayload},
         },
     },
-    server::{LxJson, extract::LxQuery},
+    server::{LxBytes, LxJson, extract::LxQuery},
     types::Empty,
 };
 use lexe_common::{
@@ -20,6 +20,7 @@ use lexe_common::{
 };
 use lexe_crypto::rng::SysRng;
 use lexe_ln::{background_processor, command::CreateInvoiceCaller, test_event};
+use nostr::{Event, util::JsonUtil};
 use tracing::warn;
 
 use crate::server::RouterState;
@@ -113,30 +114,34 @@ pub(super) async fn create_invoice(
 
 pub(super) async fn nwc_request(
     State(state): State<Arc<RouterState>>,
-    LxJson(req): LxJson<NwcRequest>,
-) -> Result<LxJson<NostrSignedEvent>, NodeApiError> {
+    LxBytes(req): LxBytes,
+) -> Result<LxBytes, NodeApiError> {
+    let event = Event::from_json(req)
+        .context("Failed to decode NWC request event")
+        .map_err(NodeApiError::command)?;
+    let client_nostr_pk = NostrPk(event.pubkey.to_bytes());
     let nwc_client = state
         .persister
-        .read_nwc_client(req.client_nostr_pk)
+        .read_nwc_client(client_nostr_pk)
         .await
         .map_err(NodeApiError::command)?;
 
-    // Check that the client and wallet pks in the request match what we stored.
-    if nwc_client.client_nostr_pk() != &req.client_nostr_pk {
+    let wallet_nostr_pk = event
+        .tags
+        .public_keys()
+        .next()
+        .map(|pk| NostrPk(pk.to_bytes()))
+        .context("Missing wallet #p tag")
+        .map_err(NodeApiError::command)?;
+    if nwc_client.client_nostr_pk() != &client_nostr_pk {
         return Err(NodeApiError::command("Client nostr pk mismatch"));
     }
-    if nwc_client.wallet_nostr_pk() != &req.wallet_nostr_pk {
+    if nwc_client.wallet_nostr_pk() != &wallet_nostr_pk {
         return Err(NodeApiError::command("Wallet nostr pk mismatch"));
     }
 
-    // NIP-44 provides authenticated encryption using ECDH (X25519) + ChaCha20-
-    // Poly1305. This guarantees integrity: only someone with the client's
-    // secret key could have encrypted the request, and only we (with the
-    // wallet's secret key from VFS) can decrypt it. A spoofed client pk in the
-    // request would fail decryption since the ECDH shared secret wouldn't
-    // match.
     let decrypted_json = nwc_client
-        .decrypt_nip44_request(&req.nip44_payload)
+        .decrypt_nip44_request(&event.content)
         .map_err(NodeApiError::command)?;
 
     let request_payload: NwcRequestPayload =
@@ -166,14 +171,13 @@ pub(super) async fn nwc_request(
         .expect("NwcResponsePayload serialization cannot fail");
 
     let mut rng = SysRng::new();
-
     let nip44_payload = nwc_client
         .encrypt_nip44_response(&mut rng, &response_json)
         .map_err(NodeApiError::command)?;
 
     let response = nwc_client
-        .build_response(&mut rng, req.event_id, nip44_payload)
+        .build_response(&mut rng, event.id, nip44_payload)
         .map_err(NodeApiError::command)?;
 
-    Ok(LxJson(response))
+    Ok(LxBytes::from(response.as_json()))
 }

@@ -1,10 +1,8 @@
 use std::time::Instant;
 
 use anyhow::Context;
-use bitcoin::base64::{self, Engine};
 use lexe_api::models::nwc::{
-    DbNwcClient, DbNwcClientFields, NostrEventId, NostrPk, NostrSignedEvent,
-    NostrSk, NwcClientInfo,
+    DbNwcClient, DbNwcClientFields, NostrPk, NostrSk, NwcClientInfo,
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
@@ -259,7 +257,7 @@ impl NwcClient {
     /// [NIP-44]: https://github.com/nostr-protocol/nips/blob/master/44.md
     pub(crate) fn decrypt_nip44_request(
         &self,
-        encrypted_payload: &[u8],
+        encrypted_payload: &str,
     ) -> anyhow::Result<String> {
         let wallet_nostr_sk = convert::to_nostr_sk(self.wallet_nostr_sk());
         let client_nostr_pk = convert::to_nostr_pk(self.client_nostr_pk());
@@ -297,30 +295,20 @@ impl NwcClient {
     pub(crate) fn build_response(
         &self,
         rng: &mut impl Crng,
-        event_id: NostrEventId,
+        event_id: nostr::EventId,
         content: String,
-    ) -> anyhow::Result<NostrSignedEvent> {
-        let event = {
-            let kind = nostr::Kind::WalletConnectResponse;
-            let client_nostr_pk = convert::to_nostr_pk(self.client_nostr_pk());
-            let event_id = nostr::event::EventId::from_byte_array(event_id.0);
-            let now = Instant::now();
-            let keys =
-                nostr::Keys::new(convert::to_nostr_sk(self.wallet_nostr_sk()));
+    ) -> anyhow::Result<nostr::Event> {
+        let kind = nostr::Kind::WalletConnectResponse;
+        let client_nostr_pk = convert::to_nostr_pk(self.client_nostr_pk());
+        let now = Instant::now();
+        let keys =
+            nostr::Keys::new(convert::to_nostr_sk(self.wallet_nostr_sk()));
 
-            nostr::EventBuilder::new(kind, content)
-                .tag(nostr::Tag::public_key(client_nostr_pk))
-                .tag(nostr::Tag::event(event_id))
-                .sign_with_ctx(&SECP256K1, rng, &now, &keys)?
-        };
-
-        let event_json = serde_json::to_string(&event)
-            .context("Failed to serialize nwc response")?;
-        let event_bytes = base64::engine::general_purpose::STANDARD_NO_PAD
-            .encode(event_json.as_bytes())
-            .into_bytes();
-
-        Ok(NostrSignedEvent { event: event_bytes })
+        let event = nostr::EventBuilder::new(kind, content)
+            .tag(nostr::Tag::public_key(client_nostr_pk))
+            .tag(nostr::Tag::event(event_id))
+            .sign_with_ctx(&SECP256K1, rng, &now, &keys)?;
+        Ok(event)
     }
 }
 
@@ -550,7 +538,7 @@ mod test {
 
         // Wallet service decrypts the request
         let decrypted_request = nwc_wallet
-            .decrypt_nip44_request(encrypted_request.as_bytes())
+            .decrypt_nip44_request(&encrypted_request)
             .expect("Wallet decryption should succeed");
 
         assert_eq!(decrypted_request, request_payload);
