@@ -115,8 +115,8 @@ use crate::{
         manager::{NewPaymentResult, PaymentsManager},
         outbound::{
             self, DEFAULT_MAX_RETRY_ATTEMPTS, LxOutboundPaymentFailure,
-            OUTBOUND_PAYMENT_RETRY_STRATEGY, OutboundInvoicePaymentV2,
-            OutboundOfferPaymentV2,
+            OUTBOUND_PAYMENT_RETRY_STRATEGY, OutboundInvoicePaymentStatus,
+            OutboundInvoicePaymentV2, OutboundOfferPaymentV2,
         },
     },
     route::{self, LastHopHint, RoutingContext},
@@ -1224,9 +1224,19 @@ where
     .await?;
 
     match preflighted {
-        PreflightedPayInvoice::Exists { .. } => Err(anyhow!(
-            "You already paid this invoice. Invoices can only be paid once."
-        )),
+        PreflightedPayInvoice::Exists { oipwm } => {
+            use OutboundInvoicePaymentStatus::*;
+            let msg = match oipwm.payment.status {
+                Pending | Abandoning => "We're already paying this invoice.",
+                Completed =>
+                    "You already paid this invoice. \
+                     Invoices can only be paid once.",
+                Failed =>
+                    "A previous attempt to pay this invoice failed. \
+                     Please request a new invoice.",
+            };
+            Err(anyhow!(msg))
+        }
         PreflightedPayInvoice::Ready {
             oipwm,
             ldk_route,
