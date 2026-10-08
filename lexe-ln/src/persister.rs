@@ -13,7 +13,8 @@ use lexe_api::{
     models::command::{GetUpdatedPaymentMetadata, GetUpdatedPayments},
     types::{
         payments::{
-            DbPaymentMetadata, DbPaymentV2, PaymentId, PaymentUpdatedIndex,
+            BasicPaymentV2, DbPaymentMetadata, DbPaymentV2, PaymentId,
+            PaymentUpdatedIndex,
         },
         retries::Retries,
     },
@@ -873,6 +874,22 @@ pub trait PaymentsPersisterMethods: LightningPersisterMethods {
                 let pwm_updated_at = TimestampMs::try_from(pwm_updated_at)
                     .context("Invalid pwm_updated_at")?;
                 Ok((pwm, pwm_updated_at))
+            })
+            .collect()
+    }
+
+    /// [`Self::get_updated_payments_with_metadata`], as [`BasicPaymentV2`]s.
+    async fn get_updated_basic_payments(
+        &self,
+        req: GetUpdatedPayments,
+    ) -> anyhow::Result<Vec<BasicPaymentV2>> {
+        self.get_updated_payments_with_metadata(req)
+            .await?
+            .into_iter()
+            .map(|(pwm, updated_at)| {
+                let created_at =
+                    pwm.payment.created_at().unwrap_or_else(TimestampMs::now);
+                Ok(pwm.into_basic_payment(created_at, updated_at))
             })
             .collect()
     }

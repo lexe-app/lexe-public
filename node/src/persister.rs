@@ -540,21 +540,6 @@ impl NodePersister {
             .collect::<anyhow::Result<Vec<BasicPaymentV1>>>()
     }
 
-    pub(crate) async fn get_updated_basic_payments(
-        &self,
-        req: GetUpdatedPayments,
-    ) -> anyhow::Result<Vec<BasicPaymentV2>> {
-        self.get_updated_payments_with_metadata(req)
-            .await?
-            .into_iter()
-            .map(|(pwm, updated_at)| {
-                let created_at =
-                    pwm.payment.created_at().unwrap_or_else(TimestampMs::now);
-                Ok(pwm.into_basic_payment(created_at, updated_at))
-            })
-            .collect()
-    }
-
     pub(crate) async fn read_payment_by_id(
         &self,
         id: PaymentId,

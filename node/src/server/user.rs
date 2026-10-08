@@ -73,6 +73,7 @@ use lexe_ln::{
         PayInvoiceRequestInner,
     },
     p2p,
+    persister::PaymentsPersisterMethods,
 };
 use lexe_tokio::task::MaybeLxTask;
 use tracing::warn;
