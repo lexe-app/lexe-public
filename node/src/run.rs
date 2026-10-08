@@ -35,7 +35,7 @@ use lexe_common::{
         models::BroadcastedTx,
         user::{GetNewScidsRequest, NodePk, User, UserPk},
     },
-    constants::timeout,
+    constants::{self, timeout},
     env::DeployEnv,
     ln::{balance::OnchainBalance, hashes::Txid, network::Network},
     net,
@@ -895,6 +895,7 @@ impl UserNode {
         const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-run-server)";
         let lexe_tls_and_dns = None;
         let lexe_layer_config = LayerConfig {
+            body_limit: Some(constants::NODE_LEXE_API_BODY_LIMIT),
             handling_timeout: Some(timeout::server::DEFAULT_HANDLER_TIMEOUT),
             // NOTE(phlip9): tokio mpsc channels already pre-allocate in
             // 32-entry chunks, so might as well use that capacity.

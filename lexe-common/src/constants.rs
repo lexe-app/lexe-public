@@ -149,6 +149,9 @@ pub fn node_provision_dns(mr_short: &MrShort) -> String {
 }
 pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 
+/// Max request body size for the user node's Lexe API.
+pub const NODE_LEXE_API_BODY_LIMIT: usize = 16 * 1024;
+
 // --- Esplora --- //
 // Quickly test these by appending /fee-estimates and opening in browser,
 // e.g. "https://testnet.ltbl.io/api/fee-estimates"
