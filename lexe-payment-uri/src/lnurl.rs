@@ -133,7 +133,7 @@ use lexe_payment_uri_core::{
     LnurlWithdrawRequest, LnurlWithdrawRequestWire, PaymentMethod,
 };
 use lexe_std::Apply;
-use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
+use lexe_tls_core::rustls::{RootCertStore, pki_types::CertificateDer};
 use serde::Deserialize;
 use tracing::{debug, warn};
 
@@ -174,14 +174,9 @@ impl LnurlClient {
             Arc::new(root_store)
         };
 
-        // Use the default ring CryptoProvider with webpki roots for broad
-        // compatibility with Lightning Address servers
-        #[allow(clippy::disallowed_methods)]
-        let tls_config = rustls::ClientConfig::builder_with_protocol_versions(
-            lexe_tls_core::LEXE_TLS_PROTOCOL_VERSIONS,
-        )
-        .with_root_certificates(ca_certs)
-        .with_no_client_auth();
+        let tls_config = lexe_tls_core::external_client_config_builder()
+            .with_root_certificates(ca_certs)
+            .with_no_client_auth();
 
         let client = reqwest::Client::builder()
             .https_only(true)

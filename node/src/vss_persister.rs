@@ -181,15 +181,7 @@ impl VssProvider {
             .context("Failed to build VSS client TLS config");
         }
 
-        // External providers need WebPKI and general-purpose algorithms.
-        #[allow(clippy::disallowed_methods)]
-        let mut config = rustls::ClientConfig::builder_with_protocol_versions(
-            lexe_tls::LEXE_TLS_PROTOCOL_VERSIONS,
-        )
-        .with_root_certificates(lexe_tls::WEBPKI_ROOT_CERTS.clone())
-        .with_no_client_auth();
-        config.alpn_protocols = lexe_tls::LEXE_ALPN_PROTOCOLS.clone();
-        Ok(config)
+        Ok(lexe_tls::external_client_config())
     }
 
     fn uses_lexe_tls(host: &str, deploy_env: DeployEnv) -> bool {

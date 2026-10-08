@@ -49,7 +49,7 @@ use dnssec_prover::{
 };
 use lexe_common::ln::network::Network;
 pub use lexe_payment_uri_core::*;
-use lexe_tls_core::rustls::{self, RootCertStore, pki_types::CertificateDer};
+use lexe_tls_core::rustls::{RootCertStore, pki_types::CertificateDer};
 use tracing::{debug, warn};
 
 /// DNS-over-HTTPS (DOH) endpoint for Google's public DNS resolver.
@@ -96,14 +96,9 @@ impl Bip353Client {
             lexe_tls_core::WEBPKI_ROOT_CERTS.clone()
         };
 
-        // We must use the default ring `CryptoProvider` because unfortunately
-        // Google does not support our preferred ciphersuite.
-        #[allow(clippy::disallowed_methods)]
-        let tls_config = rustls::ClientConfig::builder_with_protocol_versions(
-            lexe_tls_core::LEXE_TLS_PROTOCOL_VERSIONS,
-        )
-        .with_root_certificates(root_certs)
-        .with_no_client_auth();
+        let tls_config = lexe_tls_core::external_client_config_builder()
+            .with_root_certificates(root_certs)
+            .with_no_client_auth();
 
         let client = reqwest::Client::builder()
             .https_only(true)

@@ -31,6 +31,34 @@ pub fn server_config_builder()
         .expect("Checked in tests")
 }
 
+/// Helper to get a builder for a [`ClientConfig`] for external services.
+/// They may not support our ciphersuite, so this uses the default ring
+/// `CryptoProvider`, but still enforces TLSv1.3.
+pub fn external_client_config_builder()
+-> rustls::ConfigBuilder<ClientConfig, rustls::WantsVerifier> {
+    // Ring's default ciphersuites, key exchange groups and signature
+    // algorithms, not `LEXE_CRYPTO_PROVIDER`'s.
+    #[allow(clippy::disallowed_methods)]
+    let provider = rustls::crypto::ring::default_provider();
+    #[allow(clippy::disallowed_methods)]
+    ClientConfig::builder_with_provider(Arc::new(provider))
+        .with_protocol_versions(LEXE_TLS_PROTOCOL_VERSIONS)
+        .expect("Checked in tests")
+}
+
+/// [`external_client_config_builder`] completed for any public-CA service,
+/// often one we don't know in advance, so it trusts Mozilla's webpki roots.
+/// reqwest uses a preconfigured rustls config as-is, so this also advertises
+/// h2 in ALPN ([`LEXE_ALPN_PROTOCOLS`]), otherwise HTTP/2 is never negotiated.
+#[cfg(feature = "webpki-roots")]
+pub fn external_client_config() -> ClientConfig {
+    let mut config = external_client_config_builder()
+        .with_root_certificates(WEBPKI_ROOT_CERTS.clone())
+        .with_no_client_auth();
+    config.alpn_protocols = LEXE_ALPN_PROTOCOLS.clone();
+    config
+}
+
 /// Lexe TLS protocol version: TLSv1.3
 pub static LEXE_TLS_PROTOCOL_VERSIONS: &[&rustls::SupportedProtocolVersion] =
     &[&rustls::version::TLS13];
