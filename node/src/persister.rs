@@ -994,6 +994,10 @@ impl PaymentsPersisterMethods for NodePersister {
         &self,
         ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentV2>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let token = &self.get_token().await?;
         persister::fetch_by_ids_chunked(ids, move |ids| async move {
             let req = VecPaymentId { ids };
@@ -1011,6 +1015,10 @@ impl PaymentsPersisterMethods for NodePersister {
         &self,
         ids: Vec<PaymentId>,
     ) -> anyhow::Result<Vec<DbPaymentMetadata>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let token = &self.get_token().await?;
         persister::fetch_by_ids_chunked(ids, move |ids| async move {
             let req = VecPaymentId { ids };

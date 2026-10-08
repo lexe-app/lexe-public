@@ -376,6 +376,10 @@ where
     Fut: Future<Output = anyhow::Result<Vec<T>>>,
 {
     let chunk_size = usize::from(constants::MAX_PAYMENTS_BATCH_SIZE);
+    if ids.len() <= chunk_size {
+        return fetch(ids).await;
+    }
+
     let futs = ids.chunks(chunk_size).map(|chunk| fetch(chunk.to_vec()));
     let chunks = futures::future::try_join_all(futs).await?;
     Ok(chunks.into_iter().flatten().collect())
