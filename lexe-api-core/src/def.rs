@@ -652,7 +652,7 @@ pub trait LexeNodeRunApi {
     /// POST /lexe/nwc_request [`Bytes`] -> [`Bytes`]
     ///
     /// Request and response bodies are signed Nostr events encoded as JSON.
-    /// The node decrypts and executes the request, and
+    /// The node verifies the request, decrypts and executes its command, and
     /// returns a signed event containing the encrypted response.
     async fn nwc_request(&self, req: Bytes) -> Result<Bytes, NodeApiError>;
 }

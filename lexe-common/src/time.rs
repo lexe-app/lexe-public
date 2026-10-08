@@ -77,8 +77,8 @@ impl TimestampMs {
     }
 
     /// Infallibly construct [`TimestampMs`] from seconds since Unix epoch.
-    pub fn from_secs_u32(secs: u32) -> Self {
-        Self(i64::from(secs) * 1000)
+    pub const fn from_secs_u32(secs: u32) -> Self {
+        Self((secs as i64) * 1000)
     }
 
     /// Construct [`TimestampMs`] from milliseconds since Unix epoch.
@@ -103,8 +103,8 @@ impl TimestampMs {
 
     /// Quickly create a dummy timestamp which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
-    pub fn from_u8(i: u8) -> Self {
-        Self(i64::from(i))
+    pub const fn from_u8(i: u8) -> Self {
+        Self(i as i64)
     }
 
     /// Get this unix timestamp as a [`u64`] in milliseconds from unix epoch.
@@ -178,6 +178,16 @@ impl TimestampMs {
     #[inline]
     pub fn saturating_elapsed(self) -> Duration {
         Self::now().saturating_duration_since(self)
+    }
+
+    /// Returns true if `other` is within `self +/- bounds`.
+    pub fn has_within(self, other: Self, bounds: Duration) -> bool {
+        let self_ms = self.to_u64();
+        let other_ms = other.to_u64();
+        let bounds_ms = u64::try_from(bounds.as_millis()).unwrap_or(u64::MAX);
+
+        // NOTE(phlip9): abs_diff correctly handles overflow/underflow
+        self_ms.abs_diff(other_ms) <= bounds_ms
     }
 
     /// Formats this timestamp into a human-readable string relative to `now`,
@@ -340,10 +350,10 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{prop_assert, prop_assert_eq, proptest};
 
     use super::*;
-    use crate::test_utils::roundtrip;
+    use crate::test_utils::{arbitrary, roundtrip};
 
     #[test]
     fn timestamp_roundtrip() {
@@ -467,6 +477,54 @@ mod test {
 
         assert_eq!(TimestampMs::MAX.checked_elapsed(), None);
         assert_eq!(TimestampMs::MAX.saturating_elapsed(), Duration::ZERO);
+    }
+
+    #[test]
+    fn timestamp_has_in_bounds() {
+        let now = TimestampMs::from_secs_u32(1_000_000);
+        let bounds = Duration::from_secs(30 * 60);
+        for offset_secs in [0, 1, 1799, 1800] {
+            let offset = Duration::from_secs(offset_secs);
+            assert!(now.has_within(now.saturating_sub(offset), bounds));
+            assert!(now.has_within(now.saturating_add(offset), bounds));
+        }
+        for other_secs in [0, 1_000_000 - 1801, 1_000_000 + 1801, i64::MAX] {
+            let other = TimestampMs::try_from(other_secs).unwrap();
+            assert!(!now.has_within(other, bounds));
+        }
+
+        proptest!(|(
+            ts1: TimestampMs,
+            ts2: TimestampMs,
+            bounds in arbitrary::any_duration(),
+        )| {
+            prop_assert_eq!(
+                ts1.has_within(ts2, bounds),
+                ts2.has_within(ts1, bounds)
+            );
+
+            prop_assert!(ts1.has_within(ts1, Duration::ZERO));
+            prop_assert!(ts2.has_within(ts2, Duration::ZERO));
+
+            prop_assert!(ts1.has_within(ts2, Duration::MAX));
+            prop_assert!(ts2.has_within(ts1, Duration::MAX));
+
+            if ts1 >= ts2 {
+                prop_assert_eq!(
+                    ts1.has_within(ts2, bounds),
+                    ts1.saturating_duration_since(ts2) <= bounds
+                );
+            } else {
+                prop_assert_eq!(
+                    ts1.has_within(ts2, bounds),
+                    ts2.saturating_duration_since(ts1) <= bounds
+                );
+            }
+
+            if ts1 != ts2 {
+                prop_assert!(!ts1.has_within(ts2, Duration::ZERO));
+            }
+        });
     }
 
     /// Sanity check the relative formatting at every granularity.

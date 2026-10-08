@@ -1,17 +1,18 @@
 use std::time::Instant;
 
-use anyhow::Context;
+use anyhow::{Context, ensure};
 use lexe_api::models::nwc::{
     DbNwcClient, DbNwcClientFields, NostrPk, NostrSk, NwcClientInfo,
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
-    env::DeployEnv, secp256k1_ctx::SECP256K1, time::TimestampMs,
+    constants, env::DeployEnv, secp256k1_ctx::SECP256K1, time::TimestampMs,
 };
 use lexe_crypto::{aes::AesMasterKey, rng::Crng};
 use lexe_hex::hex;
 use nostr::nips::nip44;
 use serde::{Deserialize, Serialize};
+use verify::VerifiedNwcRequestEvent;
 
 const NWC_AAD_PREFIX: &[u8] = b"NWC";
 
@@ -42,6 +43,17 @@ pub(crate) mod convert {
         // Our `NostrSk`s all come from `nostr::Keys`, so they're valid.
         nostr::SecretKey::from_slice(sk.as_ref())
             .expect("NostrSk should be a valid secret key")
+    }
+
+    #[cfg(test)]
+    pub fn to_nostr_ts(ts: TimestampMs) -> nostr::Timestamp {
+        nostr::Timestamp::from_secs(ts.to_secs())
+    }
+
+    pub fn try_from_nostr_ts(
+        nostr_ts: nostr::Timestamp,
+    ) -> Result<TimestampMs, lexe_common::time::Error> {
+        TimestampMs::from_secs(nostr_ts.as_secs())
     }
 }
 
@@ -234,17 +246,24 @@ impl NwcClient {
         }
     }
 
-    /// Get the wallet service secret key.
-    fn wallet_nostr_sk(&self) -> &NostrSk {
-        &self.data.wallet_nostr_sk
-    }
+    /// Verify a signed NWC request addressed to this connection.
+    pub(crate) fn verify_nwc_request_event(
+        &self,
+        verified_event: VerifiedNwcRequestEvent<'_>,
+    ) -> anyhow::Result<()> {
+        // Check client pk
+        ensure!(
+            &self.client_nostr_pk == verified_event.client_nostr_pk(),
+            "Client nostr pk mismatch"
+        );
 
-    pub(crate) fn client_nostr_pk(&self) -> &NostrPk {
-        &self.client_nostr_pk
-    }
+        // Check wallet pk
+        ensure!(
+            &self.wallet_nostr_pk == verified_event.wallet_nostr_pk(),
+            "Wallet nostr pk mismatch"
+        );
 
-    pub(crate) fn wallet_nostr_pk(&self) -> &NostrPk {
-        &self.wallet_nostr_pk
+        Ok(())
     }
 
     /// Decrypt a NIP-44 encrypted NWC request.
@@ -259,8 +278,8 @@ impl NwcClient {
         &self,
         encrypted_payload: &str,
     ) -> anyhow::Result<String> {
-        let wallet_nostr_sk = convert::to_nostr_sk(self.wallet_nostr_sk());
-        let client_nostr_pk = convert::to_nostr_pk(self.client_nostr_pk());
+        let wallet_nostr_sk = convert::to_nostr_sk(&self.data.wallet_nostr_sk);
+        let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
 
         nip44::decrypt(&wallet_nostr_sk, &client_nostr_pk, encrypted_payload)
             .context("Failed to decrypt NIP-44 payload")
@@ -273,8 +292,8 @@ impl NwcClient {
         rng: &mut impl Crng,
         response_json: &str,
     ) -> anyhow::Result<String> {
-        let wallet_nostr_sk = convert::to_nostr_sk(self.wallet_nostr_sk());
-        let client_nostr_pk = convert::to_nostr_pk(self.client_nostr_pk());
+        let wallet_nostr_sk = convert::to_nostr_sk(&self.data.wallet_nostr_sk);
+        let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
 
         let encrypted_string = nip44::encrypt_with_rng(
             rng,
@@ -299,16 +318,78 @@ impl NwcClient {
         content: String,
     ) -> anyhow::Result<nostr::Event> {
         let kind = nostr::Kind::WalletConnectResponse;
-        let client_nostr_pk = convert::to_nostr_pk(self.client_nostr_pk());
+        let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
         let now = Instant::now();
         let keys =
-            nostr::Keys::new(convert::to_nostr_sk(self.wallet_nostr_sk()));
+            nostr::Keys::new(convert::to_nostr_sk(&self.data.wallet_nostr_sk));
 
         let event = nostr::EventBuilder::new(kind, content)
             .tag(nostr::Tag::public_key(client_nostr_pk))
             .tag(nostr::Tag::event(event_id))
             .sign_with_ctx(&SECP256K1, rng, &now, &keys)?;
         Ok(event)
+    }
+}
+
+pub mod verify {
+    use super::*;
+
+    pub struct VerifiedNwcRequestEvent<'a> {
+        client_nostr_pk: &'a NostrPk,
+        wallet_nostr_pk: &'a NostrPk,
+    }
+
+    impl<'a> VerifiedNwcRequestEvent<'a> {
+        pub fn client_nostr_pk(&self) -> &'a NostrPk {
+            self.client_nostr_pk
+        }
+        pub fn wallet_nostr_pk(&self) -> &'a NostrPk {
+            self.wallet_nostr_pk
+        }
+    }
+
+    pub fn nwc_request_event(
+        event: &nostr::Event,
+        now: TimestampMs,
+    ) -> anyhow::Result<VerifiedNwcRequestEvent<'_>> {
+        // Only accept NWC requests
+        ensure!(
+            event.kind == nostr::Kind::WalletConnectRequest,
+            "Expected NWC request (kind 23194)"
+        );
+
+        // Prevent replays of old requests
+        let created_at = convert::try_from_nostr_ts(event.created_at)?;
+        ensure!(
+            now.has_within(created_at, constants::NWC_REQUEST_MAX_CLOCK_SKEW),
+            "NWC request is too old or too far in the future",
+        );
+
+        // Reject expired requests
+        if let Some(expiration) = event.tags.expiration() {
+            let expiration = convert::try_from_nostr_ts(*expiration)?;
+            ensure!(expiration >= now, "NWC request has expired");
+        }
+
+        // NWC requests must have a target wallet pk
+        let wallet_nostr_pk = event
+            .tags
+            .public_keys()
+            .next()
+            .context("Missing wallet pk")?;
+
+        // Verify event integrity (id + client signature)
+        event
+            .verify_with_ctx(&SECP256K1)
+            .context("Invalid NWC event id or signature")?;
+
+        let client_nostr_pk = NostrPk::from_ref(event.pubkey.as_bytes());
+        let wallet_nostr_pk = NostrPk::from_ref(wallet_nostr_pk.as_bytes());
+
+        Ok(VerifiedNwcRequestEvent {
+            client_nostr_pk,
+            wallet_nostr_pk,
+        })
     }
 }
 
@@ -331,6 +412,141 @@ mod test {
             .nth(1)
             .expect("connection string should contain secret=");
         nostr::Keys::parse(secret_hex).expect("secret should be a secret key")
+    }
+
+    #[test]
+    fn test_verify_nwc_request_event() {
+        let mut rng = FastRng::from_u64(2026100801);
+        let (client, connection_string) =
+            NwcClient::new(&mut rng, DeployEnv::Dev, "test".to_owned());
+
+        let keys = parse_client_keys(&connection_string);
+        let stranger = nostr::Keys::generate_with_rng(&mut rng);
+        let wallet_pk = convert::to_nostr_pk(&client.wallet_nostr_pk);
+        let now = TimestampMs::from_secs_u32(1_000_000);
+        let now_nostr = convert::to_nostr_ts(now);
+
+        let builder = nostr::EventBuilder::new(
+            nostr::Kind::WalletConnectRequest,
+            "ciphertext",
+        )
+        .custom_created_at(now_nostr);
+        let mut sign = |builder: nostr::EventBuilder| {
+            builder
+                .sign_with_ctx(&SECP256K1, &mut rng, &Instant::now(), &keys)
+                .unwrap()
+        };
+        let request =
+            sign(builder.clone().tag(nostr::Tag::public_key(wallet_pk)));
+
+        let do_verify = |event, now| {
+            let verified = verify::nwc_request_event(event, now)?;
+            client.verify_nwc_request_event(verified)
+        };
+
+        let verified_event = verify::nwc_request_event(&request, now).unwrap();
+        client.verify_nwc_request_event(verified_event).unwrap();
+
+        // Each field is bound to the signature, including the timestamp.
+        let mut tampered = request.clone();
+        tampered.content.push('x');
+        do_verify(&tampered, now).unwrap_err();
+
+        let mut tampered = request.clone();
+        tampered.created_at = nostr::Timestamp::from_secs(1_000_001);
+        do_verify(&tampered, now).unwrap_err();
+
+        let mut tampered = request.clone();
+        tampered.id = nostr::EventId::all_zeros();
+        do_verify(&tampered, now).unwrap_err();
+
+        let mut tampered = request.clone();
+        tampered.sig = sign(builder.clone()).sig;
+        do_verify(&tampered, now).unwrap_err();
+
+        let wrong_kind = sign(
+            nostr::EventBuilder::text_note("ciphertext")
+                .custom_created_at(now_nostr)
+                .tag(nostr::Tag::public_key(wallet_pk)),
+        );
+        do_verify(&wrong_kind, now).unwrap_err();
+
+        let missing_wallet = sign(builder.clone());
+        do_verify(&missing_wallet, now).unwrap_err();
+
+        let wrong_wallet = sign(
+            builder
+                .clone()
+                .tag(nostr::Tag::public_key(stranger.public_key())),
+        );
+        do_verify(&wrong_wallet, now).unwrap_err();
+
+        let expired =
+            sign(builder.clone().tag(nostr::Tag::public_key(wallet_pk)).tag(
+                nostr::Tag::expiration(nostr::Timestamp::from_secs(999_999)),
+            ));
+        do_verify(&expired, now).unwrap_err();
+
+        let unexpired =
+            sign(builder.clone().tag(nostr::Tag::public_key(wallet_pk)).tag(
+                nostr::Tag::expiration(nostr::Timestamp::from_secs(1_000_001)),
+            ));
+        do_verify(&unexpired, now).unwrap();
+
+        let wrong_client = builder
+            .tag(nostr::Tag::public_key(wallet_pk))
+            .sign_with_ctx(&SECP256K1, &mut rng, &Instant::now(), &stranger)
+            .unwrap();
+        do_verify(&wrong_client, now).unwrap_err();
+    }
+
+    #[test]
+    fn test_verify_request_timestamp() {
+        let mut rng = FastRng::from_u64(2026100802);
+        let (client, connection_string) =
+            NwcClient::new(&mut rng, DeployEnv::Dev, "test".to_owned());
+        let keys = parse_client_keys(&connection_string);
+        let wallet_pk = convert::to_nostr_pk(&client.wallet_nostr_pk);
+        let now = 1_000_000;
+        let skew = constants::NWC_REQUEST_MAX_CLOCK_SKEW.as_secs();
+
+        let do_verify = |event: &nostr::Event, now| {
+            let verified = verify::nwc_request_event(event, now)?;
+            client.verify_nwc_request_event(verified)
+        };
+
+        for (created_at, accepted) in [
+            (0, false),
+            (now - skew - 1, false),
+            (now - skew, true),
+            (now, true),
+            (now + skew, true),
+            (now + skew + 1, false),
+            (u64::MAX, false),
+        ] {
+            let now = TimestampMs::from_secs(now).unwrap();
+            let created_at = nostr::Timestamp::from_secs(created_at);
+            let expiration = nostr::Timestamp::from_secs(now.to_u64() + 3600);
+
+            // An explicit future expiration must not extend the clock window.
+            let event = nostr::EventBuilder::new(
+                nostr::Kind::WalletConnectRequest,
+                "ciphertext",
+            )
+            .custom_created_at(created_at)
+            .tag(nostr::Tag::public_key(wallet_pk))
+            .tag(nostr::Tag::expiration(expiration))
+            .sign_with_ctx(
+                &SECP256K1,
+                &mut rng,
+                &Instant::now(), /* unused b/c we pass in custom_created_at */
+                &keys,
+            )
+            .unwrap();
+
+            let result = do_verify(&event, now).is_ok();
+            assert_eq!(result, accepted);
+        }
     }
 
     #[test]

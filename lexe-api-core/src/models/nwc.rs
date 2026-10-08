@@ -10,6 +10,7 @@
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{RefCast, time::TimestampMs};
 use lexe_serde::{base64_or_bytes, hexstr_or_bytes};
+use lexe_std::const_utils;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,12 @@ pub struct NostrPk(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 lexe_byte_array::impl_byte_array!(NostrPk, 32);
 lexe_byte_array::impl_debug_display_as_hex!(NostrPk);
+
+impl NostrPk {
+    pub const fn from_ref(bytes: &[u8; 32]) -> &Self {
+        const_utils::const_ref_cast(bytes)
+    }
+}
 
 /// A 32-byte Nostr secret key.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]

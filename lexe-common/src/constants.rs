@@ -1,4 +1,4 @@
-use std::include_bytes;
+use std::{include_bytes, time::Duration};
 
 use lexe_enclave::enclave::{Measurement, MrShort};
 use lexe_std::{array, const_concat_str};
@@ -202,6 +202,16 @@ pub const TESTNET3_ESPLORA_WHITELIST: [&str; 5] = [
 /// VSS store ID for Lightning node state (channel manager, channel monitors,
 /// archived channels, unspendable closed channel outputs).
 pub const VSS_STORE_ID: &str = "lexe-ln";
+
+// --- Nostr and NWC --- //
+
+/// Only accept fresh NWC requests created within +/- 10 min. of the local
+/// clock, which bounds how long a captured request can be replayed.
+///
+/// Requests aren't deduplicated, so NWC methods must be idempotent or safe to
+/// replay.
+pub const NWC_REQUEST_MAX_CLOCK_SKEW: Duration =
+    Duration::from_secs(10 * 60 /* 10 min */);
 
 // --- Root CA certs --- //
 //

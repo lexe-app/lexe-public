@@ -2,14 +2,12 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use axum::extract::State;
+use bytes::Bytes;
 use lexe_api::{
     error::NodeApiError,
     models::{
         command::{CreateInvoiceRequest, CreateInvoiceResponse, ResyncRequest},
-        nwc::{
-            NostrPk,
-            nip47::{NwcRequestPayload, NwcResponsePayload},
-        },
+        nwc::nip47::{NwcRequestPayload, NwcResponsePayload},
     },
     server::{LxBytes, LxJson, extract::LxQuery},
     types::Empty,
@@ -20,10 +18,9 @@ use lexe_common::{
 };
 use lexe_crypto::rng::SysRng;
 use lexe_ln::{background_processor, command::CreateInvoiceCaller, test_event};
-use nostr::{Event, util::JsonUtil};
 use tracing::warn;
 
-use crate::server::RouterState;
+use crate::server::{self, RouterState};
 
 pub(super) async fn status(
     State(state): State<Arc<RouterState>>,
@@ -116,68 +113,70 @@ pub(super) async fn nwc_request(
     State(state): State<Arc<RouterState>>,
     LxBytes(req): LxBytes,
 ) -> Result<LxBytes, NodeApiError> {
-    let event = Event::from_json(req)
+    // Deserialize the nostr::Event
+    let req_event: nostr::Event = serde_json::from_slice(&req)
         .context("Failed to decode NWC request event")
         .map_err(NodeApiError::command)?;
-    let client_nostr_pk = NostrPk(event.pubkey.to_bytes());
+
+    // Verify the event integrity, reject old replays and expired events
+    let now = TimestampMs::now();
+    let verified_event = crate::nwc::verify::nwc_request_event(&req_event, now)
+        .context("Invalid NWC request event")
+        .map_err(NodeApiError::command)?;
+
+    // Fetch the NWC client info
     let nwc_client = state
         .persister
-        .read_nwc_client(client_nostr_pk)
+        .read_nwc_client(*verified_event.client_nostr_pk())
         .await
         .map_err(NodeApiError::command)?;
 
-    let wallet_nostr_pk = event
-        .tags
-        .public_keys()
-        .next()
-        .map(|pk| NostrPk(pk.to_bytes()))
-        .context("Missing wallet #p tag")
+    // Ensure this event is actually for the right client+wallet nostr pk's
+    nwc_client
+        .verify_nwc_request_event(verified_event)
         .map_err(NodeApiError::command)?;
-    if nwc_client.client_nostr_pk() != &client_nostr_pk {
-        return Err(NodeApiError::command("Client nostr pk mismatch"));
-    }
-    if nwc_client.wallet_nostr_pk() != &wallet_nostr_pk {
-        return Err(NodeApiError::command("Wallet nostr pk mismatch"));
-    }
 
+    // Decrypt+deserialize the inner NWC request
     let decrypted_json = nwc_client
-        .decrypt_nip44_request(&event.content)
+        .decrypt_nip44_request(&req_event.content)
+        .map_err(NodeApiError::command)?;
+    let req_payload: NwcRequestPayload = serde_json::from_str(&decrypted_json)
+        .context("Failed to parse NWC request")
         .map_err(NodeApiError::command)?;
 
-    let request_payload: NwcRequestPayload =
-        serde_json::from_str(&decrypted_json)
-            .context("Failed to parse NWC request")
-            .map_err(NodeApiError::command)?;
+    let res = server::nwc::handle_nwc_request(&state, &req_payload).await;
 
-    let result = super::nwc::handle_nwc_request(&state, &request_payload).await;
-
-    let response_payload = match result {
+    let resp_payload = match res {
         Ok(value) => NwcResponsePayload {
-            result_type: request_payload.method,
+            result_type: req_payload.method,
             result: Some(value),
             error: None,
         },
         Err(error) => {
             warn!("NWC request failed: {error:?}");
             NwcResponsePayload {
-                result_type: request_payload.method,
+                result_type: req_payload.method,
                 result: None,
                 error: Some(error),
             }
         }
     };
 
-    let response_json = serde_json::to_string(&response_payload)
+    let resp_json = serde_json::to_string(&resp_payload)
         .expect("NwcResponsePayload serialization cannot fail");
 
     let mut rng = SysRng::new();
     let nip44_payload = nwc_client
-        .encrypt_nip44_response(&mut rng, &response_json)
+        .encrypt_nip44_response(&mut rng, &resp_json)
         .map_err(NodeApiError::command)?;
 
-    let response = nwc_client
-        .build_response(&mut rng, event.id, nip44_payload)
+    let resp_event = nwc_client
+        .build_response(&mut rng, req_event.id, nip44_payload)
         .map_err(NodeApiError::command)?;
 
-    Ok(LxBytes::from(response.as_json()))
+    let resp_event_bytes = serde_json::to_vec(&resp_event)
+        .context("Failed to serialize nostr::Event")
+        .map_err(NodeApiError::command)?;
+
+    Ok(LxBytes(Bytes::from(resp_event_bytes)))
 }
