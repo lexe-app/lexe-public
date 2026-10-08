@@ -135,7 +135,7 @@ pub(super) async fn nwc_request(
         .map_err(NodeApiError::command)?;
 
     // Fetch the NWC client info
-    let nwc_client = state
+    let mut nwc_client = state
         .persister
         .read_nwc_client(*verified_event.client_nostr_pk())
         .await
@@ -145,6 +145,20 @@ pub(super) async fn nwc_request(
     nwc_client
         .verify_nwc_request_event(verified_event)
         .map_err(NodeApiError::command)?;
+
+    // The stored info event may predate a change to the supported methods,
+    // so try to re-sign it here if stale.
+    let mut rng = SysRng::new();
+    if nwc_client
+        .refresh_info_event(&mut rng, now)
+        .map_err(NodeApiError::command)?
+    {
+        let db_fields =
+            nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
+        if let Err(e) = state.persister.persist_nwc_client(db_fields).await {
+            warn!("Failed to persist refreshed NWC info event: {e:#}");
+        }
+    }
 
     // Decrypt+deserialize the inner NWC request
     let decrypted_json = nwc_client
@@ -175,7 +189,6 @@ pub(super) async fn nwc_request(
     let resp_json = serde_json::to_string(&resp_payload)
         .expect("NwcResponsePayload serialization cannot fail");
 
-    let mut rng = SysRng::new();
     let nip44_payload = nwc_client
         .encrypt_nip44_response(&mut rng, &resp_json)
         .map_err(NodeApiError::command)?;

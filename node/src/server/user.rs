@@ -65,6 +65,7 @@ use lexe_common::{
     },
     constants::{self},
     ln::amount::Amount,
+    time::TimestampMs,
 };
 use lexe_crypto::rng::SysRng;
 use lexe_ln::{
@@ -982,8 +983,9 @@ pub(super) async fn create_nwc_client(
     LxJson(req): LxJson<CreateNwcClientRequest>,
 ) -> Result<LxJson<CreateNwcClientResponse>, NodeApiError> {
     let mut rng = SysRng::new();
+    let now = TimestampMs::now();
     let (nwc_client, connection_string) =
-        NwcClient::new(&mut rng, state.deploy_env, req.label);
+        NwcClient::new(&mut rng, state.deploy_env, req.label, now);
 
     let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
     state
@@ -1021,7 +1023,13 @@ pub(super) async fn update_nwc_client(
         .map_err(NodeApiError::command)?;
 
     nwc_client.update_label(req.label);
+
     let mut rng = SysRng::new();
+    let now = TimestampMs::now();
+    nwc_client
+        .refresh_info_event(&mut rng, now)
+        .map_err(NodeApiError::command)?;
+
     let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
     let db_nwc_client = state
         .persister
