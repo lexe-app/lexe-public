@@ -981,21 +981,14 @@ pub(super) async fn create_nwc_client(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<CreateNwcClientRequest>,
 ) -> Result<LxJson<CreateNwcClientResponse>, NodeApiError> {
-    let token = state
-        .persister
-        .get_token()
-        .await
-        .map_err(NodeApiError::command)?;
-
     let mut rng = SysRng::new();
     let (nwc_client, connection_string) =
         NwcClient::new(&mut rng, state.deploy_env, req.label);
-    let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
 
+    let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
     let db_nwc_client = state
         .persister
-        .backend_api()
-        .upsert_nwc_client(fields, token)
+        .persist_nwc_client(fields)
         .await
         .map_err(NodeApiError::command)?;
 
@@ -1012,16 +1005,6 @@ pub(super) async fn update_nwc_client(
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UpdateNwcClientRequest>,
 ) -> Result<LxJson<UpdateNwcClientResponse>, NodeApiError> {
-    let token = state
-        .persister
-        .get_token()
-        .await
-        .map_err(NodeApiError::command)?;
-
-    let params = GetNwcClients {
-        client_nostr_pk: Some(req.client_nostr_pk),
-    };
-
     // Fetch the client from the DB, decrypt, update label, re-encrypt, persist.
     //
     // NOTE: This read-modify-write pattern has a TOCTTOU race if any other
@@ -1030,32 +1013,18 @@ pub(super) async fn update_nwc_client(
     //
     // TODO(max): Add synchronization for NwcClient updates - could use a
     // write-through cache similar to PaymentsManager.
-    let mut db_nwc_clients = state
+    let mut nwc_client = state
         .persister
-        .backend_api()
-        .get_nwc_clients(params, token.clone())
+        .read_nwc_client(req.client_nostr_pk)
         .await
-        .map_err(NodeApiError::command)?
-        .nwc_clients;
-
-    let db_nwc_client = match db_nwc_clients.len() {
-        0 => Err(NodeApiError::command("NWC client not found")),
-        1 => Ok(db_nwc_clients.pop().unwrap()),
-        _ => Err(NodeApiError::command("More than one NWC client found")),
-    }?;
-
-    let mut nwc_client =
-        NwcClient::decrypt(state.persister.vfs_master_key(), db_nwc_client)
-            .map_err(NodeApiError::command)?;
+        .map_err(NodeApiError::command)?;
 
     nwc_client.update_label(req.label);
     let mut rng = SysRng::new();
     let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
-
     let db_nwc_client = state
         .persister
-        .backend_api()
-        .upsert_nwc_client(fields, token)
+        .persist_nwc_client(fields)
         .await
         .map_err(NodeApiError::command)?;
 

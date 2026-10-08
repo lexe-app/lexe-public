@@ -50,7 +50,7 @@ use lexe_api::{
             GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
             PaymentIdStruct, VecPaymentId,
         },
-        nwc::{GetNwcClients, NostrPk},
+        nwc::{DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPk},
     },
     types::{
         Empty,
@@ -436,6 +436,18 @@ impl NodePersister {
 
         NwcClient::decrypt(&self.vfs_master_key, db_nwc_client)
             .context("Failed to decrypt NWC client data")
+    }
+
+    /// Upsert an encrypted NWC client into the DB.
+    pub(crate) async fn persist_nwc_client(
+        &self,
+        fields: DbNwcClientFields,
+    ) -> anyhow::Result<DbNwcClient> {
+        let token = self.get_token().await?;
+        self.backend_api
+            .upsert_nwc_client(fields, token)
+            .await
+            .context("Failed to upsert NWC client")
     }
 
     /// Read the wallet changeset, if it exists.
