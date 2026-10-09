@@ -23,7 +23,6 @@ use bitcoin::{
     secp256k1,
 };
 use bytes::Bytes;
-use chrono::Utc;
 use lexe_crypto::rng::{FastRng, RngExt};
 use lightning::{
     routing::{
@@ -240,18 +239,6 @@ pub fn any_semver_version() -> impl Strategy<Value = semver::Version> {
             }
         },
     )
-}
-
-/// Does not include leap seconds.
-pub fn any_chrono_datetime() -> impl Strategy<Value = chrono::DateTime<Utc>> {
-    let min_utc_secs = chrono::DateTime::<Utc>::MIN_UTC.timestamp();
-    let max_utc_secs = chrono::DateTime::<Utc>::MAX_UTC.timestamp();
-    let secs_range = min_utc_secs..max_utc_secs;
-    let nanos_range = 0..1_000_000_000u32;
-    (secs_range, nanos_range)
-        .prop_filter_map("Invalid chrono::DateTime<Utc>", |(secs, nanos)| {
-            chrono::DateTime::from_timestamp(secs, nanos)
-        })
 }
 
 pub fn any_decimal() -> impl Strategy<Value = Decimal> {
@@ -769,13 +756,6 @@ mod test {
     fn socket_addr_roundtrip() {
         let config = Config::with_cases(16);
         roundtrip::fromstr_display_custom(any_socket_addr(), config);
-    }
-
-    /// Test [`any_chrono_datetime`] doesn't reject too much.
-    #[test]
-    fn chrono_datetime_roundtrip() {
-        let config = Config::with_cases(1024);
-        roundtrip::fromstr_display_custom(any_chrono_datetime(), config);
     }
 
     /// Test that the [`bitcoin::Transaction`] consensus encoding roundtrips.
