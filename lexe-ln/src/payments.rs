@@ -1205,6 +1205,22 @@ impl From<OutboundSpontaneousPaymentStatus> for PaymentStatus {
     }
 }
 
+// --- Failed onchain payments whose txs can still confirm --- //
+
+impl OnchainSendStatus {
+    /// Whether the send failed, but its signed tx can still confirm.
+    pub fn is_failed_but_spendable(&self) -> bool {
+        matches!(self, Self::Dropped | Self::Canceled)
+    }
+}
+
+impl OnchainReceiveStatus {
+    /// Whether the receive failed, but its tx can still confirm.
+    pub fn is_failed_but_spendable(&self) -> bool {
+        matches!(self, Self::Dropped)
+    }
+}
+
 // --- Use as_str() to get a human-readable payment status &str --- //
 
 impl OnchainSendStatus {

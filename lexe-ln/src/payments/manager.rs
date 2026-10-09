@@ -48,7 +48,7 @@ use crate::{
             InboundOfferReusablePaymentV2, InboundSpontaneousPaymentV2,
             LnClaimCtx,
         },
-        onchain::{OnchainReceiveStatus, OnchainReceiveV2, OnchainSendStatus},
+        onchain::{OnchainReceiveV2, OnchainSendStatus},
         outbound::{self, ExpireError, LxOutboundPaymentFailure},
     },
     persister::{NodeState, PaymentsPersisterMethods},
@@ -1586,18 +1586,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             .into_iter()
             .filter_map(|payment| match payment {
                 PaymentV2::OnchainSend(os)
-                    if matches!(
-                        os.status,
-                        OnchainSendStatus::Dropped
-                            | OnchainSendStatus::Canceled
-                    ) =>
+                    if os.status.is_failed_but_spendable() =>
                     Some(
                         os.to_tx_conf_query()
                             .context("OnchainSend::to_tx_conf_query")
                             .map(|query| (os.id(), query)),
                     ),
                 PaymentV2::OnchainReceive(or)
-                    if or.status == OnchainReceiveStatus::Dropped =>
+                    if or.status.is_failed_but_spendable() =>
                     Some(
                         or.to_tx_conf_query()
                             .context("OnchainReceive::to_tx_conf_query")
