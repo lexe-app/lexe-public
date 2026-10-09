@@ -86,8 +86,16 @@ impl FiatRates {
 // --- impl IsoCurrencyCode --- //
 
 impl IsoCurrencyCode {
-    pub const USD: Self = const_result_unwrap(Self::try_from_bytes(*b"USD"));
+    pub const AUD: Self = const_result_unwrap(Self::try_from_bytes(*b"AUD"));
+    pub const CAD: Self = const_result_unwrap(Self::try_from_bytes(*b"CAD"));
+    pub const CHF: Self = const_result_unwrap(Self::try_from_bytes(*b"CHF"));
     pub const EUR: Self = const_result_unwrap(Self::try_from_bytes(*b"EUR"));
+    pub const GBP: Self = const_result_unwrap(Self::try_from_bytes(*b"GBP"));
+    pub const JPY: Self = const_result_unwrap(Self::try_from_bytes(*b"JPY"));
+    pub const NOK: Self = const_result_unwrap(Self::try_from_bytes(*b"NOK"));
+    pub const NZD: Self = const_result_unwrap(Self::try_from_bytes(*b"NZD"));
+    pub const SEK: Self = const_result_unwrap(Self::try_from_bytes(*b"SEK"));
+    pub const USD: Self = const_result_unwrap(Self::try_from_bytes(*b"USD"));
     // technically not a fiat, but useful
     pub const BTC: Self = const_result_unwrap(Self::try_from_bytes(*b"BTC"));
 
