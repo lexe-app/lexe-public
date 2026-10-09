@@ -13,6 +13,7 @@ use bitcoin::hashes::{Hash as _, sha256};
 use either::Either;
 use futures::Future;
 use lexe_api::{
+    budget::{Budget, ClientPk},
     cli::{LspFees, LspInfo},
     error::CommonApiError,
     models::command::{
@@ -58,6 +59,7 @@ use lexe_api::{
 use lexe_common::{
     api::{
         auth::BearerAuthToken,
+        fiat_rates::IsoCurrencyCode,
         user::{NodePk, Scid, UserPk},
     },
     constants::timeout,
@@ -120,8 +122,8 @@ use crate::{
     route::{self, LastHopHint, RoutingContext},
     sync::BdkSyncRequest,
     traits::{
-        LexeChannelManager, LexePaymentsPersister, LexePeerManager,
-        LexePersister,
+        LexeChannelManager, LexeFiatRatesApi, LexePaymentsPersister,
+        LexePeerManager, LexePersister,
     },
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
@@ -730,12 +732,12 @@ pub async fn resync(
 }
 
 #[instrument(skip_all, name = "(create-invoice)")]
-pub async fn create_invoice<CM, PS>(
+pub async fn create_invoice<CM, PS, FRA>(
     req: CreateInvoiceRequest,
     user_pk: &UserPk,
     channel_manager: &CM,
     keys_manager: &LexeKeysManager,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     caller: CreateInvoiceCaller<'_>,
     network: Network,
     client_pk: Option<ed25519::PublicKey>,
@@ -743,6 +745,7 @@ pub async fn create_invoice<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     let amount = &req.amount;
     info!("Handling create_invoice command for {amount:?} sats");
@@ -993,13 +996,13 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
 }
 
 #[instrument(skip_all, name = "(pay-invoice)")]
-pub async fn pay_invoice<CM, PS>(
+pub async fn pay_invoice<CM, PS, FRA>(
     req: PayInvoiceRequestInner,
     caller: PayInvoiceCaller<'_>,
     ldk_route: Option<LdkRouteValues>,
     router: &RouterType,
     channel_manager: &CM,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
@@ -1008,6 +1011,7 @@ pub async fn pay_invoice<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     // Preflight the invoice payment (verify and route).
     let preflighted = pay_invoice_preflight_inner(
@@ -1063,7 +1067,7 @@ where
         .expect("Outbound invoice payment must have invoice in metadata");
 
     // Pre-flight looks good, now we can register this payment in the Lexe
-    // payments manager.
+    // payments manager. This also checks the caller's budget.
     let pwm = oipwm.into_enum();
     let new = payments_manager.new_payment(pwm).await?;
 
@@ -1171,12 +1175,12 @@ pub struct PayInvoicePreflightResponseInner {
 }
 
 #[instrument(skip_all, name = "(pay-invoice-preflight)")]
-pub async fn pay_invoice_preflight<CM, PS>(
+pub async fn pay_invoice_preflight<CM, PS, FRA>(
     req: PayInvoicePreflightRequest,
     caller: PayInvoiceCaller<'_>,
     router: &RouterType,
     channel_manager: &CM,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
@@ -1185,6 +1189,7 @@ pub async fn pay_invoice_preflight<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     let req = PayInvoiceRequestInner {
         invoice: req.invoice,
@@ -1324,11 +1329,11 @@ where
 }
 
 #[instrument(skip_all, name = "(pay-offer)")]
-pub async fn pay_offer<CM, PS>(
+pub async fn pay_offer<CM, PS, FRA>(
     req: PayOfferRequest,
     router: &RouterType,
     channel_manager: &CM,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     chain_monitor: &LexeChainMonitorType<PS>,
     network_graph: &NetworkGraphType,
     lsp_fees: LspFees,
@@ -1339,6 +1344,7 @@ pub async fn pay_offer<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     let offer = req.offer.clone();
 
@@ -1378,7 +1384,7 @@ where
     let id = oopwm.payment.id();
 
     // Pre-flight looks good, now we can register this payment in the Lexe
-    // payments manager.
+    // payments manager. This also checks the caller's budget.
     let new = payments_manager
         .new_payment(oopwm.clone().into_enum())
         .await?;
@@ -1446,11 +1452,11 @@ where
 }
 
 #[instrument(skip_all, name = "(pay-offer-preflight)")]
-pub async fn pay_offer_preflight<CM, PS>(
+pub async fn pay_offer_preflight<CM, PS, FRA>(
     req: PayOfferPreflightRequest,
     router: &RouterType,
     channel_manager: &CM,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     chain_monitor: &LexeChainMonitorType<PS>,
     network_graph: &NetworkGraphType,
     lsp_fees: LspFees,
@@ -1461,6 +1467,7 @@ pub async fn pay_offer_preflight<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     let req = PayOfferRequest {
         client_payment_id: req.client_payment_id,
@@ -1503,17 +1510,18 @@ where
 }
 
 #[instrument(skip_all, name = "(pay-onchain)")]
-pub async fn pay_onchain<CM, PS>(
+pub async fn pay_onchain<CM, PS, FRA>(
     req: PayOnchainRequest,
     network: Network,
     wallet: &OnchainWallet,
     tx_broadcaster: &TxBroadcaster,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     client_pk: Option<ed25519::PublicKey>,
 ) -> anyhow::Result<PayOnchainResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     // Idempotency: return existing payment if already attempted.
     let payment_id = PaymentId::OnchainSend(req.client_payment_id);
@@ -1543,7 +1551,7 @@ where
     let txid = oswm.payment.txid;
     let pwm = oswm.into_enum();
 
-    // Register the transaction.
+    // Register the transaction. This also checks the caller's budget.
     let new = payments_manager
         .new_payment(pwm)
         .await
@@ -1586,15 +1594,16 @@ where
 }
 
 #[instrument(skip_all, name = "(pay-onchain-preflight)")]
-pub async fn pay_onchain_preflight<CM, PS>(
+pub async fn pay_onchain_preflight<CM, PS, FRA>(
     req: PayOnchainPreflightRequest,
     wallet: &OnchainWallet,
     network: Network,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
 ) -> anyhow::Result<PayOnchainPreflightResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     // Reject if the onchain payment was already attempted.
     if let Some(client_payment_id) = req.client_payment_id {
@@ -1640,13 +1649,13 @@ enum PreflightedPayInvoice {
 
 // Preflight (validate and route) a new potential BOLT11 invoice that we might
 // pay.
-async fn pay_invoice_preflight_inner<CM, PS>(
+async fn pay_invoice_preflight_inner<CM, PS, FRA>(
     req: PayInvoiceRequestInner,
     caller: PayInvoiceCaller<'_>,
     ldk_route: Option<LdkRouteValues>,
     router: &RouterType,
     channel_manager: &CM,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     network_graph: &NetworkGraphType,
     chain_monitor: &LexeChainMonitorType<PS>,
     lsp_fees: LspFees,
@@ -1655,6 +1664,7 @@ async fn pay_invoice_preflight_inner<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     let invoice = req.invoice;
 
@@ -1848,11 +1858,11 @@ enum PreflightedPayOffer {
     },
 }
 
-async fn pay_offer_preflight_inner<CM, PS>(
+async fn pay_offer_preflight_inner<CM, PS, FRA>(
     req: PayOfferRequest,
     router: &RouterType,
     channel_manager: &CM,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     chain_monitor: &LexeChainMonitorType<PS>,
     network_graph: &NetworkGraphType,
     lsp_fees: LspFees,
@@ -1863,6 +1873,7 @@ async fn pay_offer_preflight_inner<CM, PS>(
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     let offer = req.offer;
 
@@ -2014,14 +2025,15 @@ where
 
 /// Create a BOLT12 payer proof.
 #[instrument(skip_all, name = "(create-payer-proof)")]
-pub async fn create_payer_proof<CM, PS>(
+pub async fn create_payer_proof<CM, PS, FRA>(
     req: CreatePayerProofRequest,
     keys_manager: &LexeKeysManager,
-    payments_manager: &PaymentsManager<CM, PS>,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
 ) -> anyhow::Result<CreatePayerProofResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     let pwm = payments_manager
         .get_payment(&req.id)
@@ -2493,16 +2505,23 @@ pub fn list_revocable_clients(
 }
 
 #[instrument(skip_all, name = "(create-revocable-client)")]
-pub async fn create_revocable_client(
+pub async fn create_revocable_client<CM, PS, FRA>(
     authz: &VerifiedClientAuthorization,
     user_pk: UserPk,
     gateway_proxy_token: Option<BearerAuthToken>,
     persister: &impl LexePersister,
+    payments_manager: &PaymentsManager<CM, PS, FRA>,
     eph_ca_cert_der: LxCertificateDer,
     rev_ca_cert: &RevocableIssuingCaCert,
     revocable_clients: &RwLock<RevocableClients>,
+    default_fiat_currency: IsoCurrencyCode,
     req: CreateRevocableClientRequest,
-) -> Result<CreateRevocableClientResponse, CommonApiError> {
+) -> Result<CreateRevocableClientResponse, CommonApiError>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
+{
     // TODO(max): Implement budget attenuation: If the credential calling this
     // endpoint has a budget, it cannot create another client with no budget.
     // Furthermore, any budget assigned to the new credential must match the
@@ -2550,7 +2569,21 @@ pub async fn create_revocable_client(
         .map(|permission| Cow::Borrowed(permission.as_str()))
         .collect();
 
-    let updated_file = {
+    // Create the budget before adding the client, so that an invalid budget
+    // leaves the clients untouched.
+    let budget_policy = None;
+    let budget = Budget::new(budget_policy, default_fiat_currency)
+        .map_err(CommonApiError::general)?;
+    // Reject a fiat currency we publish no BTC rate for.
+    // TODO(nicole): Hardcode the supported currencies client-side (and in CLI
+    // flags), so an unsupported currency is rejected before reaching the node.
+    payments_manager
+        .fetch_fiat_rate(budget.fiat_currency())
+        .await
+        .context("Failed to create the new client's budget")
+        .map_err(CommonApiError::general)?;
+
+    let (clients_file, evicted) = {
         let mut revocable_clients = revocable_clients.write().unwrap();
 
         authz.require_create_covered(&revocable_client, &revocable_clients)?;
@@ -2558,7 +2591,7 @@ pub async fn create_revocable_client(
         // We don't allow more than `MAX_LEN` clients for DoS reasons. We also
         // don't delete revoked clients immediately. If we're above the limit,
         // we'll prune the oldest revoked client(s).
-        maybe_evict_revoked_clients(
+        let evicted = maybe_evict_revoked_clients(
             &mut revocable_clients.clients,
             now,
             RevocableClients::MAX_LEN,
@@ -2574,17 +2607,37 @@ pub async fn create_revocable_client(
             );
         }
 
-        persister.encrypt_json::<RevocableClients>(
+        let clients_file = persister.encrypt_json::<RevocableClients>(
             RevocableClients::VFS_FILE_ID.clone(),
             &revocable_clients,
-        )
+        );
+        (clients_file, evicted)
     };
 
-    let retries = Retries::from_count(0);
-    persister
-        .persist_file(updated_file, retries)
+    // Persist the clients atomically with the new client's budget, deleting
+    // the evicted clients' budgets.
+    // TODO(nicole): Rarely, the new client is stored without a budget:
+    // 1. The new client is added to memory above.
+    // 2. A concurrent create or update persists the clients file, which
+    //    includes the new client.
+    // 3. This persist fails.
+    // This create then returns an error, so nobody holds the client's
+    // credentials. Only the client's own payments need its budget, so no
+    // endpoint breaks, and the client just takes up a slot until it expires,
+    // if ever. This is rare and its impact limited, so we leave it for now.
+    // Holding a `tokio::sync::Mutex<()>` across each client write would fix
+    // it (see the NOTE in `update_revocable_client`).
+    let client_pk = ClientPk::Revocable(pubkey);
+    let upserts = vec![clients_file];
+    let deletions = evicted.into_iter().map(ClientPk::Revocable).collect();
+    payments_manager
+        .persist_new_budget(client_pk, budget, upserts, deletions)
         .await
-        .context("Failed to persist updated RevocableClients")
+        .inspect_err(|_| {
+            // Don't leave the client in memory without a budget.
+            revocable_clients.write().unwrap().clients.remove(&pubkey);
+        })
+        .context("Failed to persist the client and its budget")
         .map_err(CommonApiError::general)?;
 
     Ok(CreateRevocableClientResponse {
@@ -2600,15 +2653,17 @@ pub async fn create_revocable_client(
     })
 }
 
-/// Evicts old revoked/expired clients if we have too many. Returns an `Err`
-/// if we have too many clients and can't evict any.
+/// Evicts old revoked/expired clients if we have too many, returning the
+/// evicted clients' pubkeys. Returns an `Err` if we have too many clients and
+/// can't evict any.
 fn maybe_evict_revoked_clients(
     clients: &mut HashMap<ed25519::PublicKey, RevocableClient>,
     now: TimestampMs,
     limit: usize,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<ed25519::PublicKey>> {
+    let mut evicted = Vec::new();
     if clients.len() < limit {
-        return Ok(());
+        return Ok(evicted);
     }
 
     // We'll almost never be at the limit, and if we are, we'll likely only
@@ -2627,6 +2682,7 @@ fn maybe_evict_revoked_clients(
             Some(pubkey) => {
                 // Evict old, revoked client
                 clients.remove(&pubkey).expect("Client should exist");
+                evicted.push(pubkey);
             }
             None =>
                 return Err(anyhow!(
@@ -2637,7 +2693,7 @@ fn maybe_evict_revoked_clients(
         }
     }
 
-    Ok(())
+    Ok(evicted)
 }
 
 /// Update an existing [`RevocableClient`] (revoke, set expiration, etc...).
@@ -2757,7 +2813,7 @@ mod test {
             if num_after > target_len {
                 result.unwrap_err();
             } else {
-                result.unwrap();
+                assert_eq!(result.unwrap().len(), num_evicted);
             }
         });
     }

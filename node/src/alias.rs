@@ -11,7 +11,10 @@ use lexe_ln::{
 };
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 
-use crate::{channel_manager::NodeChannelManager, persister::NodePersister};
+use crate::{
+    channel_manager::NodeChannelManager, client::NodeBackendClient,
+    persister::NodePersister,
+};
 
 pub(crate) type ChainMonitorType = LexeChainMonitorType<Arc<NodePersister>>;
 
@@ -19,8 +22,11 @@ pub(crate) type ChannelManagerType = LexeChannelManagerType<Arc<NodePersister>>;
 
 pub(crate) type OnionMessengerType = LexeOnionMessengerType<NodeChannelManager>;
 
-pub(crate) type PaymentsManagerType =
-    PaymentsManager<NodeChannelManager, Arc<NodePersister>>;
+pub(crate) type PaymentsManagerType = PaymentsManager<
+    NodeChannelManager,
+    Arc<NodePersister>,
+    Arc<NodeBackendClient>,
+>;
 
 pub(crate) type PeerManagerType = LexePeerManagerType<
     NodeChannelManager,

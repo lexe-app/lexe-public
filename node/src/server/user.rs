@@ -705,14 +705,17 @@ pub(super) async fn create_revocable_client(
         .await
         .map_err(NodeApiError::command)?;
 
+    let default_fiat_currency = state.settings.read().await.fiat_currency();
     lexe_ln::command::create_revocable_client(
         &permissions,
         state.user_pk,
         Some(gateway_proxy_token),
         &state.persister,
+        &state.payments_manager,
         state.eph_ca_cert_der.deref().clone(),
         &state.rev_ca_cert,
         &state.revocable_clients.0,
+        default_fiat_currency,
         req,
     )
     .await

@@ -21,6 +21,8 @@ pub mod alias;
 pub mod background_processor;
 /// Utilities for computing lightning balances.
 pub mod balance;
+/// Client budget handling.
+pub mod budget;
 /// Shared functionality relating to opening, closing, managing channels.
 pub mod channel;
 /// Channel monitor

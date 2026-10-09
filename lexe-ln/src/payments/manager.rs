@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
-    iter,
+    iter, slice,
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -9,24 +9,33 @@ use std::{
 use anyhow::{Context, anyhow, bail, ensure};
 use either::Either;
 use lexe_api::{
-    models::command::UpdatePersonalNote,
+    budget::{
+        Budget, BudgetPaymentStatus, ClientBudgets, ClientPk, PersistedBudget,
+    },
+    def::FiatRatesBackendApi,
+    models::command::{GetFiatRatesRequest, UpdatePersonalNote},
     types::{
         bolt12_invoice::Bolt12Invoice,
         bounded_string::BoundedString,
         invoice::Invoice,
         payments::{
-            LnClaimId, OfferId, PaymentCreatedIndex, PaymentHash, PaymentId,
-            PaymentKind, PaymentPreimage, PaymentStatus,
+            LnClaimId, OfferId, PaymentCreatedIndex, PaymentDirection,
+            PaymentHash, PaymentId, PaymentKind, PaymentPreimage,
+            PaymentStatus,
         },
         retries::Retries,
     },
-    vfs::Vfs,
+    vfs::{UpsertOrDeleteFileBatchRequest, Vfs, VfsFile},
 };
 use lexe_common::{
-    api::test_event::TestEvent,
+    api::{
+        fiat_rates::{FiatRates, IsoCurrencyCode},
+        test_event::TestEvent,
+    },
     ln::{amount::Amount, fees::FirstHopFeePolicy, hashes::Txid},
     time::TimestampMs,
 };
+use lexe_logger::debug_panic_release_log;
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
 #[cfg(doc)]
 use lightning::events::Event::PaymentFailed;
@@ -52,7 +61,7 @@ use crate::{
     persister::{NodeState, PaymentsPersisterMethods},
     route::{self, LexeRouter, RoutingContext, RoutingResult},
     test_event::TestEventSender,
-    traits::{LexeChannelManager, LexePaymentsPersister},
+    traits::{LexeChannelManager, LexeFiatRatesApi, LexePaymentsPersister},
     tx_broadcaster::TxBroadcaster,
     wallet::OnchainWallet,
 };
@@ -83,14 +92,12 @@ const SPENDABLE_FAILED_ONCHAIN_PAYMENTS_CHECK_INTERVAL: Duration =
 pub struct CheckedPayment(pub PaymentWithMetadata);
 
 /// Annotates that a given [`PaymentV2`] was successfully persisted.
-/// `created_at` is assigned at the time of persistence.
 /// [`PersistedPayment`]s should be committed to the local payments state.
 #[must_use]
 pub struct PersistedPayment {
     // TODO(max): This should be PaymentV2
     // pub payment: PaymentV2,
     pub pwm: PaymentWithMetadata,
-    pub created_at: TimestampMs,
 }
 
 /// The top-level, cloneable actor which exposes the main entrypoints for
@@ -102,11 +109,12 @@ pub struct PersistedPayment {
 /// the persister, and LDK to ensure that state updates are in sync, and that
 /// there are no update / persist races.
 #[derive(Clone)]
-pub struct PaymentsManager<CM, PS> {
+pub struct PaymentsManager<CM, PS, FRA> {
     data: Arc<tokio::sync::Mutex<PaymentsData>>,
     persister: PS,
     channel_manager: CM,
     router: Arc<LexeRouter>,
+    fiat_rates_api: FRA,
 
     /// The user's current Human Bitcoin Address offer IDs.
     /// Payments to these offers will have `PaymentKind::HumanBitcoinAddress`.
@@ -149,8 +157,20 @@ pub struct PaymentsManager<CM, PS> {
 /// persist, and commit stages. TODO(max): If this turns out to be a performance
 /// bottleneck, we should switch to per-payment or per-payment-type locks.
 ///
+/// A budgeted payment (one sent by a client) also updates its client's
+/// [`Budget`]:
+///
+/// - [`new_payment`] registers it, persisting the budget with the payment.
+/// - [`retry_payment`] re-checks the re-routed amount and fees.
+/// - Finalization records its final status, persisting the budget with the
+///   payment.
+///
+/// Persisting with the payment is atomic.
+///
 /// [`upsert_payment`]: PaymentsPersisterMethods::upsert_payment
 /// [`upsert_payment_batch`]: PaymentsPersisterMethods::upsert_payment_batch
+/// [`new_payment`]: PaymentsManager::new_payment
+/// [`retry_payment`]: PaymentsManager::retry_payment
 #[cfg_attr(test, derive(Clone, Debug))]
 struct PaymentsData {
     pending: HashMap<PaymentId, PaymentWithMetadata>,
@@ -159,6 +179,13 @@ struct PaymentsData {
         quick_cache::unsync::Cache<PaymentId, PaymentWithMetadata>,
     /// In-memory retry state for outbound payments currently in-flight.
     in_flight: HashMap<PaymentId, InFlightRetryState>,
+    /// The spending budgets of clients.
+    ///
+    /// Every stored client has an entry, even if it can spend without limit.
+    /// Revoked clients keep theirs until they are evicted.
+    //
+    // TODO(nicole): Store an entry for each NWC client.
+    budgets: ClientBudgets,
 }
 
 /// In-memory state for an outbound payment that is currently being retried.
@@ -197,25 +224,32 @@ pub enum NewPaymentResult {
 
 /// Data required for a single payment send retry attempt.
 struct RetryInfo {
-    id: PaymentId,
+    index: PaymentCreatedIndex,
     invoice: Arc<Invoice>,
     amount: Amount,
     first_hop_fee_policy: FirstHopFeePolicy,
     failed_channel_scids: Vec<u64>,
+    /// The paying client, if the payment is budgeted.
+    client_pk: Option<ClientPk>,
 }
 
-impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
-    PaymentsManager<CM, PS>
+impl<CM, PS, FRA> PaymentsManager<CM, PS, FRA>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 {
     /// Instantiates a new [`PaymentsManager`] and spawns associated tasks.
     pub fn new(
         persister: PS,
         channel_manager: CM,
         router: Arc<LexeRouter>,
+        fiat_rates_api: FRA,
         hba_offer_ids: Arc<RwLock<HashSet<OfferId>>>,
         finalized_cache_capacity: usize,
         esplora: Arc<LexeEsplora>,
         pending_payments: Vec<PaymentWithMetadata>,
+        client_budgets: ClientBudgets,
         wallet: OnchainWallet,
         tx_broadcaster: TxBroadcaster,
         onchain_recv_rx: notify::Receiver,
@@ -247,6 +281,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             pending,
             finalized_payments_cache,
             in_flight: HashMap::new(),
+            budgets: client_budgets,
         }));
 
         let this = Self {
@@ -254,6 +289,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             persister,
             channel_manager,
             router,
+            fiat_rates_api,
             hba_offer_ids,
             test_event_tx,
         };
@@ -438,7 +474,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
     //
     // Event sources:
     // - `payment_failed` handler (after PaymentFailed event)
-    #[instrument(skip_all, name = "(retry-payment)", fields(%retry.id))]
+    #[instrument(skip_all, name = "(retry-payment)", fields(%retry.index.id))]
     async fn retry_payment(
         &self,
         retry: RetryInfo,
@@ -462,6 +498,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             payment_params,
         );
 
+        // TODO(nicole): Budget-limit-aware retry routing. Niche, so can wait.
         let route_result = routing_context.find_route(
             &self.router,
             retry.amount,
@@ -480,11 +517,49 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             }
         };
 
+        // The retry re-routed, so its amount and fees may differ from those
+        // reserved when the payment was registered. Re-check them against the
+        // paying client's budget before sending.
+        if let Some(client_pk) = retry.client_pk {
+            let mut locked_data = self.data.lock().await;
+
+            let maybe_budget = locked_data.budgets.get(&client_pk).cloned();
+            let mut budget = match maybe_budget {
+                Some(b) => b,
+                None => {
+                    // Very rarely, the client was evicted before the retry.
+                    let id = retry.index.id;
+                    warn!(
+                        "Retried payment {id}'s client {client_pk} has no budget"
+                    );
+                    return Err(LxOutboundPaymentFailure::LexeErr);
+                }
+            };
+
+            let total =
+                route::amount(&route).saturating_add(route::fees(&route));
+            if let Err(e) = budget.update_pending_payment(retry.index, total) {
+                warn!("Retry rejected by the client's budget: {e:#}");
+                return Err(LxOutboundPaymentFailure::NoRoute);
+            }
+            let persist_result =
+                ClientBudgets::persist(&*self.persister, client_pk, budget)
+                    .await;
+            let persisted_budget = match persist_result {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!("Failed to persist the updated budget: {e:#}");
+                    return Err(LxOutboundPaymentFailure::LexeErr);
+                }
+            };
+            locked_data.budgets.commit(persisted_budget);
+        }
+
         // Build recipient onion fields (includes payment_metadata if present).
         let recipient_fields =
             outbound::recipient_onion_fields(&retry.invoice, &route);
 
-        let (payment_id, payment_hash) = match retry.id {
+        let (payment_id, payment_hash) = match retry.index.id {
             PaymentId::Lightning(hash) => (
                 lightning::ln::channelmanager::PaymentId::from(hash),
                 lightning::types::payment::PaymentHash::from(hash),
@@ -505,7 +580,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                 self.data
                     .lock()
                     .await
-                    .increment_attempt(&retry.id, first_hop_fee);
+                    .increment_attempt(&retry.index.id, first_hop_fee);
                 info!("Retry send succeeded, waiting for events");
                 return Ok(());
             }
@@ -532,10 +607,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
     ///
     /// Returns [`NewPaymentResult::Exists`] with the existing index if already
     /// registered. Used for payment idempotency.
-    //
-    // TODO(phlip9): might be clearer semantics if we assign the
-    // new payment's `created_at` _inside_ the lock... this would make
-    // payments properly append-only with a strictly increasing `created_at`
+    ///
+    /// A budgeted payment (one sent by a client) is registered in its client's
+    /// budget first, valued at the latest fiat rate; a payment which doesn't
+    /// fit the budget is never created.
     #[instrument(skip_all, name = "(new-payment)")]
     pub async fn new_payment(
         &self,
@@ -549,7 +624,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
     async fn new_payment_inner(
         &self,
         locked_data: &mut MutexGuard<'_, PaymentsData>,
-        payment: PaymentWithMetadata,
+        mut payment: PaymentWithMetadata,
     ) -> anyhow::Result<NewPaymentResult> {
         let id = payment.payment.id();
         info!(%id, "Registering new payment");
@@ -569,18 +644,43 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             return Ok(NewPaymentResult::Exists(index));
         }
 
+        let created_at = payment
+            .payment
+            .set_created_at_idempotent(TimestampMs::now());
+        let index = PaymentCreatedIndex { created_at, id };
+
+        // Check. Ensure a client's outbound payment fits its budget.
+        let is_outbound =
+            payment.payment.direction() == PaymentDirection::Outbound;
+        let updated_budget = if is_outbound
+            && let Some(client_pk) = payment.metadata.client_pk
+        {
+            let client_pk = ClientPk::Revocable(client_pk);
+            let amount = payment
+                .payment
+                .amount()
+                .context("Budgeted payment has no amount")?;
+            let total = amount.saturating_add(payment.payment.fee());
+
+            let mut budget =
+                locked_data.budgets.get(&client_pk).cloned().with_context(
+                    || format!("No budget for client {client_pk}"),
+                )?;
+
+            // Price the payment in the budget's currency.
+            let fiat_rates =
+                self.fetch_fiat_rate(budget.fiat_currency()).await?;
+            budget.register_new_payment(index, total, &fiat_rates)?;
+            Some((client_pk, budget))
+        } else {
+            None
+        };
         let checked = CheckedPayment(payment);
 
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Could not persist new payment")?;
-        let created_at = persisted.created_at;
+        // Persist and commit
+        self.persist_and_commit(locked_data, checked, updated_budget)
+            .await?;
 
-        locked_data.commit(persisted);
-
-        let index = PaymentCreatedIndex { created_at, id };
         Ok(NewPaymentResult::New(index))
     }
 
@@ -695,15 +795,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         pwm.metadata.personal_note =
             update.personal_note.map(BoundedString::into_inner);
 
-        // Persist
-        let persisted = self
-            .persister
-            .upsert_payment(CheckedPayment(pwm))
-            .await
-            .context("Could not persist updated payment note")?;
-
-        // Commit
-        locked_data.commit(persisted);
+        // Persist and commit
+        let budget = None;
+        self.persist_and_commit(&mut locked_data, CheckedPayment(pwm), budget)
+            .await?;
 
         debug!(%id, "Successfully updated payment note");
         Ok(())
@@ -757,18 +852,89 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         };
         let checked = CheckedPayment(iipwm.into_enum());
 
-        // Persist
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Persist failed")?;
-
-        // Commit
-        locked_data.commit(persisted);
+        // Persist and commit
+        let budget = None;
+        self.persist_and_commit(&mut locked_data, checked, budget)
+            .await?;
 
         Ok(())
     }
+
+    // --- Client budgets --- //
+
+    /// Persist a new client's budget and delete the budgets of the clients in
+    /// `deletions`, atomically with `upserts`.
+    pub async fn persist_new_budget(
+        &self,
+        client_pk: ClientPk,
+        budget: Budget,
+        mut upserts: Vec<VfsFile>,
+        deletions: Vec<ClientPk>,
+    ) -> anyhow::Result<()> {
+        let mut locked_data = self.data.lock().await;
+        upserts.push(ClientBudgets::encrypt(
+            &*self.persister,
+            client_pk,
+            &budget,
+        ));
+        let deletes = deletions.iter().map(ClientBudgets::file_id).collect();
+        let req = UpsertOrDeleteFileBatchRequest { upserts, deletes };
+        self.persister
+            .upsert_or_delete_file_batch(req)
+            .await
+            .context("Could not persist budgets")?;
+
+        locked_data
+            .budgets
+            .commit(PersistedBudget { budget, client_pk });
+        for client_pk in &deletions {
+            locked_data.budgets.commit_removal(client_pk);
+        }
+        Ok(())
+    }
+
+    /// Check whether a new payment costing `total`, its amount plus fees,
+    /// would fit the client's budget, without registering it.
+    pub async fn check_budget(
+        &self,
+        client_pk: ClientPk,
+        total: Amount,
+    ) -> anyhow::Result<()> {
+        let locked_data = self.data.lock().await;
+        let budget = locked_data
+            .budgets
+            .get(&client_pk)
+            .with_context(|| format!("No budget for client {client_pk}"))?;
+        if budget.policy().is_none() {
+            // No spending limit
+            return Ok(());
+        }
+
+        let fiat_rates = self.fetch_fiat_rate(budget.fiat_currency()).await?;
+        let btc_price = budget.btc_price(&fiat_rates)?;
+        let now = TimestampMs::now();
+        budget.check_spendable(total, btc_price, now)
+    }
+
+    /// Fetch the BTC rate for `currency`.
+    //
+    // TODO(nicole): Maintain a `FiatRatesCache` at the meganode level, updated
+    // via a websocket subscription to the backend, and pass it in place of
+    // `fiat_rates_api`, removing the `FRA` generic.
+    pub async fn fetch_fiat_rate(
+        &self,
+        currency: IsoCurrencyCode,
+    ) -> anyhow::Result<FiatRates> {
+        let req = GetFiatRatesRequest {
+            currency_codes: Some(vec![currency]),
+        };
+        self.fiat_rates_api
+            .get_fiat_rates(req)
+            .await
+            .with_context(|| format!("Could not fetch the BTC/{currency} rate"))
+    }
+
+    // --- Payment state machine --- //
 
     /// Handles a [`PaymentClaimable`] event.
     ///
@@ -858,15 +1024,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                     claim_ctx, amount, skimmed_fee, kind, now,
                 )?;
 
-            // Persist
-            let persisted = self
-                .persister
-                .upsert_payment(checked)
+            // Persist and commit
+            let budget = None;
+            self.persist_and_commit(&mut locked_data, checked, budget)
                 .await
                 .map_err(ClaimableError::Persist)?;
-
-            // Commit
-            locked_data.commit(persisted);
 
             Ok::<(), ClaimableError>(())
         };
@@ -969,15 +1131,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             .check_payment_claimed(claim_ctx, amount)
             .context("Error validating PaymentClaimed")?;
 
-        // Persist
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Could not persist payment")?;
-
-        // Commit
-        locked_data.commit(persisted);
+        // Persist and commit
+        let budget = None;
+        self.persist_and_commit(&mut locked_data, checked, budget)
+            .await?;
 
         // TODO(phlip9): test event is not the right approach for observing
         // a payment's status.
@@ -1037,16 +1194,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                 maybe_bolt12_invoice,
             )
             .context("Error validating PaymentSent")?;
+        let updated_budget =
+            budget_helpers::finalize(&locked_data.budgets, &checked)?;
 
-        // Persist
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Could not persist payment")?;
-
-        // Commit
-        locked_data.commit(persisted);
+        // Persist and commit
+        self.persist_and_commit(&mut locked_data, checked, updated_budget)
+            .await?;
 
         // Clean up in-flight retry state since payment succeeded
         locked_data.remove_in_flight(&id);
@@ -1118,16 +1271,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         let checked = locked_data
             .check_payment_failed(id, final_failure)
             .context("Error validating PaymentFailed")?;
+        let updated_budget =
+            budget_helpers::finalize(&locked_data.budgets, &checked)?;
 
-        // Persist
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Could not persist payment")?;
-
-        // Commit
-        locked_data.commit(persisted);
+        // Persist and commit
+        self.persist_and_commit(&mut locked_data, checked, updated_budget)
+            .await?;
 
         // TODO(phlip9): test event is not the right approach for observing
         // a payment's status.
@@ -1169,17 +1318,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                 .check_payment_expiries(now)
                 .context("Error checking payment expiries")?;
 
-            // Persist
-            let all_persisted = self
-                .persister
-                .upsert_payment_batch(all_checked)
-                .await
-                .context("Couldn't persist payment batch")?;
-
-            // Commit
-            for persisted in all_persisted {
-                locked_data.commit(persisted);
-            }
+            // Persist and commit
+            let budgets = HashMap::new();
+            self.persist_and_commit_batch(
+                &mut locked_data,
+                all_checked,
+                budgets,
+            )
+            .await?;
 
             ops_to_abandon
         };
@@ -1234,15 +1380,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             _ => bail!("Payment was not an onchain send"),
         };
 
-        // Persist
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Persist failed")?;
-
-        // Commit
-        locked_data.commit(persisted);
+        // Persist and commit
+        let budget = None;
+        self.persist_and_commit(&mut locked_data, checked, budget)
+            .await?;
 
         debug!("Successfully registered successful broadcast");
         Ok(())
@@ -1382,16 +1523,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
                 .context("Invalid state transition")?,
             _ => bail!("Payment was not an onchain send"),
         };
+        let updated_budget =
+            budget_helpers::finalize(&locked_data.budgets, &checked)?;
 
-        // Persist
-        let persisted = self
-            .persister
-            .upsert_payment(checked)
-            .await
-            .context("Persist failed")?;
-
-        // Commit
-        locked_data.commit(persisted);
+        // Persist and commit
+        self.persist_and_commit(&mut locked_data, checked, updated_budget)
+            .await?;
 
         debug!("Successfully canceled onchain send");
         Ok(())
@@ -1458,18 +1595,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         let all_checked = locked_data
             .check_onchain_confs(ids, tx_conf_statuses)
             .context("Invalid tx conf state transition")?;
+        let updated_budgets =
+            budget_helpers::finalize_batch(&locked_data.budgets, &all_checked)?;
 
-        // Persist
-        let all_persisted = self
-            .persister
-            .upsert_payment_batch(all_checked)
-            .await
-            .context("Couldn't persist payment batch")?;
-
-        // Commit
-        for persisted in all_persisted {
-            locked_data.commit(persisted);
-        }
+        // Persist and commit
+        self.persist_and_commit_batch(
+            &mut locked_data,
+            all_checked,
+            updated_budgets,
+        )
+        .await?;
 
         debug!("Successfully checked onchain confs");
         Ok(())
@@ -1637,20 +1772,62 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             };
             all_checked.push(CheckedPayment(checked_pwm));
         }
+        let updated_budgets =
+            budget_helpers::finalize_batch(&locked_data.budgets, &all_checked)?;
 
-        // Persist
-        let all_persisted = self
+        // Persist and commit
+        self.persist_and_commit_batch(
+            &mut locked_data,
+            all_checked,
+            updated_budgets,
+        )
+        .await?;
+
+        debug!("Successfully checked spendable failed onchain payments");
+        Ok(())
+    }
+
+    // --- Helpers --- //
+
+    /// Persist a payment atomically with its client's updated budget, if any,
+    /// then commit both to memory.
+    async fn persist_and_commit(
+        &self,
+        locked_data: &mut PaymentsData,
+        checked: CheckedPayment,
+        budget: Option<(ClientPk, Budget)>,
+    ) -> anyhow::Result<()> {
+        let (persisted, maybe_persisted_budget) = self
             .persister
-            .upsert_payment_batch(all_checked)
+            .upsert_payment(checked, budget)
+            .await
+            .context("Could not persist payment")?;
+        locked_data.commit(persisted);
+        if let Some(persisted_budget) = maybe_persisted_budget {
+            locked_data.budgets.commit(persisted_budget);
+        }
+        Ok(())
+    }
+
+    /// [`Self::persist_and_commit`] for a batch of payments and their clients'
+    /// updated budgets.
+    async fn persist_and_commit_batch(
+        &self,
+        locked_data: &mut PaymentsData,
+        all_checked: Vec<CheckedPayment>,
+        budgets: HashMap<ClientPk, Budget>,
+    ) -> anyhow::Result<()> {
+        let (all_persisted, persisted_budgets) = self
+            .persister
+            .upsert_payment_batch(all_checked, budgets)
             .await
             .context("Couldn't persist payment batch")?;
-
-        // Commit
         for persisted in all_persisted {
             locked_data.commit(persisted);
         }
-
-        debug!("Successfully checked spendable failed onchain payments");
+        for persisted_budget in persisted_budgets {
+            locked_data.budgets.commit(persisted_budget);
+        }
         Ok(())
     }
 }
@@ -1750,21 +1927,34 @@ impl PaymentsData {
             return None;
         }
 
-        if let Some(state) = self.get_in_flight(id)
-            && state.attempts_count < state.max_attempts
-        {
-            let failed_channel_scids =
-                state.failed_channel_scids.iter().copied().collect();
-            Some(RetryInfo {
-                id: *id,
-                invoice: state.invoice.clone(),
-                amount: state.amount,
-                first_hop_fee_policy: state.first_hop_fee_policy,
-                failed_channel_scids,
-            })
-        } else {
-            None
+        let state = self.get_in_flight(id)?;
+        if state.attempts_count >= state.max_attempts {
+            return None;
         }
+
+        // An in-flight payment is always pending and persisted.
+        let Some(pwm) = self.pending.get(id) else {
+            debug_panic_release_log!("In-flight payment {id} is not pending");
+            return None;
+        };
+        let created_at = pwm
+            .payment
+            .created_at()
+            .expect("All persisted payments must have a created_at set");
+
+        let failed_channel_scids =
+            state.failed_channel_scids.iter().copied().collect();
+        Some(RetryInfo {
+            index: PaymentCreatedIndex {
+                created_at,
+                id: *id,
+            },
+            invoice: state.invoice.clone(),
+            amount: state.amount,
+            first_hop_fee_policy: state.first_hop_fee_policy,
+            failed_channel_scids,
+            client_pk: pwm.metadata.client_pk.map(ClientPk::Revocable),
+        })
     }
 
     /// Increments the attempt count for an in-flight payment, and records the
@@ -2155,6 +2345,92 @@ impl PaymentsData {
     }
 }
 
+mod budget_helpers {
+    use super::*;
+
+    /// [`finalize_batch`] for a single payment.
+    pub(super) fn finalize(
+        budgets: &ClientBudgets,
+        checked: &CheckedPayment,
+    ) -> anyhow::Result<Option<(ClientPk, Budget)>> {
+        let updated_budgets =
+            finalize_batch(budgets, slice::from_ref(checked))?;
+        Ok(updated_budgets.into_iter().next())
+    }
+
+    /// Record finalized payments' outcomes in their clients' budgets, returning
+    /// only the budgets which changed.
+    pub(super) fn finalize_batch(
+        budgets: &ClientBudgets,
+        checked: &[CheckedPayment],
+    ) -> anyhow::Result<HashMap<ClientPk, Budget>> {
+        let mut updated_budgets = HashMap::new();
+        for CheckedPayment(pwm) in checked {
+            let payment = &pwm.payment;
+            let client_pk =
+                match pwm.metadata.client_pk.map(ClientPk::Revocable) {
+                    Some(cpk) => cpk,
+                    None => continue,
+                };
+            if payment.direction() != PaymentDirection::Outbound
+                || !payment.status().is_finalized()
+            {
+                continue;
+            }
+            let id = payment.id();
+            // Several payments in the batch may update the same budget.
+            let maybe_budget = updated_budgets
+                .get(&client_pk)
+                .or_else(|| budgets.get(&client_pk));
+            let mut budget = match maybe_budget {
+                Some(b) => b.clone(),
+                None => {
+                    // If the client was evicted before the payment finalized,
+                    // then `client_pk` might not exist anymore.
+                    info!(
+                        "Finalized payment {id} made with client {client_pk}, \
+                         but found no budget entry."
+                    );
+                    continue;
+                }
+            };
+
+            let created_at = payment
+                .created_at()
+                .expect("All persisted payments must have a created_at set");
+            let index = PaymentCreatedIndex { created_at, id };
+            let amount = payment.amount().with_context(|| {
+                format!("Budgeted payment {id} has no amount")
+            })?;
+            let total = amount.saturating_add(payment.fee());
+            let status = budget_payment_status(payment);
+            budget.finalize_payment(index, total, status)?;
+            updated_budgets.insert(client_pk, budget);
+        }
+        Ok(updated_budgets)
+    }
+
+    /// The status of `payment` in its client's budget.
+    ///
+    /// A [`PaymentStatus::Failed`] payment can't always be treated as spending
+    /// nothing, since a failed onchain send's signed tx may still confirm. Such
+    /// a send is [`BudgetPaymentStatus::SpendableFailed`], which keeps
+    /// counting against the limit, rather than
+    /// [`BudgetPaymentStatus::Failed`], which doesn't.
+    fn budget_payment_status(payment: &PaymentV2) -> BudgetPaymentStatus {
+        match payment.status() {
+            PaymentStatus::Pending => BudgetPaymentStatus::Pending,
+            PaymentStatus::Completed => BudgetPaymentStatus::Completed,
+            PaymentStatus::Failed => match payment {
+                PaymentV2::OnchainSend(os)
+                    if os.status.is_failed_but_spendable() =>
+                    BudgetPaymentStatus::SpendableFailed,
+                _ => BudgetPaymentStatus::Failed,
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod arbitrary_impl {
     use proptest::{
@@ -2176,9 +2452,11 @@ mod arbitrary_impl {
     }
 }
 
+// TODO(nicole): Integrate budgets and budget invariants into payman tests.
 #[cfg(test)]
 mod test {
-    use lexe_common::ByteArray;
+    use lexe_common::{ByteArray, test_utils::arbitrary};
+    use lexe_crypto::rng::FastRng;
     use proptest::{
         arbitrary::{any, any_with},
         prop_assert_eq, proptest,
@@ -2213,6 +2491,7 @@ mod test {
                 pending,
                 finalized_payments_cache,
                 in_flight: HashMap::new(),
+                budgets: ClientBudgets::empty(),
             };
             for payment in payments {
                 let id = payment.id();
@@ -2260,11 +2539,7 @@ mod test {
         /// Assert that a `CheckedPayment` was persisted without actually
         /// persisting.
         fn persisted(self) -> PersistedPayment {
-            PersistedPayment {
-                pwm: self.0,
-                // Set a dummy value
-                created_at: TimestampMs::MIN,
-            }
+            PersistedPayment { pwm: self.0 }
         }
     }
 
@@ -2601,8 +2876,20 @@ mod test {
             2k6yqwzdpymmlgearh5hu8vz24r5my73vdv3zuyyra8yxa9zkf26fvjf8ru3rfjam\
             q9agkw6ta9wect076du6p3mvcp9w4lu3";
 
-        let mut data = PaymentsData::from_vec(vec![]);
-        let id = PaymentId::from_u8(1);
+        // A retry needs the pending, persisted payment it retries.
+        let mut rng = FastRng::from_u64(202610011200);
+        let mut oip = arbitrary::gen_value(
+            &mut rng,
+            any_with::<OutboundInvoicePaymentV2>(OipParamsV2 {
+                payment_preimage: None,
+                pending_only: true,
+            }),
+        );
+        oip.created_at = Some(TimestampMs::from_secs_u32(1));
+        let id = oip.id();
+        let mut data =
+            PaymentsData::from_vec(vec![PaymentV2::OutboundInvoice(oip)]);
+
         let unknown_id = PaymentId::from_u8(2);
         let invoice: Invoice = TEST_INVOICE.parse().unwrap();
         let amount = Amount::from_sats_u32(1000);

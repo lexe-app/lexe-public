@@ -33,13 +33,13 @@ use crate::{
     esplora::{FeeEstimates, LexeEsplora},
     payments::{manager::PaymentsManager, onchain::OnchainSendV2},
     persister::PaymentsPersisterMethods,
-    traits::{LexeChannelManager, LexePaymentsPersister},
+    traits::{LexeChannelManager, LexeFiatRatesApi, LexePaymentsPersister},
     tx_broadcaster::TxBroadcaster,
     wallet::{AddressScanParams, LexeCoinSelector, OnchainWallet},
 };
 
 /// Context required for legacy wallet sweep.
-pub struct LegacySweepCtx<CM, PS> {
+pub struct LegacySweepCtx<CM, PS, FRA> {
     /// The legacy (pre-BIP39-compatible) master extended private key.
     pub legacy_master_xprv: Xpriv,
     pub network: Network,
@@ -47,7 +47,7 @@ pub struct LegacySweepCtx<CM, PS> {
     pub fee_estimates: Arc<FeeEstimates>,
     pub coin_selector: LexeCoinSelector,
     pub tx_broadcaster: TxBroadcaster,
-    pub payments_manager: PaymentsManager<CM, PS>,
+    pub payments_manager: PaymentsManager<CM, PS, FRA>,
     pub persister: PS,
     /// The new BIP39-compatible wallet to sweep funds into.
     pub new_wallet: OnchainWallet,
@@ -60,8 +60,9 @@ pub struct LegacySweepCtx<CM, PS> {
 pub fn spawn_legacy_sweep_task<
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 >(
-    ctx: LegacySweepCtx<CM, PS>,
+    ctx: LegacySweepCtx<CM, PS, FRA>,
 ) -> LxTask<()> {
     LxTask::spawn("legacy-wallet-sweep", do_legacy_sweep(ctx))
 }
@@ -70,8 +71,9 @@ pub fn spawn_legacy_sweep_task<
 async fn do_legacy_sweep<
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 >(
-    ctx: LegacySweepCtx<CM, PS>,
+    ctx: LegacySweepCtx<CM, PS, FRA>,
 ) {
     // Read the legacy wallet changeset from the persister.
     let maybe_legacy_changeset_res = ctx
@@ -123,8 +125,9 @@ async fn do_legacy_sweep<
 async fn sync_and_sweep<
     CM: LexeChannelManager<PS>,
     PS: LexePaymentsPersister,
+    FRA: LexeFiatRatesApi,
 >(
-    ctx: &LegacySweepCtx<CM, PS>,
+    ctx: &LegacySweepCtx<CM, PS, FRA>,
     legacy_wallet: &OnchainWallet,
 ) -> anyhow::Result<()> {
     // Sync the legacy wallet to get latest state. (init already does

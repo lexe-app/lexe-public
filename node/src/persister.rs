@@ -43,6 +43,7 @@ use futures::FutureExt;
 use gdrive::{GoogleVfs, GvfsRoot, oauth2::GDriveCredentials};
 use lexe_api::{
     auth::BearerAuthenticator,
+    budget::{Budget, ClientBudgets, ClientPk, PersistedBudget},
     def::NodeBackendApi,
     error::{BackendApiError, BackendErrorKind},
     models::{
@@ -917,7 +918,8 @@ impl PaymentsPersisterMethods for NodePersister {
     async fn upsert_payment(
         &self,
         checked: CheckedPayment,
-    ) -> anyhow::Result<PersistedPayment> {
+        budget: Option<(ClientPk, Budget)>,
+    ) -> anyhow::Result<(PersistedPayment, Option<PersistedBudget>)> {
         let mut rng = SysRng::new();
 
         let mut pwm = checked.0;
@@ -939,25 +941,34 @@ impl PaymentsPersisterMethods for NodePersister {
         .context("Failed to encrypt payment")?;
         let token = self.get_token().await?;
 
+        let files = budget
+            .iter()
+            .map(|(client_pk, budget)| {
+                ClientBudgets::encrypt(self, *client_pk, budget)
+            })
+            .collect();
         let req = UpsertPaymentWithMetadataRequest {
             payment: db_payment,
             metadata: db_metadata,
-            files: Vec::new(),
+            files,
         };
         self.backend_api
             .upsert_payment_with_metadata(req, token)
             .await
             .context("upsert_payment_with_metadata")?;
 
-        Ok(PersistedPayment { pwm, created_at })
+        let persisted_budget = budget
+            .map(|(client_pk, budget)| PersistedBudget { budget, client_pk });
+        Ok((PersistedPayment { pwm }, persisted_budget))
     }
 
     async fn upsert_payment_batch(
         &self,
         mut checked_batch: Vec<CheckedPayment>,
-    ) -> anyhow::Result<Vec<PersistedPayment>> {
+        budgets: HashMap<ClientPk, Budget>,
+    ) -> anyhow::Result<(Vec<PersistedPayment>, Vec<PersistedBudget>)> {
         if checked_batch.is_empty() {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), Vec::new()));
         }
 
         let mut rng = SysRng::new();
@@ -986,9 +997,15 @@ impl PaymentsPersisterMethods for NodePersister {
             });
         }
 
+        let files = budgets
+            .iter()
+            .map(|(client_pk, budget)| {
+                ClientBudgets::encrypt(self, *client_pk, budget)
+            })
+            .collect();
         let req = UpsertPaymentWithMetadataBatchRequest {
             payments: db_pwms,
-            files: Vec::new(),
+            files,
         };
         let token = self.get_token().await?;
 
@@ -999,13 +1016,14 @@ impl PaymentsPersisterMethods for NodePersister {
 
         let persisted_batch = checked_batch
             .into_iter()
-            .map(|CheckedPayment(pwm)| {
-                let created_at = pwm.payment.created_at().unwrap_or(now);
-                PersistedPayment { pwm, created_at }
-            })
+            .map(|CheckedPayment(pwm)| PersistedPayment { pwm })
             .collect::<Vec<PersistedPayment>>();
 
-        Ok(persisted_batch)
+        let persisted_budgets = budgets
+            .into_iter()
+            .map(|(client_pk, budget)| PersistedBudget { budget, client_pk })
+            .collect();
+        Ok((persisted_batch, persisted_budgets))
     }
 
     async fn get_updated_payments(

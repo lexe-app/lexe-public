@@ -11,6 +11,7 @@ use futures::future::FutureExt;
 use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
     auth::BearerAuthenticator,
+    budget::ClientBudgets,
     cli::LspInfo,
     def::{NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::MegaApiError,
@@ -396,8 +397,9 @@ impl UserNode {
             try_maybe_changeset,
             try_existing_scids,
             try_pending_payments,
-            try_maybe_revocable_clients,
             try_maybe_settings,
+            try_maybe_revocable_clients,
+            try_client_budgets,
             try_maybe_node_state,
             try_channel_monitor_bytes,
         ) = tokio::join!(
@@ -406,8 +408,9 @@ impl UserNode {
             persister.read_wallet_changeset(),
             persister.read_scids(),
             pending_payments_fut,
-            persister.read_json::<RevocableClients>(RevocableClients::VFS_FILE_ID),
             persister.read_json::<UserSettings>(UserSettings::VFS_FILE_ID),
+            persister.read_json::<RevocableClients>(RevocableClients::VFS_FILE_ID),
+            ClientBudgets::read(persister.as_ref()),
             persister.read_json::<NodeState>(NodeState::VFS_FILE_ID),
             lexe_ln::persister::read_channel_monitor_bytes(&persister),
         );
@@ -460,15 +463,40 @@ impl UserNode {
             existing_scids
         };
         let pending_payments = try_pending_payments?;
-        let revocable_clients = try_maybe_revocable_clients
-            .context("Could not read revocable clients")?
-            .unwrap_or_default()
-            .apply(|rcs| Arc::new(RevocableClientsHandle(RwLock::new(rcs))));
         let settings = Arc::new(tokio::sync::RwLock::new(
             try_maybe_settings
                 .context("Could not read user settings")?
                 .unwrap_or_default(),
         ));
+        let revocable_clients = try_maybe_revocable_clients
+            .context("Could not read revocable clients")?
+            .unwrap_or_default()
+            .apply(|rcs| Arc::new(RevocableClientsHandle(RwLock::new(rcs))));
+        let mut client_budgets =
+            try_client_budgets.context("Could not read client budgets")?;
+        let fiat_currency = settings.read().await.fiat_currency();
+        // All clients should have a Budget. Give pre-budget clients a Budget.
+        // compat: Added in node-v0.10.9.
+        if !initial_migrations.is_applied(migrations::MARKER_CLIENT_BUDGETS) {
+            lexe_ln::budget::create_missing_at_startup(
+                &mut client_budgets,
+                &revocable_clients.0,
+                &pending_payments,
+                fiat_currency,
+                backend_api.as_ref(),
+                &persister,
+            )
+            .await
+            .context("Could not create missing client budgets")?;
+            let res = Migrations::mark_applied(
+                &*persister,
+                migrations::MARKER_CLIENT_BUDGETS,
+            )
+            .await;
+            if let Err(e) = res {
+                warn!("Failed to mark client budgets migration: {e}");
+            }
+        }
         let node_state = Arc::new(tokio::sync::Mutex::new(
             try_maybe_node_state
                 .context("Could not read node state")?
@@ -731,10 +759,12 @@ impl UserNode {
             persister.clone(),
             channel_manager.clone(),
             router.clone(),
+            backend_api.clone(),
             hba_offer_ids.clone(),
             finalized_cache_capacity,
             esplora.clone(),
             pending_payments,
+            client_budgets,
             wallet.clone(),
             tx_broadcaster.clone(),
             onchain_recv_rx,

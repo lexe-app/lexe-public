@@ -32,6 +32,14 @@ pub const MARKER_LEGACY_BDK: &str = "legacy_bdk";
 /// After this migration, HBA offers use "Pay to ₿{username}@lexe.app".
 pub const MARKER_HBA_OFFER_V2: &str = "hba_offer_v2";
 
+/// Marker for creating budgets for pre-budget clients, introduced in
+/// node-v0.10.9.
+///
+/// Clients are expected to always have budgets. This migration ensures that
+/// pre-budget clients are given budgets via
+/// [`crate::budget::create_missing_at_startup`].
+pub const MARKER_CLIENT_BUDGETS: &str = "client_budgets";
+
 /// Tracks which node/LSP migrations have been applied.
 ///
 /// Initialized at startup by reading all filenames from the `migrations/`

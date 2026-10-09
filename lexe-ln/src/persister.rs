@@ -10,6 +10,7 @@ use std::{
 use anyhow::{Context, anyhow, ensure};
 use async_trait::async_trait;
 use lexe_api::{
+    budget::{Budget, ClientPk, PersistedBudget},
     models::command::{GetUpdatedPaymentMetadata, GetUpdatedPayments},
     types::{
         payments::{
@@ -506,19 +507,27 @@ pub trait PaymentsPersisterMethods: LightningPersisterMethods {
         id: PaymentId,
     ) -> anyhow::Result<Option<PaymentMetadata>>;
 
+    /// Upserts the payment atomically with `budget`, its client's updated
+    /// budget.
+    ///
     /// NOTE: The implementor *must* call `set_created_at_idempotent` on the
     /// payment before persisting.
     async fn upsert_payment(
         &self,
         checked: CheckedPayment,
-    ) -> anyhow::Result<PersistedPayment>;
+        budget: Option<(ClientPk, Budget)>,
+    ) -> anyhow::Result<(PersistedPayment, Option<PersistedBudget>)>;
 
+    /// Upserts the payments atomically with `budgets`, their clients' updated
+    /// budgets.
+    ///
     /// NOTE: The implementor *must* call `set_created_at_idempotent` on the
     /// payment before persisting.
     async fn upsert_payment_batch(
         &self,
         checked_batch: Vec<CheckedPayment>,
-    ) -> anyhow::Result<Vec<PersistedPayment>>;
+        budgets: HashMap<ClientPk, Budget>,
+    ) -> anyhow::Result<(Vec<PersistedPayment>, Vec<PersistedBudget>)>;
 
     // --- Required methods: db-level payments --- //
 

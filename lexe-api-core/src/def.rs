@@ -759,10 +759,10 @@ pub trait FiatRatesBackendApi {
     /// [`GetFiatRatesRequest`] -> [`FiatRates`]
     //
     // We use POST because the codes are a list, which doesn't fit query params.
-    async fn get_fiat_rates(
+    fn get_fiat_rates(
         &self,
         req: GetFiatRatesRequest,
-    ) -> Result<FiatRates, BackendApiError>;
+    ) -> impl Future<Output = Result<FiatRates, BackendApiError>> + Send;
 }
 
 /// Defines the api that the backend exposes to the node.

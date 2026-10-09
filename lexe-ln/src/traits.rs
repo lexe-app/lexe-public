@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use lexe_api::vfs::Vfs;
+use lexe_api::{def::FiatRatesBackendApi, vfs::Vfs};
 use lexe_common::api::user::NodePk;
 use lightning::{
     chain::chainmonitor::Persist, ln::msgs::RoutingMessageHandler,
@@ -54,6 +54,17 @@ pub trait LexePaymentsPersister:
 
 impl<PS> LexePaymentsPersister for PS where
     PS: LexePersister + Deref<Target: PaymentsPersisterMethods>
+{
+}
+
+/// A 'trait alias' for the backend API which prices budgeted payments.
+pub trait LexeFiatRatesApi:
+    Clone + Send + Sync + 'static + Deref<Target: FiatRatesBackendApi>
+{
+}
+
+impl<FRA> LexeFiatRatesApi for FRA where
+    FRA: Clone + Send + Sync + 'static + Deref<Target: FiatRatesBackendApi>
 {
 }
 
