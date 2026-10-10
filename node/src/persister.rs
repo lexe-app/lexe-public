@@ -924,11 +924,7 @@ impl PaymentsPersisterMethods for NodePersister {
             .await
             .context("upsert_payment_with_metadata")?;
 
-        Ok(PersistedPayment {
-            pwm,
-            created_at,
-            updated_at,
-        })
+        Ok(PersistedPayment { pwm, created_at })
     }
 
     async fn upsert_payment_batch(
@@ -977,11 +973,7 @@ impl PaymentsPersisterMethods for NodePersister {
             .into_iter()
             .map(|CheckedPayment(pwm)| {
                 let created_at = pwm.payment.created_at().unwrap_or(now);
-                PersistedPayment {
-                    pwm,
-                    created_at,
-                    updated_at,
-                }
+                PersistedPayment { pwm, created_at }
             })
             .collect::<Vec<PersistedPayment>>();
 

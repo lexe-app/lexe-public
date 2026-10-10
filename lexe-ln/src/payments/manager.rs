@@ -85,7 +85,7 @@ const SPENDABLE_FAILED_ONCHAIN_PAYMENTS_CHECK_INTERVAL: Duration =
 pub struct CheckedPayment(pub PaymentWithMetadata);
 
 /// Annotates that a given [`PaymentV2`] was successfully persisted.
-/// `created_at` and `updated_at` are assigned at the time of persistence.
+/// `created_at` is assigned at the time of persistence.
 /// [`PersistedPayment`]s should be committed to the local payments state.
 #[must_use]
 pub struct PersistedPayment {
@@ -93,7 +93,6 @@ pub struct PersistedPayment {
     // pub payment: PaymentV2,
     pub pwm: PaymentWithMetadata,
     pub created_at: TimestampMs,
-    pub updated_at: TimestampMs,
 }
 
 /// The top-level, cloneable actor which exposes the main entrypoints for
@@ -2291,9 +2290,8 @@ mod test {
         fn persisted(self) -> PersistedPayment {
             PersistedPayment {
                 pwm: self.0,
-                // Set some dummy values for these
+                // Set a dummy value
                 created_at: TimestampMs::MIN,
-                updated_at: TimestampMs::MAX,
             }
         }
     }
