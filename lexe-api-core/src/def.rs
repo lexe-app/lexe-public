@@ -649,12 +649,21 @@ pub trait LexeNodeRunApi {
         req: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError>;
 
-    /// POST /lexe/nwc_request [`Bytes`] -> [`Bytes`]
+    /// POST /lexe/nwc_request [`UserPkStruct`] [`Bytes`] -> [`Bytes`]
     ///
     /// Request and response bodies are signed Nostr events encoded as JSON.
     /// The node verifies the request, decrypts and executes its command, and
     /// returns a signed event containing the encrypted response.
-    async fn nwc_request(&self, req: Bytes) -> Result<Bytes, NodeApiError>;
+    ///
+    /// Requests for another user fail with [`NodeErrorKind::WrongUserPk`]
+    /// before running.
+    ///
+    /// [`NodeErrorKind::WrongUserPk`]: crate::error::NodeErrorKind::WrongUserPk
+    async fn nwc_request(
+        &self,
+        user_pk: UserPk,
+        req: Bytes,
+    ) -> Result<Bytes, NodeApiError>;
 }
 
 /// Defines the API the runner exposes to mega nodes.

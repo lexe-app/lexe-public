@@ -111,8 +111,18 @@ pub(super) async fn create_invoice(
 
 pub(super) async fn nwc_request(
     State(state): State<Arc<RouterState>>,
+    LxQuery(UserPkStruct { user_pk }): LxQuery<UserPkStruct>,
     LxBytes(req): LxBytes,
 ) -> Result<LxBytes, NodeApiError> {
+    // Reject accidental nostr events for other users.
+    //
+    // This may happen if the intended usernode is evicted and another takes its
+    // place at the same port. Unlike our gateway-proxied TLS-in-TLS scheme,
+    // there is not a consistent connection that prevents this from happening.
+    if state.user_pk != user_pk {
+        return Err(NodeApiError::wrong_user_pk(state.user_pk, user_pk));
+    }
+
     // Deserialize the nostr::Event
     let req_event: nostr::Event = serde_json::from_slice(&req)
         .context("Failed to decode NWC request event")
