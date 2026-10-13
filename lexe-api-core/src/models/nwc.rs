@@ -526,9 +526,17 @@ pub mod nip47 {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::test_utils::roundtrip;
+    use lexe_common::{
+        ByteArray,
+        api::user::NodePk,
+        ln::network::Network,
+        test_utils::{arbitrary, roundtrip},
+    };
+    use lexe_crypto::rng::FastRng;
+    use proptest::arbitrary::any;
 
     use super::*;
+    use crate::types::{invoice::Invoice, payments::PaymentHash};
 
     #[test]
     fn db_nwc_client_fields_roundtrip() {
@@ -598,6 +606,72 @@ mod test {
         roundtrip::json_value_roundtrip_proptest::<GetInfoResult>();
         roundtrip::json_value_roundtrip_proptest::<MakeInvoiceResult>();
         roundtrip::json_value_roundtrip_proptest::<NwcResponsePayload>();
+    }
+
+    /// Pin our NIP-47 field names and encodings to the spec's.
+    #[test]
+    fn nip47_wire_format() {
+        use nip47::*;
+        use serde_json::json;
+
+        // The spec's `make_invoice` example. We ignore `metadata`.
+        let params = json!({
+            "amount": 123,
+            "description": "string",
+            "description_hash": "42".repeat(32),
+            "expiry": 213,
+            "metadata": {},
+        });
+        let params = serde_json::from_value::<MakeInvoiceParams>(params);
+        let expected = MakeInvoiceParams {
+            amount_msat: 123,
+            description: Some("string".to_owned()),
+            description_hash: Some([0x42; 32]),
+            expiry_secs: Some(213),
+        };
+        assert_eq!(params.unwrap(), expected);
+
+        let mut rng = FastRng::from_u64(20261013);
+        let invoice = arbitrary::gen_value(&mut rng, any::<Invoice>());
+        let result = MakeInvoiceResult {
+            transaction_type: NwcTransactionType::Incoming,
+            invoice: invoice.clone(),
+            description: Some("string".to_owned()),
+            description_hash: Some([0x42; 32]),
+            payment_hash: PaymentHash::from_array([0x69; 32]),
+            amount_msat: 123,
+            fees_paid_msat: 0,
+            created_at_secs: 1_700_000_000,
+            expires_at_secs: 1_700_003_600,
+        };
+        let expected = json!({
+            "type": "incoming",
+            "invoice": invoice.to_string(),
+            "description": "string",
+            "description_hash": "42".repeat(32),
+            "payment_hash": "69".repeat(32),
+            "amount": 123,
+            "fees_paid": 0,
+            "created_at": 1_700_000_000,
+            "expires_at": 1_700_003_600,
+        });
+        assert_eq!(serde_json::to_value(result).unwrap(), expected);
+
+        // Block hashes are in display order.
+        let info = GetInfoResult {
+            alias: "lexe".to_owned(),
+            color: "000000".to_owned(),
+            pubkey: arbitrary::gen_value(&mut rng, any::<NodePk>()),
+            network: "mainnet".to_owned(),
+            block_height: 0,
+            block_hash: Network::Mainnet.genesis_block_hash(),
+            methods: vec![NwcMethod::GetInfo],
+        };
+        let block_hash =
+            serde_json::to_value(info).unwrap()["block_hash"].take();
+        let genesis =
+            "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
+        assert_eq!(block_hash, json!(genesis));
     }
 
     #[test]
