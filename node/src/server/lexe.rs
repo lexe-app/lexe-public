@@ -7,7 +7,9 @@ use lexe_api::{
     error::NodeApiError,
     models::{
         command::{CreateInvoiceRequest, CreateInvoiceResponse, ResyncRequest},
-        nwc::nip47::{NwcRequestPayload, NwcResponsePayload},
+        nwc::nip47::{
+            NwcError, NwcErrorCode, NwcRequestPayload, NwcResponsePayload,
+        },
     },
     server::{LxBytes, LxJson, extract::LxQuery},
     types::Empty,
@@ -20,7 +22,10 @@ use lexe_crypto::rng::SysRng;
 use lexe_ln::{background_processor, command::CreateInvoiceCaller, test_event};
 use tracing::warn;
 
-use crate::server::{self, RouterState};
+use crate::{
+    nwc::NwcEncryption,
+    server::{self, RouterState},
+};
 
 pub(super) async fn status(
     State(state): State<Arc<RouterState>>,
@@ -161,14 +166,23 @@ pub(super) async fn nwc_request(
     }
 
     // Decrypt+deserialize the inner NWC request
+    let encryption =
+        NwcEncryption::of_request(&req_event).map_err(NodeApiError::command)?;
     let decrypted_json = nwc_client
-        .decrypt_nip44_request(&req_event.content)
+        .decrypt_request(encryption, &req_event.content)
         .map_err(NodeApiError::command)?;
     let req_payload: NwcRequestPayload = serde_json::from_str(&decrypted_json)
         .context("Failed to parse NWC request")
         .map_err(NodeApiError::command)?;
 
-    let res = server::nwc::handle_nwc_request(&state, &req_payload).await;
+    let res = match encryption {
+        NwcEncryption::Nip04 => Err(NwcError {
+            code: NwcErrorCode::UnsupportedEncryption,
+            message: "NIP-04 is unsupported; use NIP-44".to_owned(),
+        }),
+        NwcEncryption::Nip44 =>
+            server::nwc::handle_nwc_request(&state, &req_payload).await,
+    };
 
     let resp_payload = match res {
         Ok(value) => NwcResponsePayload {
@@ -189,12 +203,12 @@ pub(super) async fn nwc_request(
     let resp_json = serde_json::to_string(&resp_payload)
         .expect("NwcResponsePayload serialization cannot fail");
 
-    let nip44_payload = nwc_client
-        .encrypt_nip44_response(&mut rng, &resp_json)
+    let resp_content = nwc_client
+        .encrypt_response(&mut rng, encryption, &resp_json)
         .map_err(NodeApiError::command)?;
 
     let resp_event = nwc_client
-        .build_response(&mut rng, req_event.id, nip44_payload)
+        .build_response(&mut rng, req_event.id, resp_content)
         .map_err(NodeApiError::command)?;
 
     let resp_event_bytes = serde_json::to_vec(&resp_event)

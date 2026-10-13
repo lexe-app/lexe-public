@@ -316,8 +316,11 @@ lightning-transaction-sync = { version = "0.3.0-beta1", features = ["esplora-asy
 lightning-types = "0.4.0-beta1"
 # Required by tokio
 mio = "0.8"
-# Used by node to encode and decode NWC requests
-nostr = { version = "0.44.8", features = ["nip44"] }
+# Used by node to encode and decode NWC requests.
+# `nip04` is deprecated, insecure encryption. It's enabled ONLY so the node can
+# reject NIP-04 NWC requests with an error the client can read. Don't use it for
+# anything else. See `node::nwc::NwcEncryption`.
+nostr = { version = "0.44.8", features = ["nip04", "nip44"] }
 # Safe and small crypto primitives based on BoringSSL
 ring = "0.17"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)

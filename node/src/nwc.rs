@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant, SystemTime};
 
-use anyhow::{Context, ensure};
+use anyhow::{Context, anyhow, ensure};
 use lexe_api::models::nwc::{
     DbNwcClient, DbNwcClientFields, NostrPk, NostrSk, NwcClientInfo,
     nip47::NwcMethod,
@@ -11,7 +11,7 @@ use lexe_common::{
 };
 use lexe_crypto::{aes::AesMasterKey, rng::Crng};
 use lexe_hex::hex;
-use nostr::nips::nip44;
+use nostr::nips::{nip04, nip44};
 use serde::{Deserialize, Serialize};
 use verify::VerifiedNwcRequestEvent;
 
@@ -60,6 +60,38 @@ pub(crate) mod convert {
         nostr_ts: nostr::Timestamp,
     ) -> Result<TimestampMs, lexe_common::time::Error> {
         TimestampMs::from_secs(nostr_ts.as_secs())
+    }
+}
+
+/// How an NWC request's content, and so our response's, is encrypted.
+///
+/// We only support NIP-44. NIP-04 is deprecated and insecure, but some clients
+/// (e.g. Damus, `nostr-tools`) still send it, and NIP-47 says to reject it with
+/// `UNSUPPORTED_ENCRYPTION`. That error is only useful if the client can read
+/// it, and the client must find the request's method in its `result_type`, so
+/// we decrypt the request and encrypt the error with NIP-04. Rejecting NIP-04
+/// requests is the ONLY use of NIP-04, and the only reason we enable `nostr`'s
+/// `nip04` feature.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(crate) enum NwcEncryption {
+    /// Only used to reject the request; see above.
+    Nip04,
+    Nip44,
+}
+
+impl NwcEncryption {
+    /// The scheme a request declares in its `encryption` tag. Per NIP-47, a
+    /// request without one uses NIP-04.
+    pub(crate) fn of_request(event: &nostr::Event) -> anyhow::Result<Self> {
+        let encryption = event
+            .tags
+            .find(nostr::TagKind::custom("encryption"))
+            .and_then(nostr::Tag::content);
+        match encryption {
+            None | Some("nip04") => Ok(Self::Nip04),
+            Some("nip44_v2") => Ok(Self::Nip44),
+            Some(other) => Err(anyhow!("Unknown NWC encryption: {other}")),
+        }
     }
 }
 
@@ -347,7 +379,7 @@ impl NwcClient {
         Ok(())
     }
 
-    /// Decrypt a NIP-44 encrypted NWC request.
+    /// Decrypt an NWC request's content.
     ///
     /// [NIP-44] uses ECDH to derive a shared secret from both parties'
     /// keypairs, then authenticated encryption (ChaCha20 + HMAC-SHA256).
@@ -355,37 +387,52 @@ impl NwcClient {
     /// encrypted with different keys, protecting against spoofed client pks.
     ///
     /// [NIP-44]: https://github.com/nostr-protocol/nips/blob/master/44.md
-    pub(crate) fn decrypt_nip44_request(
+    pub(crate) fn decrypt_request(
         &self,
-        encrypted_payload: &str,
+        encryption: NwcEncryption,
+        content: &str,
     ) -> anyhow::Result<String> {
         let wallet_nostr_sk = convert::to_nostr_sk(&self.data.wallet_nostr_sk);
         let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
 
-        nip44::decrypt(&wallet_nostr_sk, &client_nostr_pk, encrypted_payload)
-            .context("Failed to decrypt NIP-44 payload")
+        match encryption {
+            NwcEncryption::Nip04 =>
+                nip04::decrypt(&wallet_nostr_sk, &client_nostr_pk, content)
+                    .context("Failed to decrypt NIP-04 payload"),
+            NwcEncryption::Nip44 =>
+                nip44::decrypt(&wallet_nostr_sk, &client_nostr_pk, content)
+                    .context("Failed to decrypt NIP-44 payload"),
+        }
     }
 
-    /// Encrypt a NWC response using NIP-44.
-    /// See [`decrypt_nip44_request`](Self::decrypt_nip44_request) for details.
-    pub(crate) fn encrypt_nip44_response(
+    /// Encrypt an NWC response's content.
+    /// See [`decrypt_request`](Self::decrypt_request) for details.
+    pub(crate) fn encrypt_response(
         &self,
         rng: &mut impl Crng,
+        encryption: NwcEncryption,
         response_json: &str,
     ) -> anyhow::Result<String> {
         let wallet_nostr_sk = convert::to_nostr_sk(&self.data.wallet_nostr_sk);
         let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
 
-        let encrypted_string = nip44::encrypt_with_rng(
-            rng,
-            &wallet_nostr_sk,
-            &client_nostr_pk,
-            response_json,
-            nip44::Version::default(),
-        )
-        .context("Failed to encrypt NIP-44 payload")?;
-
-        Ok(encrypted_string)
+        match encryption {
+            NwcEncryption::Nip04 => nip04::encrypt_with_rng(
+                rng,
+                &wallet_nostr_sk,
+                &client_nostr_pk,
+                response_json,
+            )
+            .context("Failed to encrypt NIP-04 payload"),
+            NwcEncryption::Nip44 => nip44::encrypt_with_rng(
+                rng,
+                &wallet_nostr_sk,
+                &client_nostr_pk,
+                response_json,
+                nip44::Version::default(),
+            )
+            .context("Failed to encrypt NIP-44 payload"),
+        }
     }
 
     /// Build a signed Nostr event for an NWC response.
@@ -925,7 +972,32 @@ mod test {
     }
 
     #[test]
-    fn test_nip44_request_response_roundtrip() {
+    fn test_request_encryption() {
+        let mut rng = FastRng::from_u64(2026101301);
+        let keys = nostr::Keys::generate_with_rng(&mut rng);
+        let mut request = |encryption: Option<&str>| {
+            let tags = encryption.map(|encryption| {
+                let kind = nostr::TagKind::custom("encryption");
+                nostr::Tag::custom(kind, [encryption])
+            });
+            let event = nostr::EventBuilder::new(
+                nostr::Kind::WalletConnectRequest,
+                "ciphertext",
+            )
+            .tags(tags)
+            .sign_with_ctx(&SECP256K1, &mut rng, &Instant::now(), &keys)
+            .unwrap();
+            NwcEncryption::of_request(&event)
+        };
+
+        assert_eq!(request(None).unwrap(), NwcEncryption::Nip04);
+        assert_eq!(request(Some("nip04")).unwrap(), NwcEncryption::Nip04);
+        assert_eq!(request(Some("nip44_v2")).unwrap(), NwcEncryption::Nip44);
+        request(Some("nip44_v3")).unwrap_err();
+    }
+
+    #[test]
+    fn test_request_response_encryption_roundtrip() {
         let mut rng = FastRng::from_u64(2025121309);
         let now = TimestampMs::from_secs_u32(2025121309);
         let (nwc_wallet, connection_string) = NwcClient::new(
@@ -935,49 +1007,46 @@ mod test {
             now,
         );
 
-        // Parse client keys from connection string
         let client_keys = parse_client_keys(&connection_string);
+        let client_sk = client_keys.secret_key();
+        let wallet_pk = convert::to_nostr_pk(&nwc_wallet.wallet_nostr_pk);
 
-        // Get wallet service public key
-        let wallet_service_pk =
-            convert::to_nostr_pk(&nwc_wallet.wallet_nostr_pk);
-
-        // Simulate a NWC request payload
         let request_payload = r#"{"method":"get_info","params":{}}"#;
-
-        // Client encrypts request
-        let encrypted_request = nostr::nips::nip44::encrypt(
-            client_keys.secret_key(),
-            &wallet_service_pk,
-            request_payload,
-            nostr::nips::nip44::Version::default(),
-        )
-        .expect("Client encryption should succeed");
-
-        // Wallet service decrypts the request
-        let decrypted_request = nwc_wallet
-            .decrypt_nip44_request(&encrypted_request)
-            .expect("Wallet decryption should succeed");
-
-        assert_eq!(decrypted_request, request_payload);
-
-        // Simulate a response from the wallet service
         let response_payload =
             r#"{"result":{"alias":"test","network":"bitcoin"},"error":null}"#;
 
-        // Wallet service encrypts response
-        let encrypted_response = nwc_wallet
-            .encrypt_nip44_response(&mut rng, response_payload)
-            .expect("Wallet response encryption should succeed");
+        for encryption in [NwcEncryption::Nip04, NwcEncryption::Nip44] {
+            // Client encrypts request, wallet service decrypts it
+            let encrypted_request = match encryption {
+                NwcEncryption::Nip04 =>
+                    nip04::encrypt(client_sk, &wallet_pk, request_payload)
+                        .unwrap(),
+                NwcEncryption::Nip44 => nip44::encrypt(
+                    client_sk,
+                    &wallet_pk,
+                    request_payload,
+                    nip44::Version::default(),
+                )
+                .unwrap(),
+            };
+            let decrypted_request = nwc_wallet
+                .decrypt_request(encryption, &encrypted_request)
+                .unwrap();
+            assert_eq!(decrypted_request, request_payload);
 
-        // Client decrypts response
-        let decrypted_response = nostr::nips::nip44::decrypt(
-            client_keys.secret_key(),
-            &wallet_service_pk,
-            &encrypted_response,
-        )
-        .expect("Client response decryption should succeed");
-
-        assert_eq!(decrypted_response, response_payload);
+            // Wallet service encrypts response, client decrypts it
+            let encrypted_response = nwc_wallet
+                .encrypt_response(&mut rng, encryption, response_payload)
+                .unwrap();
+            let decrypted_response = match encryption {
+                NwcEncryption::Nip04 =>
+                    nip04::decrypt(client_sk, &wallet_pk, &encrypted_response)
+                        .unwrap(),
+                NwcEncryption::Nip44 =>
+                    nip44::decrypt(client_sk, &wallet_pk, &encrypted_response)
+                        .unwrap(),
+            };
+            assert_eq!(decrypted_response, response_payload);
+        }
     }
 }
