@@ -1,3 +1,11 @@
+//! Nostr Wallet Connect ([NIP-47]) types.
+//!
+//! We mirror the few `nostr` crate types we need instead of depending on
+//! `nostr`, which would add a deep dependency tree for every `lexe-api-core`
+//! user. Crates that use `nostr` convert at the boundary.
+//!
+//! [NIP-47]: https://github.com/nostr-protocol/nips/blob/master/47.md
+
 #[cfg(any(test, feature = "test-utils"))]
 use lexe_common::test_utils::arbitrary;
 use lexe_common::{RefCast, time::TimestampMs};
@@ -16,7 +24,8 @@ pub struct NostrEventId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 lexe_byte_array::impl_byte_array!(NostrEventId, 32);
 lexe_byte_array::impl_debug_display_as_hex!(NostrEventId);
 
-/// A 32-byte Nostr public key.
+/// A Nostr x-only public key. Like `nostr::PublicKey`, it isn't validated as a
+/// curve point.
 #[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -36,7 +45,7 @@ pub struct NostrSk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 lexe_byte_array::impl_byte_array!(NostrSk, 32);
 lexe_byte_array::impl_debug_display_redacted!(NostrSk);
 
-/// Upgradeable API struct for a NostrPk.
+/// Upgradeable API struct for a [`NostrPk`].
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct NostrPkStruct {
@@ -88,7 +97,7 @@ pub struct NwcClientInfo {
     pub updated_at: TimestampMs,
 }
 
-// ---- Requests and responses App <-> Backend ---- //
+// ---- Requests and responses App <-> Node ---- //
 
 /// Response to list NWC clients.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -164,7 +173,7 @@ pub struct UpdateNwcClientResponse {
 
 /// Query parameters to search for NWC clients.
 ///
-/// This params adds optinal filtering besides the user_pk.
+/// These params add optional filtering beyond the `user_pk`.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetNwcClients {
@@ -172,6 +181,7 @@ pub struct GetNwcClients {
     pub client_nostr_pk: Option<NostrPk>,
 }
 
+/// An upgradeable version of [`Vec<DbNwcClient>`].
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct VecDbNwcClient {
@@ -289,8 +299,9 @@ pub mod nip47 {
     }
 
     /// NWC error codes.
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
     #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+    #[cfg_attr(test, derive(strum::VariantArray))]
     #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
     pub enum NwcErrorCode {
         RateLimited,
@@ -300,7 +311,11 @@ pub mod nip47 {
         Restricted,
         Unauthorized,
         Internal,
+        UnsupportedEncryption,
         Other,
+        // Method-specific
+        PaymentFailed,
+        NotFound,
     }
 
     /// NWC error response.
@@ -316,10 +331,6 @@ pub mod nip47 {
     }
 
     impl NwcError {
-        pub fn new(code: NwcErrorCode, message: String) -> Self {
-            Self { code, message }
-        }
-
         pub fn not_implemented(message: impl fmt::Display) -> Self {
             let message = format!("Not implemented: {message:#}");
             Self {
@@ -432,5 +443,13 @@ mod test {
     #[test]
     fn nwc_response_payload_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<nip47::NwcResponsePayload>();
+    }
+
+    #[test]
+    fn nwc_error_code_serde_backwards_compat() {
+        let expected_ser = r#"["RATE_LIMITED","NOT_IMPLEMENTED","INSUFFICIENT_BALANCE","QUOTA_EXCEEDED","RESTRICTED","UNAUTHORIZED","INTERNAL","UNSUPPORTED_ENCRYPTION","OTHER","PAYMENT_FAILED","NOT_FOUND"]"#;
+        roundtrip::json_unit_enum_backwards_compat::<nip47::NwcErrorCode>(
+            expected_ser,
+        );
     }
 }
