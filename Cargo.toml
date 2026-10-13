@@ -217,7 +217,7 @@ proptest = { version = "1", default-features = false }
 # Arbitrary derive macro
 proptest-derive = "0.5"
 # High-performance concurrent cache
-quick_cache = "0.6"
+quick_cache = "0.7"
 # Traits for generating randomness
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Easily generate x509 certs with ring
