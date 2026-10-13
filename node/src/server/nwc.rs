@@ -81,6 +81,9 @@ async fn handle_make_invoice(
 
     let expiry_secs = params.expiry_secs.unwrap_or(3600);
 
+    // TODO(phlip9): NIP-47 allows both `description` and `description_hash`
+    // (e.g. zap flows may send both), but `create_invoice` rejects the pair,
+    // failing the request as `INTERNAL`. Investigate and fix.
     let create_inv_req = CreateInvoiceRequest {
         expiration_secs: expiry_secs,
         amount: Some(amount),
