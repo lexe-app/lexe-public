@@ -408,12 +408,47 @@ pub mod nip47 {
         pub methods: Vec<NwcMethod>,
     }
 
-    /// Result for `make_invoice` command.
+    /// Result for `make_invoice` command: the NIP-47 transaction for the new
+    /// invoice.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
     #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct MakeInvoiceResult {
+        #[serde(rename = "type")]
+        pub transaction_type: NwcTransactionType,
         pub invoice: Invoice,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_option_string()")
+        )]
+        pub description: Option<String>,
+        #[serde(
+            with = "hexstr_or_bytes_opt",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        pub description_hash: Option<[u8; 32]>,
         pub payment_hash: PaymentHash,
+        #[serde(rename = "amount")]
+        pub amount_msat: u64,
+        #[serde(rename = "fees_paid")]
+        pub fees_paid_msat: u64,
+        /// Unix timestamp.
+        #[serde(rename = "created_at")]
+        pub created_at_secs: u64,
+        /// Unix timestamp.
+        #[serde(rename = "expires_at")]
+        pub expires_at_secs: u64,
+    }
+
+    /// Whether a NIP-47 transaction is an invoice or a payment.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+    #[cfg_attr(test, derive(strum::VariantArray))]
+    #[serde(rename_all = "snake_case")]
+    pub enum NwcTransactionType {
+        Incoming,
+        Outgoing,
     }
 
     /// NWC error codes.
@@ -591,6 +626,14 @@ mod test {
         assert_eq!(
             payload.method,
             NwcMethod::Unknown("make_hold_invoice".into())
+        );
+    }
+
+    #[test]
+    fn nwc_transaction_type_serde_backwards_compat() {
+        let expected_ser = r#"["incoming","outgoing"]"#;
+        roundtrip::json_unit_enum_backwards_compat::<nip47::NwcTransactionType>(
+            expected_ser,
         );
     }
 

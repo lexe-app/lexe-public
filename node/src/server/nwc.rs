@@ -4,7 +4,7 @@ use lexe_api::{
         command::CreateInvoiceRequest,
         nwc::nip47::{
             GetInfoResult, MakeInvoiceParams, MakeInvoiceResult, NwcError,
-            NwcMethod, NwcRequestPayload,
+            NwcMethod, NwcRequestPayload, NwcTransactionType,
         },
     },
     types::payments::PaymentKind,
@@ -117,8 +117,16 @@ async fn handle_make_invoice(
     )
     .await?;
 
+    let invoice = response.invoice;
     Ok(MakeInvoiceResult {
-        payment_hash: response.invoice.payment_hash(),
-        invoice: response.invoice,
+        transaction_type: NwcTransactionType::Incoming,
+        description: invoice.description_str().map(str::to_owned),
+        description_hash: invoice.description_hash().copied(),
+        payment_hash: invoice.payment_hash(),
+        amount_msat: amount.msat(),
+        fees_paid_msat: 0,
+        created_at_secs: invoice.saturating_created_at().to_secs(),
+        expires_at_secs: invoice.saturating_expires_at().to_secs(),
+        invoice,
     })
 }
