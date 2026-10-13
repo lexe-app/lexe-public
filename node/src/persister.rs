@@ -930,6 +930,7 @@ impl PaymentsPersisterMethods for NodePersister {
         let req = UpsertPaymentWithMetadataRequest {
             payment: db_payment,
             metadata: db_metadata,
+            files: Vec::new(),
         };
         self.backend_api
             .upsert_payment_with_metadata(req, token)
@@ -973,7 +974,10 @@ impl PaymentsPersisterMethods for NodePersister {
             });
         }
 
-        let req = UpsertPaymentWithMetadataBatchRequest { payments: db_pwms };
+        let req = UpsertPaymentWithMetadataBatchRequest {
+            payments: db_pwms,
+            files: Vec::new(),
+        };
         let token = self.get_token().await?;
 
         self.backend_api

@@ -44,7 +44,10 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 #[cfg(test)]
 use strum::VariantArray;
 
-use crate::types::{invoice::Invoice, offer::Offer};
+use crate::{
+    types::{invoice::Invoice, offer::Offer},
+    vfs::VfsFile,
+};
 
 // --- Top-level payment types --- //
 
@@ -437,19 +440,29 @@ pub struct DbPaymentWithMetadata {
     pub metadata: Option<DbPaymentMetadata>,
 }
 
-/// Request to atomically upsert a payment with optional metadata.
+/// Request to atomically upsert a payment, its optional metadata, and
+/// optional VFS files.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UpsertPaymentWithMetadataRequest {
     pub payment: DbPaymentV2,
     /// If absent, any existing metadata is left unchanged.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<DbPaymentMetadata>,
+    /// VFS files to upsert atomically with the payment.
+    // compat: Remove this `default` once all nodes are node-v0.10.8+.
+    #[serde(default)]
+    pub files: Vec<VfsFile>,
 }
 
-/// Request to atomically upsert a batch of payments with optional metadata.
+/// Request to atomically upsert a batch of payments, their optional
+/// metadata, and optional VFS files.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UpsertPaymentWithMetadataBatchRequest {
     pub payments: Vec<DbPaymentWithMetadata>,
+    /// VFS files to upsert atomically with the payments.
+    // compat: Remove this `default` once all nodes are node-v0.10.8+.
+    #[serde(default)]
+    pub files: Vec<VfsFile>,
 }
 
 /// The protocol used to fulfill a payment: `"onchain"`, `"invoice"`,

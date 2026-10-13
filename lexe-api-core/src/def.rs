@@ -824,7 +824,8 @@ pub trait NodeBackendApi {
     /// PUT /node/v1/payments/with_metadata [`UpsertPaymentWithMetadataRequest`]
     ///                                  -> [`Empty`]
     ///
-    /// Atomically upserts a payment and its optional metadata.
+    /// Atomically upserts a payment, its optional metadata, and optional VFS
+    /// files.
     async fn upsert_payment_with_metadata(
         &self,
         req: UpsertPaymentWithMetadataRequest,
@@ -850,7 +851,8 @@ pub trait NodeBackendApi {
     /// PUT /node/v1/payments/with_metadata/batch
     ///   [`UpsertPaymentWithMetadataBatchRequest`] -> [`Empty`]
     ///
-    /// Atomically upserts a batch of payments and their optional metadata.
+    /// Atomically upserts a batch of payments, their optional metadata, and
+    /// optional VFS files.
     async fn upsert_payment_with_metadata_batch(
         &self,
         req: UpsertPaymentWithMetadataBatchRequest,
