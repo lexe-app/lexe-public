@@ -13,6 +13,7 @@ use lexe_api::{
 use lexe_common::ln::{amount::Amount, network::Network};
 use lexe_hex::hex;
 use lexe_ln::command::CreateInvoiceCaller;
+use serde::Deserialize;
 
 use crate::server::RouterState;
 
@@ -35,8 +36,8 @@ pub(super) async fn handle_nwc_request(
             Ok(value)
         }
         NwcMethod::MakeInvoice => {
-            let params: MakeInvoiceParams =
-                serde_json::from_value(request_payload.params.clone())
+            let params =
+                MakeInvoiceParams::deserialize(&request_payload.params)
                     .context("Invalid make_invoice params")
                     .map_err(NwcError::other)?;
             let result = handle_make_invoice(state, params)
@@ -66,7 +67,7 @@ async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
     Ok(GetInfoResult {
         alias: format!("lexe-{}", &state.user_pk.to_string()[..8]),
         color: "000000".to_string(),
-        pubkey: state.node_pk.to_string(),
+        pubkey: state.node_pk,
         network: network.to_string(),
         block_height: best_block.height,
         block_hash: hex::encode(&best_block.block_hash.to_byte_array()),
@@ -82,20 +83,11 @@ async fn handle_make_invoice(
 
     let expiry_secs = params.expiry_secs.unwrap_or(3600);
 
-    let description_hash = if let Some(ref h) = params.description_hash {
-        let mut arr = [0u8; 32];
-        hex::decode_to_slice(h, &mut arr)
-            .context("Invalid description_hash: must be 32 bytes hex")?;
-        Some(arr)
-    } else {
-        None
-    };
-
     let create_inv_req = CreateInvoiceRequest {
         expiration_secs: expiry_secs,
         amount: Some(amount),
         description: params.description,
-        description_hash,
+        description_hash: params.description_hash,
         message: None,
         personal_note: None,
         kind: PaymentKind::Invoice,
@@ -127,10 +119,8 @@ async fn handle_make_invoice(
     )
     .await?;
 
-    let payment_hash = response.invoice.payment_hash();
-
     Ok(MakeInvoiceResult {
-        invoice: response.invoice.to_string(),
-        payment_hash: payment_hash.to_string(),
+        payment_hash: response.invoice.payment_hash(),
+        invoice: response.invoice,
     })
 }

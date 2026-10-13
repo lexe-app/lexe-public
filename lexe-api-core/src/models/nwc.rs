@@ -220,11 +220,15 @@ pub struct NostrSignedEvent {
 pub mod nip47 {
     use std::fmt;
 
+    use lexe_common::api::user::NodePk;
     #[cfg(any(test, feature = "test-utils"))]
     use lexe_common::test_utils::arbitrary;
+    use lexe_serde::hexstr_or_bytes_opt;
     #[cfg(any(test, feature = "test-utils"))]
     use proptest_derive::Arbitrary;
     use serde::{Deserialize, Serialize};
+
+    use crate::types::{invoice::Invoice, payments::PaymentHash};
 
     /// NWC request method.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -244,46 +248,73 @@ pub mod nip47 {
 
     /// Parameters for `make_invoice` command.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct MakeInvoiceParams {
         /// Amount in millisats.
         #[serde(rename = "amount")]
         pub amount_msat: u64,
         /// Invoice description.
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_option_string()")
+        )]
         pub description: Option<String>,
-        /// Invoice description hash (32 bytes hex).
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub description_hash: Option<String>,
+        /// Invoice description hash.
+        #[serde(
+            with = "hexstr_or_bytes_opt",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        pub description_hash: Option<[u8; 32]>,
         /// Invoice expiry in seconds.
         #[serde(rename = "expiry", skip_serializing_if = "Option::is_none")]
         pub expiry_secs: Option<u32>,
-        /// Generic metadata (e.g., zap/boostagram details). Optional and
-        /// ignored.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub metadata: Option<serde_json::Value>,
     }
 
     /// NWC request payload (decrypted).
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct NwcRequestPayload {
         pub method: NwcMethod,
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_json_value()")
+        )]
         pub params: serde_json::Value,
     }
 
     /// Result for `get_info` command.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct GetInfoResult {
         /// LN node alias (e.g., "lexe-abc12345").
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_string()")
+        )]
         pub alias: String,
         /// RGB hex string (e.g., "000000").
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_string()")
+        )]
         pub color: String,
-        /// LN node public key as hex string.
-        pub pubkey: String,
+        /// LN node public key.
+        pub pubkey: NodePk,
         /// Network name: "mainnet", "testnet", "signet", or "regtest".
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_string()")
+        )]
         pub network: String,
         /// Current block height.
         pub block_height: u32,
         /// Hex-encoded block hash.
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_string()")
+        )]
         pub block_hash: String,
         /// List of supported NWC methods for this connection.
         pub methods: Vec<NwcMethod>,
@@ -291,11 +322,10 @@ pub mod nip47 {
 
     /// Result for `make_invoice` command.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct MakeInvoiceResult {
-        /// BOLT11 invoice string.
-        pub invoice: String,
-        /// Payment hash (hex).
-        pub payment_hash: String,
+        pub invoice: Invoice,
+        pub payment_hash: PaymentHash,
     }
 
     /// NWC error codes.
@@ -441,8 +471,13 @@ mod test {
     }
 
     #[test]
-    fn nwc_response_payload_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<nip47::NwcResponsePayload>();
+    fn nip47_roundtrips() {
+        use nip47::*;
+        roundtrip::json_value_roundtrip_proptest::<MakeInvoiceParams>();
+        roundtrip::json_value_roundtrip_proptest::<NwcRequestPayload>();
+        roundtrip::json_value_roundtrip_proptest::<GetInfoResult>();
+        roundtrip::json_value_roundtrip_proptest::<MakeInvoiceResult>();
+        roundtrip::json_value_roundtrip_proptest::<NwcResponsePayload>();
     }
 
     #[test]
