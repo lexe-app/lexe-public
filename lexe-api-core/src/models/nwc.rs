@@ -220,6 +220,7 @@ pub struct NostrSignedEvent {
 pub mod nip47 {
     use std::{convert::Infallible, fmt, str::FromStr};
 
+    use bitcoin::BlockHash;
     use lexe_common::api::user::NodePk;
     #[cfg(any(test, feature = "test-utils"))]
     use lexe_common::test_utils::arbitrary;
@@ -397,12 +398,12 @@ pub mod nip47 {
         pub network: String,
         /// Current block height.
         pub block_height: u32,
-        /// Hex-encoded block hash.
+        /// Current block hash.
         #[cfg_attr(
             any(test, feature = "test-utils"),
-            proptest(strategy = "arbitrary::any_string()")
+            proptest(strategy = "arbitrary::any_blockhash()")
         )]
-        pub block_hash: String,
+        pub block_hash: BlockHash,
         /// List of supported NWC methods for this connection.
         pub methods: Vec<NwcMethod>,
     }

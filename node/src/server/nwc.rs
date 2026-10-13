@@ -1,5 +1,4 @@
 use anyhow::Context;
-use bitcoin::hashes::Hash;
 use lexe_api::{
     models::{
         command::CreateInvoiceRequest,
@@ -11,7 +10,6 @@ use lexe_api::{
     types::payments::PaymentKind,
 };
 use lexe_common::ln::{amount::Amount, network::Network};
-use lexe_hex::hex;
 use lexe_ln::command::CreateInvoiceCaller;
 use serde::Deserialize;
 
@@ -70,7 +68,7 @@ async fn handle_get_info(state: &RouterState) -> anyhow::Result<GetInfoResult> {
         pubkey: state.node_pk,
         network: network.to_string(),
         block_height: best_block.height,
-        block_hash: hex::encode(&best_block.block_hash.to_byte_array()),
+        block_hash: best_block.block_hash,
         methods: SUPPORTED_NWC_METHODS.to_vec(),
     })
 }
