@@ -56,8 +56,10 @@ use lexe_api::{
         Empty,
         payments::{
             BasicPaymentV1, BasicPaymentV2, DbPaymentMetadata, DbPaymentV2,
-            DbPaymentWithMetadata, PaymentId, VecDbPaymentMetadata,
-            VecDbPaymentV2, VecDbPaymentWithMetadata,
+            DbPaymentWithMetadata, PaymentId,
+            UpsertPaymentWithMetadataBatchRequest,
+            UpsertPaymentWithMetadataRequest, VecDbPaymentMetadata,
+            VecDbPaymentV2,
         },
         retries::Retries,
     },
@@ -925,12 +927,12 @@ impl PaymentsPersisterMethods for NodePersister {
         .context("Failed to encrypt payment")?;
         let token = self.get_token().await?;
 
-        let db_pwm = DbPaymentWithMetadata {
+        let req = UpsertPaymentWithMetadataRequest {
             payment: db_payment,
             metadata: db_metadata,
         };
         self.backend_api
-            .upsert_payment_with_metadata(db_pwm, token)
+            .upsert_payment_with_metadata(req, token)
             .await
             .context("upsert_payment_with_metadata")?;
 
@@ -971,11 +973,11 @@ impl PaymentsPersisterMethods for NodePersister {
             });
         }
 
-        let batch = VecDbPaymentWithMetadata { payments: db_pwms };
+        let req = UpsertPaymentWithMetadataBatchRequest { payments: db_pwms };
         let token = self.get_token().await?;
 
         self.backend_api
-            .upsert_payment_with_metadata_batch(batch, token)
+            .upsert_payment_with_metadata_batch(req, token)
             .await
             .context("upsert_payment_with_metadata_batch failed")?;
 

@@ -118,10 +118,12 @@ use crate::{
             LnurlPayRequestWire, LnurlVerifyResponse,
         },
         payments::{
-            DbPaymentMetadata, DbPaymentV2, DbPaymentWithMetadata,
-            MaybeBasicPaymentV2, MaybeDbPaymentMetadata, MaybeDbPaymentV2,
-            VecBasicPaymentV1, VecBasicPaymentV2, VecDbPaymentMetadata,
-            VecDbPaymentV1, VecDbPaymentV2, VecDbPaymentWithMetadata,
+            DbPaymentMetadata, DbPaymentV2, MaybeBasicPaymentV2,
+            MaybeDbPaymentMetadata, MaybeDbPaymentV2,
+            UpsertPaymentWithMetadataBatchRequest,
+            UpsertPaymentWithMetadataRequest, VecBasicPaymentV1,
+            VecBasicPaymentV2, VecDbPaymentMetadata, VecDbPaymentV1,
+            VecDbPaymentV2,
         },
         ports::MegaPorts,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
@@ -819,13 +821,13 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// PUT /node/v1/payments/with_metadata [`DbPaymentWithMetadata`]
+    /// PUT /node/v1/payments/with_metadata [`UpsertPaymentWithMetadataRequest`]
     ///                                  -> [`Empty`]
     ///
     /// Atomically upserts a payment and its optional metadata.
     async fn upsert_payment_with_metadata(
         &self,
-        payment: DbPaymentWithMetadata,
+        req: UpsertPaymentWithMetadataRequest,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
@@ -845,13 +847,13 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// PUT /node/v1/payments/with_metadata/batch [`VecDbPaymentWithMetadata`]
-    ///                                        -> [`Empty`]
+    /// PUT /node/v1/payments/with_metadata/batch
+    ///   [`UpsertPaymentWithMetadataBatchRequest`] -> [`Empty`]
     ///
     /// Atomically upserts a batch of payments and their optional metadata.
     async fn upsert_payment_with_metadata_batch(
         &self,
-        payments: VecDbPaymentWithMetadata,
+        req: UpsertPaymentWithMetadataBatchRequest,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 

@@ -29,9 +29,10 @@ use lexe_api::{
     types::{
         Empty,
         payments::{
-            DbPaymentMetadata, DbPaymentV2, DbPaymentWithMetadata,
-            MaybeDbPaymentMetadata, MaybeDbPaymentV2, VecDbPaymentMetadata,
-            VecDbPaymentV1, VecDbPaymentV2, VecDbPaymentWithMetadata,
+            DbPaymentMetadata, DbPaymentV2, MaybeDbPaymentMetadata,
+            MaybeDbPaymentV2, UpsertPaymentWithMetadataBatchRequest,
+            UpsertPaymentWithMetadataRequest, VecDbPaymentMetadata,
+            VecDbPaymentV1, VecDbPaymentV2,
         },
         ports::MegaPorts,
         retries::Retries,
@@ -430,12 +431,12 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn upsert_payment_with_metadata(
         &self,
-        payment: DbPaymentWithMetadata,
+        req: UpsertPaymentWithMetadataRequest,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/node/v1/payments/with_metadata");
-        let req = self.rest.put(url, &payment).bearer_auth(&auth);
+        let req = self.rest.put(url, &req).bearer_auth(&auth);
         self.rest.send(req).await
     }
 
@@ -467,12 +468,12 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn upsert_payment_with_metadata_batch(
         &self,
-        payments: VecDbPaymentWithMetadata,
+        req: UpsertPaymentWithMetadataBatchRequest,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/node/v1/payments/with_metadata/batch");
-        let req = self.rest.put(url, &payments).bearer_auth(&auth);
+        let req = self.rest.put(url, &req).bearer_auth(&auth);
         self.rest.send(req).await
     }
 
