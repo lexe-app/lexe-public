@@ -218,22 +218,24 @@ pub struct NostrSignedEvent {
 
 /// NIP-47 protocol structures.
 pub mod nip47 {
-    use std::fmt;
+    use std::{convert::Infallible, fmt, str::FromStr};
 
     use lexe_common::api::user::NodePk;
     #[cfg(any(test, feature = "test-utils"))]
     use lexe_common::test_utils::arbitrary;
     use lexe_serde::hexstr_or_bytes_opt;
     #[cfg(any(test, feature = "test-utils"))]
+    use proptest::strategy::Strategy;
+    #[cfg(any(test, feature = "test-utils"))]
     use proptest_derive::Arbitrary;
     use serde::{Deserialize, Serialize};
+    use serde_with::{DeserializeFromStr, SerializeDisplay};
 
     use crate::types::{invoice::Invoice, payments::PaymentHash};
 
-    /// NWC request method.
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    /// NWC request method, e.g. `"get_info"`.
+    #[derive(Clone, Debug, Eq, PartialEq, SerializeDisplay, DeserializeFromStr)]
     #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-    #[serde(rename_all = "snake_case")]
     pub enum NwcMethod {
         GetInfo,
         MakeInvoice,
@@ -244,6 +246,89 @@ pub mod nip47 {
         PayKeysend,
         MultiPayInvoice,
         PayInvoice,
+        /// Unknown variant, so we can properly handle requests for unsupported
+        /// or unrecognized NWC methods.
+        Unknown(
+            #[cfg_attr(
+                any(test, feature = "test-utils"),
+                proptest(
+                    strategy = "arbitrary::any_string().prop_map(Box::from)"
+                )
+            )]
+            Box<str>,
+        ),
+    }
+
+    impl NwcMethod {
+        /// All non-unknown variants.
+        pub const KNOWN_VARIANTS: &'static [Self] = const {
+            // Trigger a compilation failure if a new variant is added.
+            // If you added a new variant, add it to the array below.
+            match Self::GetInfo {
+                Self::GetInfo
+                | Self::MakeInvoice
+                | Self::LookupInvoice
+                | Self::ListTransactions
+                | Self::GetBalance
+                | Self::MultiPayKeysend
+                | Self::PayKeysend
+                | Self::MultiPayInvoice
+                | Self::PayInvoice
+                | Self::Unknown(_) => (),
+            }
+
+            &[
+                Self::GetInfo,
+                Self::MakeInvoice,
+                Self::LookupInvoice,
+                Self::ListTransactions,
+                Self::GetBalance,
+                Self::MultiPayKeysend,
+                Self::PayKeysend,
+                Self::MultiPayInvoice,
+                Self::PayInvoice,
+            ]
+        };
+
+        pub fn as_str(&self) -> &str {
+            match self {
+                Self::GetInfo => "get_info",
+                Self::MakeInvoice => "make_invoice",
+                Self::LookupInvoice => "lookup_invoice",
+                Self::ListTransactions => "list_transactions",
+                Self::GetBalance => "get_balance",
+                Self::MultiPayKeysend => "multi_pay_keysend",
+                Self::PayKeysend => "pay_keysend",
+                Self::MultiPayInvoice => "multi_pay_invoice",
+                Self::PayInvoice => "pay_invoice",
+                Self::Unknown(method) => method,
+            }
+        }
+    }
+
+    impl FromStr for NwcMethod {
+        type Err = Infallible;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let method = match s {
+                "get_info" => Self::GetInfo,
+                "make_invoice" => Self::MakeInvoice,
+                "lookup_invoice" => Self::LookupInvoice,
+                "list_transactions" => Self::ListTransactions,
+                "get_balance" => Self::GetBalance,
+                "multi_pay_keysend" => Self::MultiPayKeysend,
+                "pay_keysend" => Self::PayKeysend,
+                "multi_pay_invoice" => Self::MultiPayInvoice,
+                "pay_invoice" => Self::PayInvoice,
+                _ => Self::Unknown(Box::from(s)),
+            };
+            Ok(method)
+        }
+    }
+
+    impl fmt::Display for NwcMethod {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(self.as_str())
+        }
     }
 
     /// Parameters for `make_invoice` command.
@@ -277,6 +362,8 @@ pub mod nip47 {
     #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
     pub struct NwcRequestPayload {
         pub method: NwcMethod,
+        /// Some clients omit `params` for methods that take none.
+        #[serde(default)]
         #[cfg_attr(
             any(test, feature = "test-utils"),
             proptest(strategy = "arbitrary::any_json_value()")
@@ -478,6 +565,35 @@ mod test {
         roundtrip::json_value_roundtrip_proptest::<GetInfoResult>();
         roundtrip::json_value_roundtrip_proptest::<MakeInvoiceResult>();
         roundtrip::json_value_roundtrip_proptest::<NwcResponsePayload>();
+    }
+
+    #[test]
+    fn nwc_method_roundtrips() {
+        use nip47::NwcMethod;
+        let expected_ser = r#"["get_info","make_invoice","lookup_invoice","list_transactions","get_balance","multi_pay_keysend","pay_keysend","multi_pay_invoice","pay_invoice"]"#;
+        roundtrip::json_unit_enum_backwards_compat_with_unknown(
+            NwcMethod::KNOWN_VARIANTS,
+            expected_ser,
+        );
+        roundtrip::fromstr_display_roundtrip_proptest::<NwcMethod>();
+        roundtrip::json_string_roundtrip_proptest::<NwcMethod>();
+    }
+
+    /// Requests we can't serve must still parse, so we can answer them.
+    #[test]
+    fn nwc_request_payload_lenient() {
+        use nip47::{NwcMethod, NwcRequestPayload};
+        let json = r#"{"method":"get_balance"}"#;
+        let payload = serde_json::from_str::<NwcRequestPayload>(json).unwrap();
+        assert_eq!(payload.method, NwcMethod::GetBalance);
+        assert_eq!(payload.params, serde_json::Value::Null);
+
+        let json = r#"{"method":"make_hold_invoice","params":{}}"#;
+        let payload = serde_json::from_str::<NwcRequestPayload>(json).unwrap();
+        assert_eq!(
+            payload.method,
+            NwcMethod::Unknown("make_hold_invoice".into())
+        );
     }
 
     #[test]
