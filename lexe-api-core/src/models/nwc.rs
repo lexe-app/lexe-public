@@ -450,26 +450,23 @@ pub mod nip47 {
 
     impl NwcError {
         pub fn not_implemented(message: impl fmt::Display) -> Self {
-            let message = format!("Not implemented: {message:#}");
             Self {
                 code: NwcErrorCode::NotImplemented,
-                message,
+                message: format!("{message:#}"),
             }
         }
 
         pub fn other(message: impl fmt::Display) -> Self {
-            let message = format!("Other error: {message:#}");
             Self {
                 code: NwcErrorCode::Other,
-                message,
+                message: format!("{message:#}"),
             }
         }
 
         pub fn internal(message: impl fmt::Display) -> Self {
-            let message = format!("Internal error: {message:#}");
             Self {
                 code: NwcErrorCode::Internal,
-                message,
+                message: format!("{message:#}"),
             }
         }
     }
