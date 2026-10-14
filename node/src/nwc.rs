@@ -36,29 +36,14 @@ pub fn relay_url(deploy_env: DeployEnv) -> &'static str {
 pub(crate) mod convert {
     use super::*;
 
-    // Both `NostrPk` and `NostrSk` are 32-byte arrays with no additional
-    // validation. The `nostr` crate's `from_slice` methods only check the
-    // length, so these conversions are infallible. Proptests ensure we're
-    // notified if upstream ever adds validation.
-
     pub fn to_nostr_pk(pk: &NostrPk) -> nostr::PublicKey {
-        nostr::PublicKey::from_slice(pk.as_ref())
-            .expect("NostrPk is 32 bytes, conversion is infallible")
-    }
-
-    #[cfg(test)]
-    pub fn from_nostr_pk(pk: nostr::PublicKey) -> NostrPk {
-        NostrPk::from_array(pk.to_bytes())
+        nostr::PublicKey::from_byte_array(pk.0)
     }
 
     pub fn to_nostr_sk(sk: &NostrSk) -> nostr::SecretKey {
+        // Our `NostrSk`s all come from `nostr::Keys`, so they're valid.
         nostr::SecretKey::from_slice(sk.as_ref())
-            .expect("NostrSk is 32 bytes, conversion is infallible")
-    }
-
-    #[cfg(test)]
-    pub fn from_nostr_sk(sk: nostr::SecretKey) -> NostrSk {
-        NostrSk::from_array(sk.secret_bytes())
+            .expect("NostrSk should be a valid secret key")
     }
 }
 
@@ -156,8 +141,6 @@ impl NwcClient {
             NostrSk::from_array(wallet_nostr_keys.secret_key().secret_bytes());
         let wallet_nostr_pk =
             NostrPk::from_array(wallet_nostr_keys.public_key().to_bytes());
-        let client_nostr_sk =
-            NostrSk::from_array(client_nostr_keys.secret_key().secret_bytes());
         let client_nostr_pk =
             NostrPk::from_array(client_nostr_keys.public_key().to_bytes());
         let now = TimestampMs::now();
@@ -165,7 +148,7 @@ impl NwcClient {
         let connection_string = Self::build_connection_string(
             deploy_env,
             &wallet_nostr_pk,
-            &client_nostr_sk,
+            client_nostr_keys.secret_key(),
         );
 
         let client = Self {
@@ -205,11 +188,11 @@ impl NwcClient {
     fn build_connection_string(
         deploy_env: DeployEnv,
         wallet_nostr_pk: &NostrPk,
-        client_nostr_sk: &NostrSk,
+        client_nostr_sk: &nostr::SecretKey,
     ) -> String {
         let relay = relay_url(deploy_env);
         let wallet_nostr_pk = hex::display(wallet_nostr_pk.as_array());
-        let client_nostr_sk = hex::display(client_nostr_sk.as_array());
+        let client_nostr_sk = client_nostr_sk.to_secret_hex();
 
         format!(
             "nostr+walletconnect://{wallet_nostr_pk}\
@@ -353,17 +336,13 @@ mod test {
         AesMasterKey::new(&key_bytes)
     }
 
-    /// Parse the client secret key from a connection string.
-    fn parse_client_secret(connection_string: &str) -> NostrSk {
+    /// Parse the client keys from a connection string.
+    fn parse_client_keys(connection_string: &str) -> nostr::Keys {
         let secret_hex = connection_string
             .split("secret=")
             .nth(1)
             .expect("connection string should contain secret=");
-        let bytes =
-            hex::decode(secret_hex).expect("secret should be valid hex");
-        let arr: [u8; 32] =
-            bytes.try_into().expect("secret should be 32 bytes");
-        NostrSk::from_array(arr)
+        nostr::Keys::parse(secret_hex).expect("secret should be a secret key")
     }
 
     #[test]
@@ -550,10 +529,8 @@ mod test {
             "Test Wallet".to_string(),
         );
 
-        // Parse client secret from connection string
-        let client_nostr_sk = parse_client_secret(&connection_string);
-        let client_keys =
-            nostr::Keys::new(convert::to_nostr_sk(&client_nostr_sk));
+        // Parse client keys from connection string
+        let client_keys = parse_client_keys(&connection_string);
 
         // Get wallet service public key
         let wallet_service_pk =
@@ -596,29 +573,5 @@ mod test {
         .expect("Client response decryption should succeed");
 
         assert_eq!(decrypted_response, response_payload);
-    }
-
-    /// Ensure NostrPk <-> nostr::PublicKey roundtrips, so we're notified if the
-    /// nostr crate ever adds validation beyond the length check.
-    #[test]
-    fn nostr_pk_roundtrip() {
-        use proptest::prelude::*;
-        proptest!(|(pk1: NostrPk)| {
-            let nostr_pk = convert::to_nostr_pk(&pk1);
-            let pk2 = convert::from_nostr_pk(nostr_pk);
-            prop_assert_eq!(pk1, pk2);
-        });
-    }
-
-    /// Ensure NostrSk <-> nostr::SecretKey roundtrips, so we're notified if the
-    /// nostr crate ever adds validation beyond the length check.
-    #[test]
-    fn nostr_sk_roundtrip() {
-        use proptest::prelude::*;
-        proptest!(|(sk1: NostrSk)| {
-            let nostr_sk = convert::to_nostr_sk(&sk1);
-            let sk2 = convert::from_nostr_sk(nostr_sk);
-            prop_assert_eq!(sk1, sk2);
-        });
     }
 }
