@@ -6,6 +6,8 @@ pub(crate) mod constant_time;
 pub mod ed25519;
 /// Seed generation with supplemental entropy.
 pub mod entropy;
+/// HKDF-SHA256 key derivation.
+pub mod hkdf;
 /// HMAC-SHA256 message authentication.
 pub mod hmac;
 /// Hybrid Public Key Encryption (HPKE), RFC 9180.

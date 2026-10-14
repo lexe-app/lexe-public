@@ -8,7 +8,7 @@ use bitcoin::{
 use lexe_byte_array::ByteArray;
 use lexe_crypto::{
     aes::{self, AesMasterKey},
-    ed25519, entropy, hmac, password,
+    ed25519, entropy, hkdf, hmac, password,
     rng::{Crng, RngExt},
 };
 use lexe_hex::hex;
@@ -33,10 +33,6 @@ pub struct RootSeed(Secret<[u8; Self::LENGTH]>);
 
 impl RootSeed {
     pub const LENGTH: usize = 32;
-
-    /// An HKDF can't extract more than `255 * hash_output_size` bytes for a
-    /// single secret.
-    const HKDF_MAX_OUT_LEN: usize = 8160 /* 255*32 */;
 
     /// We salt the HKDF for domain separation purposes.
     const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::RootSeed");
@@ -137,31 +133,18 @@ impl RootSeed {
 
     // --- Key derivations --- //
 
-    fn extract(&self) -> ring::hkdf::Prk {
-        let salted_hkdf = ring::hkdf::Salt::new(
-            ring::hkdf::HKDF_SHA256,
-            Self::HKDF_SALT.as_slice(),
-        );
-        salted_hkdf.extract(self.0.expose_secret().as_slice())
+    /// Extract the salted HKDF PRK (pseudorandom key)
+    fn extract(&self) -> hkdf::Prk {
+        let salt = Self::HKDF_SALT.as_slice();
+        let ikm = self.0.expose_secret().as_slice();
+        hkdf::Prk::extract(salt, ikm)
     }
 
     /// Derive a new child secret with `label` into a prepared buffer `out`.
+    ///
+    /// Panics if `out` is longer than 8160 B ([`hkdf::Prk::MAX_OUT_LEN`]).
     pub fn derive_to_slice(&self, label: &[&[u8]], out: &mut [u8]) {
-        struct OkmLength(usize);
-
-        impl ring::hkdf::KeyType for OkmLength {
-            fn len(&self) -> usize {
-                self.0
-            }
-        }
-
-        assert!(out.len() <= Self::HKDF_MAX_OUT_LEN);
-
-        self.extract()
-            .expand(label, OkmLength(out.len()))
-            .expect("should not fail")
-            .fill(out)
-            .expect("should not fail")
+        self.extract().expand(label, out)
     }
 
     /// Derive a new child secret with `label` to a hash-output-sized buffer.
