@@ -23,7 +23,7 @@ use lexe_ln::{background_processor, command::CreateInvoiceCaller, test_event};
 use tracing::warn;
 
 use crate::{
-    nwc::NwcEncryption,
+    nwc::{self, NwcEncryption},
     server::{self, RouterState},
 };
 
@@ -133,22 +133,20 @@ pub(super) async fn nwc_request(
         .context("Failed to decode NWC request event")
         .map_err(NodeApiError::command)?;
 
-    // Verify the event integrity, reject old replays and expired events
+    // Verify the event and derive the client's keys. Rejects old replays,
+    // expired events, and events not addressed to the client's wallet pk,
+    // before we touch the DB.
     let now = TimestampMs::now();
-    let verified_event = crate::nwc::verify::nwc_request_event(&req_event, now)
+    let nwc_master_key = state.persister.nwc_master_key();
+    let keys = nwc::verify_request_event(&req_event, now, nwc_master_key)
         .context("Invalid NWC request event")
         .map_err(NodeApiError::command)?;
 
     // Fetch the NWC client info
     let mut nwc_client = state
         .persister
-        .read_nwc_client(*verified_event.client_nostr_pk())
+        .read_nwc_client(keys)
         .await
-        .map_err(NodeApiError::command)?;
-
-    // Ensure this event is actually for the right client+wallet nostr pk's
-    nwc_client
-        .verify_nwc_request_event(verified_event)
         .map_err(NodeApiError::command)?;
 
     // The stored info event may predate a change to the supported methods,

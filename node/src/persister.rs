@@ -50,7 +50,7 @@ use lexe_api::{
             GetNewPayments, GetUpdatedPaymentMetadata, GetUpdatedPayments,
             PaymentIdStruct, VecPaymentId,
         },
-        nwc::{DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPk},
+        nwc::{DbNwcClient, DbNwcClientFields, GetNwcClients},
     },
     types::{
         Empty,
@@ -110,8 +110,9 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, warn};
 
 use crate::{
-    approved_versions::ApprovedVersions, client::NodeBackendClient,
-    nwc::NwcClient,
+    approved_versions::ApprovedVersions,
+    client::NodeBackendClient,
+    nwc::{NwcClient, NwcKeys, NwcMasterKey},
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -125,6 +126,7 @@ pub struct NodePersister {
     backend_api: Arc<NodeBackendClient>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<AesMasterKey>,
+    nwc_master_key: NwcMasterKey,
     channel_monitor_persister_tx: mpsc::Sender<ChannelMonitorPersisterCommand>,
     backup_txs: Vec<mpsc::Sender<BackupCommand>>,
     eph_tasks_tx: mpsc::Sender<LxTask<()>>,
@@ -350,6 +352,7 @@ impl NodePersister {
         backend_api: Arc<NodeBackendClient>,
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<AesMasterKey>,
+        nwc_master_key: NwcMasterKey,
         channel_monitor_persister_tx: mpsc::Sender<
             ChannelMonitorPersisterCommand,
         >,
@@ -361,6 +364,7 @@ impl NodePersister {
             backend_api,
             authenticator,
             vfs_master_key,
+            nwc_master_key,
             channel_monitor_persister_tx,
             backup_txs,
             eph_tasks_tx,
@@ -403,6 +407,11 @@ impl NodePersister {
         self.vfs_master_key.as_ref()
     }
 
+    /// Get a reference to the underlying [`NwcMasterKey`].
+    pub(crate) fn nwc_master_key(&self) -> &NwcMasterKey {
+        &self.nwc_master_key
+    }
+
     pub(crate) async fn read_scids(&self) -> anyhow::Result<Vec<Scid>> {
         debug!("Fetching scids");
         let token = self.get_token().await?;
@@ -416,11 +425,11 @@ impl NodePersister {
     /// Read an NWC client from the DB and decrypt it.
     pub(crate) async fn read_nwc_client(
         &self,
-        client_nostr_pk: NostrPk,
+        keys: NwcKeys,
     ) -> anyhow::Result<NwcClient> {
         let token = self.get_token().await?;
         let params = GetNwcClients {
-            client_nostr_pk: Some(client_nostr_pk),
+            client_nostr_pk: Some(*keys.client_nostr_pk()),
         };
 
         let mut clients = self
@@ -434,8 +443,7 @@ impl NodePersister {
             .pop()
             .ok_or_else(|| anyhow!("NWC client not found"))?;
 
-        NwcClient::decrypt(&self.vfs_master_key, db_nwc_client)
-            .context("Failed to decrypt NWC client data")
+        NwcClient::decrypt(&self.vfs_master_key, keys, db_nwc_client)
     }
 
     /// Upsert an encrypted NWC client into the DB.

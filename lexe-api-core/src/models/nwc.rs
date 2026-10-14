@@ -32,16 +32,6 @@ impl NostrPk {
     }
 }
 
-/// A 32-byte Nostr secret key.
-#[derive(Copy, Clone, Eq, Hash, PartialEq, RefCast)]
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[repr(transparent)]
-pub struct NostrSk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
-
-lexe_byte_array::impl_byte_array!(NostrSk, 32);
-lexe_byte_array::impl_debug_display_redacted!(NostrSk);
-
 /// Upgradeable API struct for a [`NostrPk`].
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -57,7 +47,7 @@ pub struct DbNwcClientFields {
     pub client_nostr_pk: NostrPk,
     /// The wallet service's Nostr public key (identifies this wallet).
     pub wallet_nostr_pk: NostrPk,
-    /// VFS-encrypted client secret data (wallet SK + label).
+    /// VFS-encrypted client data (the label).
     #[serde(with = "base64_or_bytes")]
     pub ciphertext: Vec<u8>,
     /// The wallet-signed NIP-47 `13194` info event as JSON, served by the
@@ -108,8 +98,6 @@ pub struct ListNwcClientResponse {
 }
 
 /// Request to create a new NWC client.
-///
-/// Keys are generated on the Node and stored safely encrypted in the DB.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct CreateNwcClientRequest {
@@ -565,11 +553,6 @@ mod test {
     #[test]
     fn nostr_signed_event_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<NostrSignedEvent>();
-    }
-
-    #[test]
-    fn nostr_sk_roundtrip() {
-        roundtrip::json_value_roundtrip_proptest::<NostrSk>();
     }
 
     #[test]

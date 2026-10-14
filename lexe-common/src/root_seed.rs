@@ -322,6 +322,12 @@ impl RootSeed {
             .expect("HKDF output should be a valid secp256k1 secret key")
     }
 
+    /// Derive the secret for the node's NWC master key. This secret is used
+    /// to derive our NWC wallet keypair from a NWC client's pubkey.
+    pub fn derive_nwc_master_secret(&self) -> Secret<[u8; 32]> {
+        self.derive(&[b"nwc master key"])
+    }
+
     /// Derive the key used to authenticate "continuations": server-issued
     /// opaque blobs that a client echoes back to us (e.g. a signed
     /// LDK route).
@@ -997,6 +1003,13 @@ mod test {
         assert_eq!(
             hex::encode(&external_vss_key.secret_bytes()),
             "a10dd5d440f79f87d64526402772b2fcc97687f110cf79e224eca16605c7386f",
+        );
+
+        // NWC master secret
+        let nwc_master_secret = seed.derive_nwc_master_secret();
+        assert_eq!(
+            hex::encode(nwc_master_secret.expose_secret()),
+            "a7e9ea1fbbc9cc973c9d1dd03772fe642a5ce0498c27d981e657408643d54520",
         );
 
         // LDK seed (used to initialize KeysManager)

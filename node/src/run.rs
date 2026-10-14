@@ -96,6 +96,7 @@ use crate::{
     context::{MegaContext, UserContext},
     event_handler::{self, NodeEventHandler},
     gdrive_setup::{self, GoogleVfsInitError},
+    nwc::NwcMasterKey,
     p2p,
     peer_manager::NodePeerManager,
     persister::{self, NodePersister},
@@ -290,6 +291,7 @@ impl UserNode {
         // If we're in staging or prod, init a GoogleVfs.
         let authenticator = Arc::new(BearerAuthenticator::new(user_key_pair));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
+        let nwc_master_key = NwcMasterKey::from_root_seed(&root_seed);
 
         let (maybe_google_vfs, gdrive_status) =
             if deploy_env.is_staging_or_prod() {
@@ -351,6 +353,7 @@ impl UserNode {
             backend_api.clone(),
             authenticator.clone(),
             vfs_master_key.clone(),
+            nwc_master_key,
             channel_monitor_persister_tx.clone(),
             backup_txs,
             eph_tasks_tx.clone(),

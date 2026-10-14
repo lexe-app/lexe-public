@@ -961,11 +961,14 @@ pub(super) async fn list_nwc_clients(
         .map_err(NodeApiError::command)?;
 
     // Decrypt each ciphertext to get the label and expose the client info.
+    let nwc_master_key = state.persister.nwc_master_key();
     let clients = vec_nwc_client
         .nwc_clients
         .into_iter()
         .filter_map(|client| {
-            NwcClient::decrypt(state.persister.vfs_master_key(), client)
+            let keys =
+                nwc_master_key.derive_keys(client.fields.client_nostr_pk);
+            NwcClient::decrypt(state.persister.vfs_master_key(), keys, client)
                 .map(|c| c.to_nwc_client_info())
                 .inspect_err(|e| warn!("Failed to decrypt NWC client: {e:#}"))
                 .ok()
@@ -984,8 +987,13 @@ pub(super) async fn create_nwc_client(
 ) -> Result<LxJson<CreateNwcClientResponse>, NodeApiError> {
     let mut rng = SysRng::new();
     let now = TimestampMs::now();
-    let (nwc_client, connection_string) =
-        NwcClient::new(&mut rng, state.deploy_env, req.label, now);
+    let (nwc_client, connection_string) = NwcClient::new(
+        &mut rng,
+        state.persister.nwc_master_key(),
+        state.deploy_env,
+        req.label,
+        now,
+    );
 
     let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
     state
@@ -1016,9 +1024,13 @@ pub(super) async fn update_nwc_client(
     //
     // TODO(max): Add synchronization for NwcClient updates - could use a
     // write-through cache similar to PaymentsManager.
+    let keys = state
+        .persister
+        .nwc_master_key()
+        .derive_keys(req.client_nostr_pk);
     let mut nwc_client = state
         .persister
-        .read_nwc_client(req.client_nostr_pk)
+        .read_nwc_client(keys)
         .await
         .map_err(NodeApiError::command)?;
 

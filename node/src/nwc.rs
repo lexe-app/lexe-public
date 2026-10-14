@@ -1,21 +1,23 @@
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{Context, anyhow, ensure};
+use bitcoin::secp256k1;
 use lexe_api::models::nwc::{
-    DbNwcClient, DbNwcClientFields, NostrPk, NostrSk, NwcClientInfo,
-    nip47::NwcMethod,
+    DbNwcClient, DbNwcClientFields, NostrPk, NwcClientInfo, nip47::NwcMethod,
 };
 use lexe_byte_array::ByteArray;
 use lexe_common::{
-    constants, env::DeployEnv, secp256k1_ctx::SECP256K1, time::TimestampMs,
+    constants, env::DeployEnv, root_seed::RootSeed, secp256k1_ctx::SECP256K1,
+    time::TimestampMs,
 };
-use lexe_crypto::{aes::AesMasterKey, rng::Crng};
+use lexe_crypto::{aes::AesMasterKey, hkdf, rng::Crng};
 use lexe_hex::hex;
+use lexe_std::array;
 use nostr::nips::{nip04, nip44};
+use secrecy::{ExposeSecret, Zeroize};
 use serde::{Deserialize, Serialize};
-use verify::VerifiedNwcRequestEvent;
 
-const NWC_AAD_PREFIX: &[u8] = b"NWC";
+const NWC_AAD_PREFIX: &[u8] = b"NWC client";
 
 /// The NWC methods this wallet supports, advertised in the `13194` info event
 /// and in `get_info` responses.
@@ -43,12 +45,6 @@ pub(crate) mod convert {
 
     pub fn to_nostr_pk(pk: &NostrPk) -> nostr::PublicKey {
         nostr::PublicKey::from_byte_array(pk.0)
-    }
-
-    pub fn to_nostr_sk(sk: &NostrSk) -> nostr::SecretKey {
-        // Our `NostrSk`s all come from `nostr::Keys`, so they're valid.
-        nostr::SecretKey::from_slice(sk.as_ref())
-            .expect("NostrSk should be a valid secret key")
     }
 
     #[cfg(test)]
@@ -95,15 +91,64 @@ impl NwcEncryption {
     }
 }
 
-/// An NWC (Nostr Wallet Connect) client connection.
+/// Derives each NWC client's wallet service keys from the client's pk, so we
+/// never generate or store wallet service secrets.
+///
+/// `RootSeed` -- derive("nwc master key") --> `NwcMasterKey`
+///            -- expand("wallet key", client_nostr_pk) --> wallet service key
+// Like `AesMasterKey`, we store the extracted PRK.
+pub(crate) struct NwcMasterKey(hkdf::Prk);
+
+impl NwcMasterKey {
+    const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::NwcMasterKey");
+
+    pub(crate) fn from_root_seed(root_seed: &RootSeed) -> Self {
+        let secret = root_seed.derive_nwc_master_secret();
+        Self(hkdf::Prk::extract(&Self::HKDF_SALT, secret.expose_secret()))
+    }
+
+    /// Derive the wallet service keys for the NWC client with this pk.
+    pub(crate) fn derive_keys(&self, client_nostr_pk: NostrPk) -> NwcKeys {
+        let mut secret = [0u8; 32];
+        let info = [b"wallet key".as_slice(), client_nostr_pk.as_slice()];
+        self.0.expand(&info, &mut secret);
+        let wallet_sk = secp256k1::SecretKey::from_slice(&secret)
+            .expect("HKDF output should be a valid secp256k1 secret key");
+        secret.zeroize();
+
+        let wallet_keys =
+            nostr::Keys::new_with_ctx(&SECP256K1, wallet_sk.into());
+        NwcKeys {
+            client_nostr_pk,
+            wallet_keys,
+        }
+    }
+}
+
+/// NWC client's pubkey and the node's wallet keypair derived from it.
+pub(crate) struct NwcKeys {
+    /// The NWC client app's Nostr pubkey.
+    client_nostr_pk: NostrPk,
+    /// The node's NWC wallet keypair for this client.
+    wallet_keys: nostr::Keys,
+}
+
+impl NwcKeys {
+    pub(crate) fn client_nostr_pk(&self) -> &NostrPk {
+        &self.client_nostr_pk
+    }
+
+    pub(crate) fn wallet_nostr_pk(&self) -> &NostrPk {
+        NostrPk::from_ref(self.wallet_keys.public_key.as_bytes())
+    }
+}
+
+/// NWC (Nostr Wallet Connect) client connection.
 ///
 /// Represents a connection between an external NWC client app and this wallet.
 /// The wallet acts as the "wallet service" in NIP-47 terminology.
 pub(crate) struct NwcClient {
-    /// The NWC client app's Nostr public key (the client key).
-    client_nostr_pk: NostrPk,
-    /// The wallet service's Nostr public key (the server key).
-    wallet_nostr_pk: NostrPk,
+    keys: NwcKeys,
     /// Sensitive data that gets encrypted when stored in the DB.
     data: NwcClientData,
     /// The wallet-signed NIP-47 `13194` info event stored alongside this
@@ -118,10 +163,6 @@ pub(crate) struct NwcClient {
 /// Sensitive NWC client data that gets encrypted before storage.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NwcClientData {
-    /// The wallet service's Nostr secret key (randomly generated).
-    /// Used with NIP-44 to decrypt requests from and encrypt responses to
-    /// the NWC client app.
-    pub wallet_nostr_sk: NostrSk,
     /// Human-readable label for this connection, set by the user.
     pub label: String,
 }
@@ -132,10 +173,9 @@ impl NwcClientData {
         &self,
         rng: &mut impl Crng,
         vfs_master_key: &AesMasterKey,
-        client_nostr_pk: &NostrPk,
-        wallet_nostr_pk: &NostrPk,
+        keys: &NwcKeys,
     ) -> Vec<u8> {
-        let aad = &Self::aad(client_nostr_pk, wallet_nostr_pk);
+        let aad = &Self::aad(keys);
         vfs_master_key.encrypt(rng, aad, None, &|out: &mut Vec<u8>| {
             serde_json::to_writer(out, self)
                 .expect("JSON serialization was not implemented correctly");
@@ -145,11 +185,11 @@ impl NwcClientData {
     /// VFS-decrypts this data.
     fn decrypt(
         vfs_master_key: &AesMasterKey,
-        client_nostr_pk: &NostrPk,
-        wallet_nostr_pk: &NostrPk,
+        keys: &NwcKeys,
         data: Vec<u8>,
     ) -> anyhow::Result<Self> {
-        let aad = &Self::aad(client_nostr_pk, wallet_nostr_pk);
+        let aad = &Self::aad(keys);
+        let wallet_nostr_pk = keys.wallet_nostr_pk();
         let value = vfs_master_key
             .decrypt(aad, data)
             .context("Failed to decrypt NWC client data")
@@ -162,14 +202,11 @@ impl NwcClientData {
     /// Binds the ciphertext to both pubkeys, so whoever stores it (the
     /// backend) can't attach it to another client's key, which would let
     /// that client use this connection.
-    fn aad<'a>(
-        client_nostr_pk: &'a NostrPk,
-        wallet_nostr_pk: &'a NostrPk,
-    ) -> [&'a [u8]; 3] {
+    fn aad(keys: &NwcKeys) -> [&[u8]; 3] {
         [
             NWC_AAD_PREFIX,
-            client_nostr_pk.as_slice(),
-            wallet_nostr_pk.as_slice(),
+            keys.client_nostr_pk().as_slice(),
+            keys.wallet_nostr_pk().as_slice(),
         ]
     }
 }
@@ -177,41 +214,33 @@ impl NwcClientData {
 impl NwcClient {
     /// Generate a new NWC client and its connection string.
     ///
-    /// Generates Nostr keypairs for the wallet service and client for use with
-    /// NIP-44 encryption. Returns the client and the connection string (which
-    /// contains the client secret key needed by the NWC app).
+    /// Generates a random client keypair and derives the node's wallet keypair
+    /// from it. Returns the client and the connection string, which contains
+    /// the client secret key needed by the NWC app.
     pub(crate) fn new(
         rng: &mut impl Crng,
+        nwc_master_key: &NwcMasterKey,
         deploy_env: DeployEnv,
         label: String,
         now: TimestampMs,
     ) -> (Self, String) {
-        let wallet_nostr_keys = nostr::Keys::generate_with_rng(rng);
         let client_nostr_keys = nostr::Keys::generate_with_rng(rng);
-
-        let wallet_nostr_sk =
-            NostrSk::from_array(wallet_nostr_keys.secret_key().secret_bytes());
-        let wallet_nostr_pk =
-            NostrPk::from_array(wallet_nostr_keys.public_key().to_bytes());
         let client_nostr_pk =
             NostrPk::from_array(client_nostr_keys.public_key().to_bytes());
+        let keys = nwc_master_key.derive_keys(client_nostr_pk);
 
         let connection_string = Self::build_connection_string(
             deploy_env,
-            &wallet_nostr_pk,
+            keys.wallet_nostr_pk(),
             client_nostr_keys.secret_key(),
         );
 
         let info_event =
-            Self::build_info_event_json(rng, &wallet_nostr_keys, now);
+            Self::build_info_event_json(rng, &keys.wallet_keys, now);
 
         let client = Self {
-            client_nostr_pk,
-            wallet_nostr_pk,
-            data: NwcClientData {
-                wallet_nostr_sk,
-                label,
-            },
+            keys,
+            data: NwcClientData { label },
             info_event,
             created_at: now,
             updated_at: now,
@@ -220,24 +249,35 @@ impl NwcClient {
         (client, connection_string)
     }
 
-    /// Decrypt an [`NwcClient`] from an encrypted [`DbNwcClient`] record.
+    /// Decrypt an [`NwcClient`] from an encrypted [`DbNwcClient`] record,
+    /// rejecting records whose pks don't match `keys`.
     pub(crate) fn decrypt(
         vfs_master_key: &AesMasterKey,
+        keys: NwcKeys,
         nwc_client: DbNwcClient,
     ) -> anyhow::Result<Self> {
-        let data = NwcClientData::decrypt(
-            vfs_master_key,
-            &nwc_client.fields.client_nostr_pk,
-            &nwc_client.fields.wallet_nostr_pk,
-            nwc_client.fields.ciphertext,
-        )?;
+        let DbNwcClient {
+            fields,
+            created_at,
+            updated_at,
+        } = nwc_client;
+        ensure!(
+            &fields.client_nostr_pk == keys.client_nostr_pk(),
+            "NWC client pk mismatch"
+        );
+        ensure!(
+            &fields.wallet_nostr_pk == keys.wallet_nostr_pk(),
+            "NWC wallet pk isn't derived from the client pk"
+        );
+
+        let data =
+            NwcClientData::decrypt(vfs_master_key, &keys, fields.ciphertext)?;
         Ok(Self {
-            client_nostr_pk: nwc_client.fields.client_nostr_pk,
-            wallet_nostr_pk: nwc_client.fields.wallet_nostr_pk,
+            keys,
             data,
-            info_event: nwc_client.fields.info_event,
-            created_at: nwc_client.created_at,
-            updated_at: nwc_client.updated_at,
+            info_event: fields.info_event,
+            created_at,
+            updated_at,
         })
     }
 
@@ -259,8 +299,8 @@ impl NwcClient {
     /// Convert to the public client info struct (for API responses).
     pub(crate) fn to_nwc_client_info(&self) -> NwcClientInfo {
         NwcClientInfo {
-            client_nostr_pk: self.client_nostr_pk,
-            wallet_nostr_pk: self.wallet_nostr_pk,
+            client_nostr_pk: *self.keys.client_nostr_pk(),
+            wallet_nostr_pk: *self.keys.wallet_nostr_pk(),
             label: self.data.label.clone(),
             created_at: self.created_at,
             updated_at: self.updated_at,
@@ -273,15 +313,10 @@ impl NwcClient {
         rng: &mut impl Crng,
         vfs_master_key: &AesMasterKey,
     ) -> DbNwcClientFields {
-        let ciphertext = self.data.encrypt(
-            rng,
-            vfs_master_key,
-            &self.client_nostr_pk,
-            &self.wallet_nostr_pk,
-        );
+        let ciphertext = self.data.encrypt(rng, vfs_master_key, &self.keys);
         DbNwcClientFields {
-            client_nostr_pk: self.client_nostr_pk,
-            wallet_nostr_pk: self.wallet_nostr_pk,
+            client_nostr_pk: *self.keys.client_nostr_pk(),
+            wallet_nostr_pk: *self.keys.wallet_nostr_pk(),
             ciphertext,
             info_event: self.info_event.clone(),
         }
@@ -299,9 +334,8 @@ impl NwcClient {
             return Ok(false);
         }
 
-        let keys =
-            nostr::Keys::new(convert::to_nostr_sk(&self.data.wallet_nostr_sk));
-        self.info_event = Self::build_info_event_json(rng, &keys, now);
+        self.info_event =
+            Self::build_info_event_json(rng, &self.keys.wallet_keys, now);
 
         Ok(true)
     }
@@ -315,8 +349,8 @@ impl NwcClient {
         else {
             return true;
         };
-        let wallet_nostr_pk = convert::to_nostr_pk(&self.wallet_nostr_pk);
-        let expected = Self::info_event_builder().build(wallet_nostr_pk);
+        let expected =
+            Self::info_event_builder().build(self.keys.wallet_keys.public_key);
         stored.pubkey != expected.pubkey
             || stored.content != expected.content
             || stored.tags != expected.tags
@@ -359,26 +393,6 @@ impl NwcClient {
         }
     }
 
-    /// Verify a signed NWC request addressed to this connection.
-    pub(crate) fn verify_nwc_request_event(
-        &self,
-        verified_event: VerifiedNwcRequestEvent<'_>,
-    ) -> anyhow::Result<()> {
-        // Check client pk
-        ensure!(
-            &self.client_nostr_pk == verified_event.client_nostr_pk(),
-            "Client nostr pk mismatch"
-        );
-
-        // Check wallet pk
-        ensure!(
-            &self.wallet_nostr_pk == verified_event.wallet_nostr_pk(),
-            "Wallet nostr pk mismatch"
-        );
-
-        Ok(())
-    }
-
     /// Decrypt an NWC request's content.
     ///
     /// [NIP-44] uses ECDH to derive a shared secret from both parties'
@@ -392,15 +406,15 @@ impl NwcClient {
         encryption: NwcEncryption,
         content: &str,
     ) -> anyhow::Result<String> {
-        let wallet_nostr_sk = convert::to_nostr_sk(&self.data.wallet_nostr_sk);
-        let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
+        let wallet_nostr_sk = self.keys.wallet_keys.secret_key();
+        let client_nostr_pk = convert::to_nostr_pk(self.keys.client_nostr_pk());
 
         match encryption {
             NwcEncryption::Nip04 =>
-                nip04::decrypt(&wallet_nostr_sk, &client_nostr_pk, content)
+                nip04::decrypt(wallet_nostr_sk, &client_nostr_pk, content)
                     .context("Failed to decrypt NIP-04 payload"),
             NwcEncryption::Nip44 =>
-                nip44::decrypt(&wallet_nostr_sk, &client_nostr_pk, content)
+                nip44::decrypt(wallet_nostr_sk, &client_nostr_pk, content)
                     .context("Failed to decrypt NIP-44 payload"),
         }
     }
@@ -413,20 +427,20 @@ impl NwcClient {
         encryption: NwcEncryption,
         response_json: &str,
     ) -> anyhow::Result<String> {
-        let wallet_nostr_sk = convert::to_nostr_sk(&self.data.wallet_nostr_sk);
-        let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
+        let wallet_nostr_sk = self.keys.wallet_keys.secret_key();
+        let client_nostr_pk = convert::to_nostr_pk(self.keys.client_nostr_pk());
 
         match encryption {
             NwcEncryption::Nip04 => nip04::encrypt_with_rng(
                 rng,
-                &wallet_nostr_sk,
+                wallet_nostr_sk,
                 &client_nostr_pk,
                 response_json,
             )
             .context("Failed to encrypt NIP-04 payload"),
             NwcEncryption::Nip44 => nip44::encrypt_with_rng(
                 rng,
-                &wallet_nostr_sk,
+                wallet_nostr_sk,
                 &client_nostr_pk,
                 response_json,
                 nip44::Version::default(),
@@ -446,79 +460,64 @@ impl NwcClient {
         content: String,
     ) -> anyhow::Result<nostr::Event> {
         let kind = nostr::Kind::WalletConnectResponse;
-        let client_nostr_pk = convert::to_nostr_pk(&self.client_nostr_pk);
+        let client_nostr_pk = convert::to_nostr_pk(self.keys.client_nostr_pk());
         let now = Instant::now();
-        let keys =
-            nostr::Keys::new(convert::to_nostr_sk(&self.data.wallet_nostr_sk));
 
         let event = nostr::EventBuilder::new(kind, content)
             .tag(nostr::Tag::public_key(client_nostr_pk))
             .tag(nostr::Tag::event(event_id))
-            .sign_with_ctx(&SECP256K1, rng, &now, &keys)?;
+            .sign_with_ctx(&SECP256K1, rng, &now, &self.keys.wallet_keys)?;
         Ok(event)
     }
 }
 
-pub mod verify {
-    use super::*;
+/// Verify a signed NWC request and derive its client's keys, rejecting
+/// requests not addressed to the client's derived wallet service key.
+pub(crate) fn verify_request_event(
+    event: &nostr::Event,
+    now: TimestampMs,
+    nwc_master_key: &NwcMasterKey,
+) -> anyhow::Result<NwcKeys> {
+    // Only accept NWC requests
+    ensure!(
+        event.kind == nostr::Kind::WalletConnectRequest,
+        "Expected NWC request (kind 23194)"
+    );
 
-    pub struct VerifiedNwcRequestEvent<'a> {
-        client_nostr_pk: &'a NostrPk,
-        wallet_nostr_pk: &'a NostrPk,
+    // Prevent replays of old requests
+    let created_at = convert::try_from_nostr_ts(event.created_at)?;
+    ensure!(
+        now.has_within(created_at, constants::NWC_REQUEST_MAX_CLOCK_SKEW),
+        "NWC request is too old or too far in the future",
+    );
+
+    // Reject expired requests
+    if let Some(expiration) = event.tags.expiration() {
+        let expiration = convert::try_from_nostr_ts(*expiration)?;
+        ensure!(expiration >= now, "NWC request has expired");
     }
 
-    impl<'a> VerifiedNwcRequestEvent<'a> {
-        pub fn client_nostr_pk(&self) -> &'a NostrPk {
-            self.client_nostr_pk
-        }
-        pub fn wallet_nostr_pk(&self) -> &'a NostrPk {
-            self.wallet_nostr_pk
-        }
-    }
+    // NWC requests must have a target wallet pk
+    let wallet_nostr_pk = event
+        .tags
+        .public_keys()
+        .next()
+        .context("Missing wallet pk")?;
 
-    pub fn nwc_request_event(
-        event: &nostr::Event,
-        now: TimestampMs,
-    ) -> anyhow::Result<VerifiedNwcRequestEvent<'_>> {
-        // Only accept NWC requests
-        ensure!(
-            event.kind == nostr::Kind::WalletConnectRequest,
-            "Expected NWC request (kind 23194)"
-        );
+    // Verify event integrity (id + client signature)
+    event
+        .verify_with_ctx(&SECP256K1)
+        .context("Invalid NWC event id or signature")?;
 
-        // Prevent replays of old requests
-        let created_at = convert::try_from_nostr_ts(event.created_at)?;
-        ensure!(
-            now.has_within(created_at, constants::NWC_REQUEST_MAX_CLOCK_SKEW),
-            "NWC request is too old or too far in the future",
-        );
+    // Check the request is addressed to the client's wallet key
+    let client_nostr_pk = NostrPk::from_array(event.pubkey.to_bytes());
+    let keys = nwc_master_key.derive_keys(client_nostr_pk);
+    ensure!(
+        &keys.wallet_keys.public_key == wallet_nostr_pk,
+        "NWC request isn't addressed to the client's wallet pk"
+    );
 
-        // Reject expired requests
-        if let Some(expiration) = event.tags.expiration() {
-            let expiration = convert::try_from_nostr_ts(*expiration)?;
-            ensure!(expiration >= now, "NWC request has expired");
-        }
-
-        // NWC requests must have a target wallet pk
-        let wallet_nostr_pk = event
-            .tags
-            .public_keys()
-            .next()
-            .context("Missing wallet pk")?;
-
-        // Verify event integrity (id + client signature)
-        event
-            .verify_with_ctx(&SECP256K1)
-            .context("Invalid NWC event id or signature")?;
-
-        let client_nostr_pk = NostrPk::from_ref(event.pubkey.as_bytes());
-        let wallet_nostr_pk = NostrPk::from_ref(wallet_nostr_pk.as_bytes());
-
-        Ok(VerifiedNwcRequestEvent {
-            client_nostr_pk,
-            wallet_nostr_pk,
-        })
-    }
+    Ok(keys)
 }
 
 #[derive(Copy, Clone)]
@@ -580,9 +579,13 @@ mod test {
 
     use super::*;
 
-    fn test_master_key() -> AesMasterKey {
+    fn test_vfs_master_key() -> AesMasterKey {
         let key_bytes = [42u8; 32];
         AesMasterKey::new(&key_bytes)
+    }
+
+    fn test_nwc_master_key() -> NwcMasterKey {
+        NwcMasterKey::from_root_seed(&RootSeed::from_u64(20261014))
     }
 
     /// Parse the client keys from a connection string.
@@ -595,16 +598,22 @@ mod test {
     }
 
     #[test]
-    fn test_verify_nwc_request_event() {
+    fn test_verify_request_event() {
+        let nwc_master_key = test_nwc_master_key();
         let mut rng = FastRng::from_u64(2026100801);
         let now = TimestampMs::from_secs_u32(2026100801);
         let supplier = FixedTimestampMsSupplier(now);
-        let (client, connection_string) =
-            NwcClient::new(&mut rng, DeployEnv::Dev, "test".to_owned(), now);
+        let (client, connection_string) = NwcClient::new(
+            &mut rng,
+            &nwc_master_key,
+            DeployEnv::Dev,
+            "test".to_owned(),
+            now,
+        );
 
         let keys = parse_client_keys(&connection_string);
         let stranger = nostr::Keys::generate_with_rng(&mut rng);
-        let wallet_pk = convert::to_nostr_pk(&client.wallet_nostr_pk);
+        let wallet_pk = convert::to_nostr_pk(client.keys.wallet_nostr_pk());
         let now = TimestampMs::from_secs_u32(1_000_000);
         let now_nostr = convert::to_nostr_ts(now);
 
@@ -622,12 +631,19 @@ mod test {
             sign(builder.clone().tag(nostr::Tag::public_key(wallet_pk)));
 
         let do_verify = |event, now| {
-            let verified = verify::nwc_request_event(event, now)?;
-            client.verify_nwc_request_event(verified)
+            verify_request_event(event, now, &nwc_master_key).map(|_| ())
         };
 
-        let verified_event = verify::nwc_request_event(&request, now).unwrap();
-        client.verify_nwc_request_event(verified_event).unwrap();
+        let verified_keys =
+            verify_request_event(&request, now, &nwc_master_key).unwrap();
+        assert_eq!(
+            verified_keys.client_nostr_pk(),
+            client.keys.client_nostr_pk()
+        );
+        assert_eq!(
+            verified_keys.wallet_nostr_pk(),
+            client.keys.wallet_nostr_pk()
+        );
 
         // Each field is bound to the signature, including the timestamp.
         let mut tampered = request.clone();
@@ -684,18 +700,23 @@ mod test {
 
     #[test]
     fn test_verify_request_timestamp() {
+        let nwc_master_key = test_nwc_master_key();
         let mut rng = FastRng::from_u64(2026100802);
         let now = TimestampMs::from_secs_u32(2026100802);
-        let (client, connection_string) =
-            NwcClient::new(&mut rng, DeployEnv::Dev, "test".to_owned(), now);
+        let (client, connection_string) = NwcClient::new(
+            &mut rng,
+            &nwc_master_key,
+            DeployEnv::Dev,
+            "test".to_owned(),
+            now,
+        );
         let keys = parse_client_keys(&connection_string);
-        let wallet_pk = convert::to_nostr_pk(&client.wallet_nostr_pk);
+        let wallet_pk = convert::to_nostr_pk(client.keys.wallet_nostr_pk());
         let now = 1_000_000;
         let skew = constants::NWC_REQUEST_MAX_CLOCK_SKEW.as_secs();
 
         let do_verify = |event: &nostr::Event, now| {
-            let verified = verify::nwc_request_event(event, now)?;
-            client.verify_nwc_request_event(verified)
+            verify_request_event(event, now, &nwc_master_key).map(|_| ())
         };
 
         for (created_at, accepted) in [
@@ -735,28 +756,17 @@ mod test {
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
         let mut rng = FastRng::from_u64(2025121301);
-        let master_key = test_master_key();
+        let master_key = test_vfs_master_key();
 
         let data = NwcClientData {
-            wallet_nostr_sk: NostrSk::from_array([1u8; 32]),
             label: "Test Connection".to_string(),
         };
-        let client_nostr_pk = NostrPk::from_array([2u8; 32]);
-        let wallet_nostr_pk = NostrPk::from_array([3u8; 32]);
+        let keys =
+            test_nwc_master_key().derive_keys(NostrPk::from_array([2u8; 32]));
 
-        let encrypted = data.encrypt(
-            &mut rng,
-            &master_key,
-            &client_nostr_pk,
-            &wallet_nostr_pk,
-        );
-        let decrypted = NwcClientData::decrypt(
-            &master_key,
-            &client_nostr_pk,
-            &wallet_nostr_pk,
-            encrypted,
-        )
-        .expect("Decryption should succeed");
+        let encrypted = data.encrypt(&mut rng, &master_key, &keys);
+        let decrypted = NwcClientData::decrypt(&master_key, &keys, encrypted)
+            .expect("Decryption should succeed");
 
         assert_eq!(data, decrypted);
     }
@@ -764,28 +774,35 @@ mod test {
     #[test]
     fn test_decrypt_with_wrong_key_or_pks_fails() {
         let mut rng = FastRng::from_u64(2025121302);
-        let master_key = test_master_key();
+        let master_key = test_vfs_master_key();
         let wrong_key = AesMasterKey::new(&[99u8; 32]);
 
         let data = NwcClientData {
-            wallet_nostr_sk: NostrSk::from_array([1u8; 32]),
             label: "Test".to_string(),
         };
+        let nwc_master_key = test_nwc_master_key();
         let client_pk = NostrPk::from_array([2u8; 32]);
-        let wallet_pk = NostrPk::from_array([3u8; 32]);
         let other_pk = NostrPk::from_array([4u8; 32]);
+        let keys = nwc_master_key.derive_keys(client_pk);
+        let other = nwc_master_key.derive_keys(other_pk);
 
-        let encrypted =
-            data.encrypt(&mut rng, &master_key, &client_pk, &wallet_pk);
-        let decrypt = |key, client_pk, wallet_pk| {
-            NwcClientData::decrypt(key, client_pk, wallet_pk, encrypted.clone())
-        };
+        let encrypted = data.encrypt(&mut rng, &master_key, &keys);
+        let decrypt =
+            |key, keys| NwcClientData::decrypt(key, keys, encrypted.clone());
 
-        decrypt(&master_key, &client_pk, &wallet_pk).unwrap();
-        decrypt(&wrong_key, &client_pk, &wallet_pk).unwrap_err();
+        decrypt(&master_key, &keys).unwrap();
+        decrypt(&wrong_key, &keys).unwrap_err();
         // The ciphertext is bound to its client and wallet pks
-        decrypt(&master_key, &other_pk, &wallet_pk).unwrap_err();
-        decrypt(&master_key, &client_pk, &other_pk).unwrap_err();
+        let other_client = NwcKeys {
+            client_nostr_pk: other_pk,
+            wallet_keys: keys.wallet_keys.clone(),
+        };
+        let other_wallet = NwcKeys {
+            client_nostr_pk: client_pk,
+            wallet_keys: other.wallet_keys.clone(),
+        };
+        decrypt(&master_key, &other_client).unwrap_err();
+        decrypt(&master_key, &other_wallet).unwrap_err();
     }
 
     #[test]
@@ -794,8 +811,13 @@ mod test {
         let now = TimestampMs::from_secs_u32(2025121303);
         let label = "My NWC Connection".to_string();
 
-        let (client, conn_str) =
-            NwcClient::new(&mut rng, DeployEnv::Prod, label.clone(), now);
+        let (client, conn_str) = NwcClient::new(
+            &mut rng,
+            &test_nwc_master_key(),
+            DeployEnv::Prod,
+            label.clone(),
+            now,
+        );
 
         assert_eq!(client.data.label, label);
         assert!(conn_str.starts_with("nostr+walletconnect://"));
@@ -808,8 +830,13 @@ mod test {
     fn test_connection_string_format() {
         let mut rng = FastRng::from_u64(2025121304);
         let now = TimestampMs::from_secs_u32(2025121304);
-        let (_client, conn_str) =
-            NwcClient::new(&mut rng, DeployEnv::Prod, "test".to_string(), now);
+        let (_client, conn_str) = NwcClient::new(
+            &mut rng,
+            &test_nwc_master_key(),
+            DeployEnv::Prod,
+            "test".to_string(),
+            now,
+        );
 
         let parts: Vec<&str> = conn_str.split('?').collect();
         assert_eq!(parts.len(), 2, "Should have URI and query params");
@@ -833,27 +860,96 @@ mod test {
 
     #[test]
     fn test_db_client_roundtrip() {
+        let nwc_master_key = test_nwc_master_key();
         let mut rng = FastRng::from_u64(2025121305);
         let now = TimestampMs::from_secs_u32(2025121305);
-        let master_key = test_master_key();
+        let master_key = test_vfs_master_key();
         let label = "Test Label".to_string();
 
-        let (client, _conn_str) =
-            NwcClient::new(&mut rng, DeployEnv::Prod, label.clone(), now);
+        let (client, _conn_str) = NwcClient::new(
+            &mut rng,
+            &nwc_master_key,
+            DeployEnv::Prod,
+            label.clone(),
+            now,
+        );
 
-        let nwc_wallet = DbNwcClient {
+        let client_pk = *client.keys.client_nostr_pk();
+        let db_client = DbNwcClient {
             fields: client.encrypt(&mut rng, &master_key),
             created_at: client.created_at,
             updated_at: client.updated_at,
         };
 
-        let restored = NwcClient::decrypt(&master_key, nwc_wallet)
+        let keys = nwc_master_key.derive_keys(client_pk);
+        let restored = NwcClient::decrypt(&master_key, keys, db_client)
             .expect("Should restore connection");
 
-        assert_eq!(client.data.wallet_nostr_sk, restored.data.wallet_nostr_sk);
-        assert_eq!(client.client_nostr_pk, restored.client_nostr_pk);
+        assert_eq!(
+            client.keys.client_nostr_pk(),
+            restored.keys.client_nostr_pk()
+        );
+        assert_eq!(
+            client.keys.wallet_nostr_pk(),
+            restored.keys.wallet_nostr_pk()
+        );
         assert_eq!(client.data.label, restored.data.label);
-        assert_eq!(client.wallet_nostr_pk, restored.wallet_nostr_pk);
+    }
+
+    /// Wallet service keys must never change, or NWC connections break.
+    #[test]
+    fn nwc_master_key_snapshot() {
+        let seed = RootSeed::from_u64(20240506);
+        let nwc_master_key = NwcMasterKey::from_root_seed(&seed);
+        let keys = nwc_master_key.derive_keys(NostrPk::from_array([0x42; 32]));
+        assert_eq!(
+            keys.wallet_keys.secret_key().to_secret_hex(),
+            "5e4089593d33c1dbb8ac1627211b24496ba6c85dcfab538ccf2703bc275846f9",
+        );
+    }
+
+    /// The backend can't attach a stored client's record to another client pk.
+    #[test]
+    fn test_decrypt_rejects_forged_records() {
+        let mut rng = FastRng::from_u64(2026101401);
+        let now = TimestampMs::from_secs_u32(2026101401);
+        let master_key = test_vfs_master_key();
+        let nwc_master_key = test_nwc_master_key();
+        let (client, _) = NwcClient::new(
+            &mut rng,
+            &nwc_master_key,
+            DeployEnv::Prod,
+            "test".to_owned(),
+            now,
+        );
+        let fields = client.encrypt(&mut rng, &master_key);
+        let attacker_pk = NostrPk::from_array([0x69; 32]);
+        let attacker_wallet_pk =
+            *nwc_master_key.derive_keys(attacker_pk).wallet_nostr_pk();
+        let decrypt = |fields| {
+            let keys = nwc_master_key.derive_keys(attacker_pk);
+            let db_client = DbNwcClient {
+                fields,
+                created_at: now,
+                updated_at: now,
+            };
+            NwcClient::decrypt(&master_key, keys, db_client).map(|_| ())
+        };
+
+        // Keys for a different client than the record's
+        decrypt(fields.clone()).unwrap_err();
+
+        // The victim's record under the attacker's client pk, whose derived
+        // wallet pk differs
+        let mut forged = fields;
+        forged.client_nostr_pk = attacker_pk;
+        decrypt(forged.clone()).unwrap_err();
+
+        // Even with the attacker's derived wallet pk, the ciphertext is still
+        // bound to the victim's pks
+        forged.wallet_nostr_pk = attacker_wallet_pk;
+        let err = decrypt(forged).unwrap_err();
+        assert!(format!("{err:#}").contains("Failed to decrypt"), "{err:#}");
     }
 
     #[test]
@@ -862,6 +958,7 @@ mod test {
         let now = TimestampMs::from_secs_u32(2025121306);
         let (mut connection, _) = NwcClient::new(
             &mut rng,
+            &test_nwc_master_key(),
             DeployEnv::Prod,
             "Original Label".to_string(),
             now,
@@ -877,8 +974,13 @@ mod test {
     fn test_refresh_info_event() {
         let mut rng = FastRng::from_u64(2025121310);
         let now = TimestampMs::from_secs_u32(2025121310);
-        let (mut client, _) =
-            NwcClient::new(&mut rng, DeployEnv::Prod, "test".to_owned(), now);
+        let (mut client, _) = NwcClient::new(
+            &mut rng,
+            &test_nwc_master_key(),
+            DeployEnv::Prod,
+            "test".to_owned(),
+            now,
+        );
 
         // A fresh client has an info event, no refresh required.
         assert!(!client.refresh_info_event(&mut rng, now).unwrap());
@@ -886,7 +988,7 @@ mod test {
         let event: nostr::Event =
             serde_json::from_slice(&client.info_event).unwrap();
         event.verify().unwrap();
-        assert_eq!(event.pubkey, convert::to_nostr_pk(&client.wallet_nostr_pk));
+        assert_eq!(event.pubkey, client.keys.wallet_keys.public_key);
         assert_eq!(event.content, "get_info make_invoice");
         let encryption = event
             .tags
@@ -898,9 +1000,7 @@ mod test {
         assert!(!client.refresh_info_event(&mut rng, now).unwrap());
 
         // ...until the stored event advertises something else.
-        let keys = nostr::Keys::new(convert::to_nostr_sk(
-            &client.data.wallet_nostr_sk,
-        ));
+        let keys = client.keys.wallet_keys.clone();
         let stale = nostr::EventBuilder::new(
             nostr::Kind::WalletConnectInfo,
             "get_info",
@@ -935,40 +1035,52 @@ mod test {
         let mut rng = FastRng::from_u64(2025121307);
         let label = "Test Connection".to_string();
         let now = TimestampMs::from_secs_u32(2025121307);
-        let (client, _) =
-            NwcClient::new(&mut rng, DeployEnv::Prod, label.clone(), now);
+        let (client, _) = NwcClient::new(
+            &mut rng,
+            &test_nwc_master_key(),
+            DeployEnv::Prod,
+            label.clone(),
+            now,
+        );
 
         let info = client.to_nwc_client_info();
 
         assert_eq!(info.label, label);
-        assert_eq!(info.wallet_nostr_pk, client.wallet_nostr_pk);
+        assert_eq!(&info.wallet_nostr_pk, client.keys.wallet_nostr_pk());
         assert_eq!(info.created_at, client.created_at);
         assert_eq!(info.updated_at, client.updated_at);
     }
 
     #[test]
     fn test_to_nwc_client_info_decrypt() {
+        let nwc_master_key = test_nwc_master_key();
         let mut rng = FastRng::from_u64(2025121308);
-        let master_key = test_master_key();
+        let master_key = test_vfs_master_key();
         let label = "Test".to_string();
         let now = TimestampMs::from_secs_u32(2025121308);
 
-        let (client, _) =
-            NwcClient::new(&mut rng, DeployEnv::Prod, label.clone(), now);
+        let (client, _) = NwcClient::new(
+            &mut rng,
+            &nwc_master_key,
+            DeployEnv::Prod,
+            label.clone(),
+            now,
+        );
 
+        let keys = nwc_master_key.derive_keys(*client.keys.client_nostr_pk());
         let db_client = DbNwcClient {
             fields: client.encrypt(&mut rng, &master_key),
             created_at: TimestampMs::now(),
             updated_at: TimestampMs::now(),
         };
 
-        let restored =
-            NwcClient::decrypt(&master_key, db_client).expect("Should restore");
+        let restored = NwcClient::decrypt(&master_key, keys, db_client)
+            .expect("Should restore");
         let info = restored.to_nwc_client_info();
 
         assert_eq!(info.label, label);
-        assert_eq!(info.wallet_nostr_pk, restored.wallet_nostr_pk);
-        assert_eq!(info.client_nostr_pk, restored.client_nostr_pk);
+        assert_eq!(&info.wallet_nostr_pk, restored.keys.wallet_nostr_pk());
+        assert_eq!(&info.client_nostr_pk, restored.keys.client_nostr_pk());
     }
 
     #[test]
@@ -1002,6 +1114,7 @@ mod test {
         let now = TimestampMs::from_secs_u32(2025121309);
         let (nwc_wallet, connection_string) = NwcClient::new(
             &mut rng,
+            &test_nwc_master_key(),
             DeployEnv::Prod,
             "Test Wallet".to_string(),
             now,
@@ -1009,7 +1122,7 @@ mod test {
 
         let client_keys = parse_client_keys(&connection_string);
         let client_sk = client_keys.secret_key();
-        let wallet_pk = convert::to_nostr_pk(&nwc_wallet.wallet_nostr_pk);
+        let wallet_pk = convert::to_nostr_pk(nwc_wallet.keys.wallet_nostr_pk());
 
         let request_payload = r#"{"method":"get_info","params":{}}"#;
         let response_payload =
