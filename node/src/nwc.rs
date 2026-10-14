@@ -211,10 +211,6 @@ impl NwcClient {
         }
     }
 
-    pub(crate) fn label(&self) -> &str {
-        &self.data.label
-    }
-
     /// Encrypt the client data for storage in the DB.
     pub(crate) fn encrypt(
         &self,

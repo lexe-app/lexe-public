@@ -986,16 +986,17 @@ pub(super) async fn create_nwc_client(
         NwcClient::new(&mut rng, state.deploy_env, req.label);
 
     let fields = nwc_client.encrypt(&mut rng, state.persister.vfs_master_key());
-    let db_nwc_client = state
+    state
         .persister
         .persist_nwc_client(fields)
         .await
         .map_err(NodeApiError::command)?;
 
+    let info = nwc_client.to_nwc_client_info();
     Ok(LxJson(CreateNwcClientResponse {
-        wallet_nostr_pk: db_nwc_client.fields.wallet_nostr_pk,
-        client_nostr_pk: db_nwc_client.fields.client_nostr_pk,
-        label: nwc_client.label().to_string(),
+        wallet_nostr_pk: info.wallet_nostr_pk,
+        client_nostr_pk: info.client_nostr_pk,
+        label: info.label,
         connection_string,
     }))
 }
