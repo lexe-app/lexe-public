@@ -85,16 +85,6 @@ async fn lexe_external() {
 }
 
 // ```bash
-// $ cargo test -p node --lib -- --ignored zeus
-// ```
-#[ignore = "Makes requests to Zeus VSS"]
-#[tokio::test]
-async fn zeus() {
-    let headers = BTreeMap::new();
-    provider_roundtrip("zeus", "https://vss.zeusln.com/vss", headers).await;
-}
-
-// ```bash
 // $ cargo test -p node --lib -- --ignored mineracks
 // ```
 #[ignore = "Makes requests to Mineracks VSS"]
@@ -103,6 +93,28 @@ async fn mineracks() {
     let headers = BTreeMap::new();
     provider_roundtrip("mineracks", "https://vss.mineracks.com/vss", headers)
         .await;
+}
+
+// ```bash
+// $ cargo test -p node --lib -- --ignored shc
+// ```
+#[ignore = "Makes requests to SHC VSS"]
+#[tokio::test]
+async fn shc() {
+    lexe_ln::logger::init_for_testing();
+    let headers = BTreeMap::new();
+    let url = "https://lexe-vss.sovereignhybridcompute.com/vss";
+    provider_roundtrip("shc", url, headers).await;
+}
+
+// ```bash
+// $ cargo test -p node --lib -- --ignored zeus
+// ```
+#[ignore = "Makes requests to Zeus VSS"]
+#[tokio::test]
+async fn zeus() {
+    let headers = BTreeMap::new();
+    provider_roundtrip("zeus", "https://vss.zeusln.com/vss", headers).await;
 }
 
 // ```bash
