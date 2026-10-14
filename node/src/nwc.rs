@@ -96,9 +96,10 @@ impl NwcClientData {
         &self,
         rng: &mut impl Crng,
         vfs_master_key: &AesMasterKey,
+        client_nostr_pk: &NostrPk,
         wallet_nostr_pk: &NostrPk,
     ) -> Vec<u8> {
-        let aad = &[NWC_AAD_PREFIX, wallet_nostr_pk.as_slice()];
+        let aad = &Self::aad(client_nostr_pk, wallet_nostr_pk);
         vfs_master_key.encrypt(rng, aad, None, &|out: &mut Vec<u8>| {
             serde_json::to_writer(out, self)
                 .expect("JSON serialization was not implemented correctly");
@@ -108,10 +109,11 @@ impl NwcClientData {
     /// VFS-decrypts this data.
     fn decrypt(
         vfs_master_key: &AesMasterKey,
+        client_nostr_pk: &NostrPk,
         wallet_nostr_pk: &NostrPk,
         data: Vec<u8>,
     ) -> anyhow::Result<Self> {
-        let aad = &[NWC_AAD_PREFIX, wallet_nostr_pk.as_slice()];
+        let aad = &Self::aad(client_nostr_pk, wallet_nostr_pk);
         let value = vfs_master_key
             .decrypt(aad, data)
             .context("Failed to decrypt NWC client data")
@@ -119,6 +121,20 @@ impl NwcClientData {
         serde_json::from_slice(&value)
             .context("Failed to deserialize NWC client data")
             .with_context(|| wallet_nostr_pk.to_string())
+    }
+
+    /// Binds the ciphertext to both pubkeys, so whoever stores it (the
+    /// backend) can't attach it to another client's key, which would let
+    /// that client use this connection.
+    fn aad<'a>(
+        client_nostr_pk: &'a NostrPk,
+        wallet_nostr_pk: &'a NostrPk,
+    ) -> [&'a [u8]; 3] {
+        [
+            NWC_AAD_PREFIX,
+            client_nostr_pk.as_slice(),
+            wallet_nostr_pk.as_slice(),
+        ]
     }
 }
 
@@ -173,6 +189,7 @@ impl NwcClient {
     ) -> anyhow::Result<Self> {
         let data = NwcClientData::decrypt(
             vfs_master_key,
+            &nwc_client.fields.client_nostr_pk,
             &nwc_client.fields.wallet_nostr_pk,
             nwc_client.fields.ciphertext,
         )?;
@@ -217,9 +234,12 @@ impl NwcClient {
         rng: &mut impl Crng,
         vfs_master_key: &AesMasterKey,
     ) -> DbNwcClientFields {
-        let ciphertext =
-            self.data
-                .encrypt(rng, vfs_master_key, &self.wallet_nostr_pk);
+        let ciphertext = self.data.encrypt(
+            rng,
+            vfs_master_key,
+            &self.client_nostr_pk,
+            &self.wallet_nostr_pk,
+        );
         DbNwcClientFields {
             client_nostr_pk: self.client_nostr_pk,
             wallet_nostr_pk: self.wallet_nostr_pk,
@@ -355,18 +375,28 @@ mod test {
             wallet_nostr_sk: NostrSk::from_array([1u8; 32]),
             label: "Test Connection".to_string(),
         };
+        let client_nostr_pk = NostrPk::from_array([2u8; 32]);
         let wallet_nostr_pk = NostrPk::from_array([3u8; 32]);
 
-        let encrypted = data.encrypt(&mut rng, &master_key, &wallet_nostr_pk);
-        let decrypted =
-            NwcClientData::decrypt(&master_key, &wallet_nostr_pk, encrypted)
-                .expect("Decryption should succeed");
+        let encrypted = data.encrypt(
+            &mut rng,
+            &master_key,
+            &client_nostr_pk,
+            &wallet_nostr_pk,
+        );
+        let decrypted = NwcClientData::decrypt(
+            &master_key,
+            &client_nostr_pk,
+            &wallet_nostr_pk,
+            encrypted,
+        )
+        .expect("Decryption should succeed");
 
         assert_eq!(data, decrypted);
     }
 
     #[test]
-    fn test_decrypt_with_wrong_key_fails() {
+    fn test_decrypt_with_wrong_key_or_pks_fails() {
         let mut rng = FastRng::from_u64(2025121302);
         let master_key = test_master_key();
         let wrong_key = AesMasterKey::new(&[99u8; 32]);
@@ -375,13 +405,21 @@ mod test {
             wallet_nostr_sk: NostrSk::from_array([1u8; 32]),
             label: "Test".to_string(),
         };
-        let wallet_nostr_pk = NostrPk::from_array([3u8; 32]);
+        let client_pk = NostrPk::from_array([2u8; 32]);
+        let wallet_pk = NostrPk::from_array([3u8; 32]);
+        let other_pk = NostrPk::from_array([4u8; 32]);
 
-        let encrypted = data.encrypt(&mut rng, &master_key, &wallet_nostr_pk);
-        let result =
-            NwcClientData::decrypt(&wrong_key, &wallet_nostr_pk, encrypted);
+        let encrypted =
+            data.encrypt(&mut rng, &master_key, &client_pk, &wallet_pk);
+        let decrypt = |key, client_pk, wallet_pk| {
+            NwcClientData::decrypt(key, client_pk, wallet_pk, encrypted.clone())
+        };
 
-        assert!(result.is_err(), "Decryption with wrong key should fail");
+        decrypt(&master_key, &client_pk, &wallet_pk).unwrap();
+        decrypt(&wrong_key, &client_pk, &wallet_pk).unwrap_err();
+        // The ciphertext is bound to its client and wallet pks
+        decrypt(&master_key, &other_pk, &wallet_pk).unwrap_err();
+        decrypt(&master_key, &client_pk, &other_pk).unwrap_err();
     }
 
     #[test]
