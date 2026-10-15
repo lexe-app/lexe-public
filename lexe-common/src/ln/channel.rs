@@ -473,10 +473,26 @@ impl fmt::Display for OutPoint {
 /// different serialization from LDK's `lightning::chain::transaction::OutPoint`
 /// for historical reasons (`:` is usually disallowed in filenames).
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxMonitorName {
     V1Channel(OutPoint),
     V2Channel(ChannelId),
+}
+
+impl LxMonitorName {
+    /// The [`ChannelId`] of this monitor's channel, inverting LDK's
+    /// `ChannelMonitor::persistence_key`.
+    pub fn channel_id(&self) -> ChannelId {
+        match self {
+            Self::V1Channel(funding_txo) => ChannelId::from(
+                lightning::ln::types::ChannelId::v1_from_funding_outpoint(
+                    lightning::chain::transaction::OutPoint::from(*funding_txo),
+                ),
+            ),
+            Self::V2Channel(channel_id) => *channel_id,
+        }
+    }
 }
 
 impl From<MonitorName> for LxMonitorName {
