@@ -1,21 +1,18 @@
 use std::{
     collections::{HashMap, VecDeque},
     fmt, mem,
-    str::FromStr,
     sync::Arc,
     time::Duration,
 };
 
 use anyhow::{Context, anyhow};
 use futures::{StreamExt, stream::FuturesUnordered};
-use lexe_common::ln::channel::{ChannelId, OutPoint};
+use lexe_common::ln::channel::{ChannelId, LxMonitorName};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::{
     chain::{ChannelMonitorUpdateStatus, channelmonitor::ChannelMonitorUpdate},
     util::persist::MonitorName,
 };
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, info_span, warn};
 
@@ -268,18 +265,6 @@ pub struct LxChannelMonitorUpdate {
 pub enum ChannelMonitorUpdateKind {
     New,
     Updated,
-}
-
-/// Exactly [`MonitorName`] but uses our newtypes. This needs to support
-/// deserializing from the actual channel monitor filename, so it can't always
-/// contain the `channel_id`. We need a newtype here as [`OutPoint`] has a
-/// different serialization from LDK's `lightning::chain::transaction::OutPoint`
-/// for historical reasons (`:` is usually disallowed in filenames).
-#[derive(Copy, Clone, Eq, PartialEq)]
-#[cfg_attr(test, derive(Debug, Arbitrary))]
-pub enum LxMonitorName {
-    V1Channel(OutPoint),
-    V2Channel(ChannelId),
 }
 
 /// A fatal error that occurs during channel monitor persistence.
@@ -763,54 +748,6 @@ impl fmt::Display for ChannelMonitorUpdateKind {
     }
 }
 
-// --- impl LxMonitorName --- //
-
-impl From<MonitorName> for LxMonitorName {
-    fn from(value: MonitorName) -> Self {
-        match value {
-            MonitorName::V1Channel(funding_txo) =>
-                Self::V1Channel(OutPoint::from(funding_txo)),
-            MonitorName::V2Channel(channel_id) =>
-                Self::V2Channel(ChannelId::from(channel_id)),
-        }
-    }
-}
-
-impl From<LxMonitorName> for MonitorName {
-    fn from(value: LxMonitorName) -> Self {
-        match value {
-            LxMonitorName::V1Channel(funding_txo) => Self::V1Channel(
-                lightning::chain::transaction::OutPoint::from(funding_txo),
-            ),
-            LxMonitorName::V2Channel(channel_id) => Self::V2Channel(
-                lightning::ln::types::ChannelId::from(channel_id),
-            ),
-        }
-    }
-}
-
-impl fmt::Display for LxMonitorName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::V1Channel(funding_txo) => fmt::Display::fmt(funding_txo, f),
-            Self::V2Channel(channel_id) => fmt::Display::fmt(channel_id, f),
-        }
-    }
-}
-
-impl FromStr for LxMonitorName {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() == 64 {
-            ChannelId::from_str(s)
-                .map(Self::V2Channel)
-                .context("Invalid channel id")
-        } else {
-            OutPoint::from_str(s).map(Self::V1Channel)
-        }
-    }
-}
-
 // --- helpers --- //
 
 mod helpers {
@@ -845,7 +782,6 @@ mod helpers {
 
 #[cfg(test)]
 mod test {
-    use lexe_common::test_utils::{roundtrip, snapshot};
     use tokio::sync::oneshot::error::TryRecvError;
 
     use super::*;
@@ -923,26 +859,5 @@ mod test {
         assert_eq!(batches[1].epoch, 7);
         assert_eq!(batches[1].channel_id, ChannelId([2; 32]));
         assert_eq!(batches[1].update_ids, [4]);
-    }
-
-    #[test]
-    fn lx_monitor_name_fromstr_display_roundtrip() {
-        roundtrip::fromstr_display_roundtrip_proptest::<LxMonitorName>();
-    }
-
-    #[test]
-    fn lx_monitor_name_deser_compat() {
-        let inputs = r#"
---- V1Channel
-708f379d8de2152ca0b4b155c8aa16bcab74f388216d350c39871b74c6dea324_0
-e7fe4aa0060510447bb2ba0e58a66b34d017fbaa30dff450752e30e5a60c0072_1
---- V2Channel
-fab3c7e24bc40caa16413e46a9a5145851e69d683a096713ef8be6fb4ff6cca7
-8e2a1a50eaf78e48d255fbe0c65f2fb2797e4f62dca1a0ddda170be8498192d3
-"#;
-        for input in snapshot::parse_sample_data(inputs) {
-            let lmn = LxMonitorName::from_str(input).unwrap();
-            assert_eq!(input, lmn.to_string());
-        }
     }
 }

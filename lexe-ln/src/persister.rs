@@ -20,7 +20,11 @@ use lexe_api::{
     },
     vfs::{self, Vfs, VfsDirectory, VfsFile, VfsFileId},
 };
-use lexe_common::{constants, ln::channel::ChannelId, time::TimestampMs};
+use lexe_common::{
+    constants,
+    ln::channel::{ChannelId, LxMonitorName},
+    time::TimestampMs,
+};
 use lexe_crypto::{
     aes::AesMasterKey,
     rng::{Crng, SysRng},
@@ -44,7 +48,6 @@ use crate::{
         LexeChainMonitorType, LexeChannelManagerType, MessageRouterType,
         RouterType,
     },
-    channel_monitor::LxMonitorName,
     event::EventId,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,

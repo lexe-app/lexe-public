@@ -6,7 +6,9 @@ use lexe_crypto::rng::{RngCore, RngExt};
 use lexe_serde::hexstr_or_bytes;
 use lexe_sha256::sha256;
 use lexe_std::Apply;
-use lightning::ln::channel_state::ChannelDetails;
+use lightning::{
+    ln::channel_state::ChannelDetails, util::persist::MonitorName,
+};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
@@ -465,13 +467,92 @@ impl fmt::Display for OutPoint {
     }
 }
 
+/// Exactly [`MonitorName`] but uses our newtypes. This needs to support
+/// deserializing from the actual channel monitor filename, so it can't always
+/// contain the `channel_id`. We need a newtype here as [`OutPoint`] has a
+/// different serialization from LDK's `lightning::chain::transaction::OutPoint`
+/// for historical reasons (`:` is usually disallowed in filenames).
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub enum LxMonitorName {
+    V1Channel(OutPoint),
+    V2Channel(ChannelId),
+}
+
+impl From<MonitorName> for LxMonitorName {
+    fn from(value: MonitorName) -> Self {
+        match value {
+            MonitorName::V1Channel(funding_txo) =>
+                Self::V1Channel(OutPoint::from(funding_txo)),
+            MonitorName::V2Channel(channel_id) =>
+                Self::V2Channel(ChannelId::from(channel_id)),
+        }
+    }
+}
+
+impl From<LxMonitorName> for MonitorName {
+    fn from(value: LxMonitorName) -> Self {
+        match value {
+            LxMonitorName::V1Channel(funding_txo) => Self::V1Channel(
+                lightning::chain::transaction::OutPoint::from(funding_txo),
+            ),
+            LxMonitorName::V2Channel(channel_id) => Self::V2Channel(
+                lightning::ln::types::ChannelId::from(channel_id),
+            ),
+        }
+    }
+}
+
+impl fmt::Display for LxMonitorName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::V1Channel(funding_txo) => fmt::Display::fmt(funding_txo, f),
+            Self::V2Channel(channel_id) => fmt::Display::fmt(channel_id, f),
+        }
+    }
+}
+
+impl FromStr for LxMonitorName {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() == 64 {
+            ChannelId::from_str(s)
+                .map(Self::V2Channel)
+                .context("Invalid channel id")
+        } else {
+            OutPoint::from_str(s).map(Self::V1Channel)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::roundtrip;
+    use crate::test_utils::{roundtrip, snapshot};
 
     #[test]
     fn outpoint_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<OutPoint>();
+    }
+
+    #[test]
+    fn lx_monitor_name_fromstr_display_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<LxMonitorName>();
+    }
+
+    #[test]
+    fn lx_monitor_name_deser_compat() {
+        let inputs = r#"
+--- V1Channel
+708f379d8de2152ca0b4b155c8aa16bcab74f388216d350c39871b74c6dea324_0
+e7fe4aa0060510447bb2ba0e58a66b34d017fbaa30dff450752e30e5a60c0072_1
+--- V2Channel
+fab3c7e24bc40caa16413e46a9a5145851e69d683a096713ef8be6fb4ff6cca7
+8e2a1a50eaf78e48d255fbe0c65f2fb2797e4f62dca1a0ddda170be8498192d3
+"#;
+        for input in snapshot::parse_sample_data(inputs) {
+            let lmn = LxMonitorName::from_str(input).unwrap();
+            assert_eq!(input, lmn.to_string());
+        }
     }
 }

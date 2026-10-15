@@ -71,7 +71,7 @@ use lexe_common::{
         auth::{BearerAuthToken, LexeScope},
         user::{Scid, Scids},
     },
-    ln::channel::ChannelId,
+    ln::channel::{ChannelId, LxMonitorName},
     time::TimestampMs,
 };
 use lexe_crypto::{
@@ -82,7 +82,6 @@ use lexe_ln::{
     alias::{ChannelMonitorType, LexeChainMonitorType, SignerType},
     channel_monitor::{
         self, ChannelMonitorPersisterCommand, ChannelMonitorUpdateKind,
-        LxMonitorName,
     },
     payments::{
         self, PaymentMetadata, PaymentV2, PaymentWithMetadata,
