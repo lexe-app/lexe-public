@@ -31,6 +31,7 @@
         <array>
           <string>BITCOIN</string>
           <string>LIGHTNING</string>
+          <string>LNURLP</string>
           <string>bitcoin</string>
           <string>lightning</string>
           <string>lnurlp</string>

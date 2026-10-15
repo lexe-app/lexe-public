@@ -49,6 +49,7 @@
 
         <data android:scheme="BITCOIN" />
         <data android:scheme="LIGHTNING" />
+        <data android:scheme="LNURLP" />
         <data android:scheme="bitcoin" />
         <data android:scheme="lightning" />
         <data android:scheme="lnurlp" />
