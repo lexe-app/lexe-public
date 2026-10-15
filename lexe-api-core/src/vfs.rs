@@ -89,6 +89,13 @@ pub trait Vfs {
         file_id: &VfsFileId,
     ) -> Result<Empty, BackendApiError>;
 
+    /// Atomically upserts and deletes a batch of files in the backend.
+    /// Deleting a nonexistent file is a no-op.
+    async fn upsert_or_delete_file_batch(
+        &self,
+        req: UpsertOrDeleteFileBatchRequest,
+    ) -> Result<Empty, BackendApiError>;
+
     /// List all filenames in the given [`VfsDirectory`].
     ///
     /// Returns a [`VfsDirectoryList`] containing the directory name and all
@@ -440,6 +447,14 @@ pub struct VfsFile {
     pub id: VfsFileId,
     #[serde(with = "hexstr_or_bytes")]
     pub data: Vec<u8>,
+}
+
+/// Request to atomically upsert and delete a batch of files. Each file may
+/// appear at most once across both lists.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct UpsertOrDeleteFileBatchRequest {
+    pub upserts: Vec<VfsFile>,
+    pub deletes: Vec<VfsFileId>,
 }
 
 /// An upgradeable version of [`Option<VfsFile>`].

@@ -127,7 +127,10 @@ use crate::{
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
         username::UsernameStruct,
     },
-    vfs::{VfsDirectory, VfsDirectoryList, VfsFileId},
+    vfs::{
+        UpsertOrDeleteFileBatchRequest, VfsDirectory, VfsDirectoryList,
+        VfsFileId,
+    },
 };
 
 // TODO(max): To make clear that only upgradeable structs are being serialized,
@@ -786,6 +789,16 @@ pub trait NodeBackendApi {
     async fn delete_file(
         &self,
         file_id: &VfsFileId,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
+    /// PUT /node/v1/file/batch [`UpsertOrDeleteFileBatchRequest`] -> [`Empty`]
+    ///
+    /// Atomically upserts and deletes a batch of files. Deleting a nonexistent
+    /// file is a no-op.
+    async fn upsert_or_delete_file_batch(
+        &self,
+        req: UpsertOrDeleteFileBatchRequest,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 

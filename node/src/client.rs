@@ -37,7 +37,10 @@ use lexe_api::{
         retries::Retries,
         sealed_seed::{MaybeSealedSeed, SealedSeed, SealedSeedId},
     },
-    vfs::{VfsDirectory, VfsDirectoryList, VfsFileId},
+    vfs::{
+        UpsertOrDeleteFileBatchRequest, VfsDirectory, VfsDirectoryList,
+        VfsFileId,
+    },
 };
 use lexe_common::{
     api::{
@@ -387,6 +390,19 @@ impl NodeBackendApi for NodeBackendClient {
         let req = self
             .rest
             .delete(format!("{backend}/node/v1/file"), data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn upsert_or_delete_file_batch(
+        &self,
+        req: UpsertOrDeleteFileBatchRequest,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v1/file/batch"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

@@ -62,8 +62,8 @@ use lexe_api::{
         retries::Retries,
     },
     vfs::{
-        self, SINGLETON_DIRECTORY, Vfs, VfsDirectory, VfsDirectoryList,
-        VfsFile, VfsFileId,
+        self, SINGLETON_DIRECTORY, UpsertOrDeleteFileBatchRequest, Vfs,
+        VfsDirectory, VfsDirectoryList, VfsFile, VfsFileId,
     },
 };
 use lexe_common::{
@@ -668,6 +668,16 @@ impl Vfs for NodePersister {
     ) -> Result<Empty, BackendApiError> {
         let token = self.get_token().await?;
         self.backend_api.delete_file(file_id, token).await
+    }
+
+    async fn upsert_or_delete_file_batch(
+        &self,
+        req: UpsertOrDeleteFileBatchRequest,
+    ) -> Result<Empty, BackendApiError> {
+        let token = self.get_token().await?;
+        self.backend_api
+            .upsert_or_delete_file_batch(req, token)
+            .await
     }
 
     async fn list_directory(
