@@ -50,9 +50,11 @@
         <data android:scheme="BITCOIN" />
         <data android:scheme="LIGHTNING" />
         <data android:scheme="LNURLP" />
+        <data android:scheme="LEXE" />
         <data android:scheme="bitcoin" />
         <data android:scheme="lightning" />
         <data android:scheme="lnurlp" />
+        <data android:scheme="lexe" />
         <!-- Uncomment if we support these someday -->
         <!-- <data android:scheme="lnurlw" /> -->
         <!-- <data android:scheme="lnurlc" /> -->
@@ -60,7 +62,8 @@
       </intent-filter>
 
       <!-- Register Lexe as the verified handler for "https://lexe.app/connect"
-           (LexeConnect credential requests). Verification is against
+           (LexeConnect credential requests) and "https://lexe.app/pay"
+           (payment URIs). Verification is against
            lexe.app/.well-known/assetlinks.json (nix/nixosConfigs/well-known),
            which lists only the prod signing key. -->
       <intent-filter android:autoVerify="true">
@@ -71,6 +74,7 @@
         <data android:scheme="https" />
         <data android:host="lexe.app" />
         <data android:path="/connect" />
+        <data android:path="/pay" />
       </intent-filter>
 
       <!-- While we're using app_links to handle deep links (e.g. "bitcoin:" and

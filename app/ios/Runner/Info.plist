@@ -34,9 +34,11 @@
           <string>BITCOIN</string>
           <string>LIGHTNING</string>
           <string>LNURLP</string>
+          <string>LEXE</string>
           <string>bitcoin</string>
           <string>lightning</string>
           <string>lnurlp</string>
+          <string>lexe</string>
           <!-- Uncomment if we support these someday -->
           <!-- <string>lnurlw</string> -->
           <!-- <string>lnurlc</string> -->

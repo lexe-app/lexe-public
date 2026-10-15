@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-  <!-- Universal links: `https://lexe.app/connect` opens in the app. The
-       app IDs are listed in lexe.app/.well-known/apple-app-site-association
+  <dict>
+    <!-- Universal links: <https://lexe.app/connect> and <https://lexe.app/pay>
+       open in the app. The app IDs are listed in
+       <https://lexe.app/.well-known/apple-app-site-association>
        (nix/nixosConfigs/well-known).
 
        Don't add `?mode=developer`: TestFlight and App Store builds never
        fetch a developer-mode domain, so universal links silently stop
-       working in production. -->
-  <key>com.apple.developer.associated-domains</key>
-  <array>
-    <string>applinks:lexe.app</string>
-  </array>
-</dict>
+       working in production.
+       -->
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+      <string>applinks:lexe.app</string>
+    </array>
+  </dict>
 </plist>
