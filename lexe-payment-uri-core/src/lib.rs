@@ -50,7 +50,7 @@ pub use crate::{
     },
     payment_method::{
         AuthMethod, BestPaymentUriMethods, ClaimMethod, PaymentMethod,
-        PaymentUriMethod, PaymentUriMethods, Resolvable,
+        PaymentUriMethod, PaymentUriMethods, PermittedMethods, Resolvable,
     },
     payment_uri::PaymentUri,
 };

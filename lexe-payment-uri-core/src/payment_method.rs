@@ -1,4 +1,4 @@
-use std::cmp::Reverse;
+use std::{cmp::Reverse, fmt};
 
 use lexe_api_core::types::{
     invoice::Invoice, lnurl::LnurlPayRequest, offer::Offer,
@@ -132,6 +132,14 @@ pub struct BestPaymentUriMethods {
     pub payment_method: Option<PaymentMethod>,
     pub claim_method: Option<ClaimMethod>,
     pub auth_method: Option<AuthMethod>,
+}
+
+/// Whether a payment code may resolve to payment, claim, and auth methods.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct PermittedMethods {
+    pub payment: bool,
+    pub claim: bool,
+    pub auth: bool,
 }
 
 /// "Almost" a payment/claim method: a piece of payment data that requires
@@ -287,6 +295,19 @@ impl PaymentUriMethods {
             && self.auth_methods.is_empty()
     }
 
+    /// Drop the methods that aren't `permitted`.
+    pub fn retain_permitted(&mut self, permitted: PermittedMethods) {
+        if !permitted.payment {
+            self.payment_methods.clear();
+        }
+        if !permitted.claim {
+            self.claim_methods.clear();
+        }
+        if !permitted.auth {
+            self.auth_methods.clear();
+        }
+    }
+
     /// Drop the methods that aren't valid for `network`.
     pub fn retain_network(&mut self, network: Network) {
         fn retain<M: PaymentUriMethod>(methods: &mut Vec<M>, network: Network) {
@@ -315,5 +336,46 @@ impl PaymentUriMethods {
             claim_method: self.claim_methods.into_iter().next(),
             auth_method: self.auth_methods.into_iter().next(),
         }
+    }
+}
+
+// --- impl PermittedMethods --- //
+
+impl PermittedMethods {
+    pub const ALL: Self = Self {
+        payment: true,
+        claim: true,
+        auth: true,
+    };
+
+    pub const PAYMENT_AND_CLAIM: Self = Self {
+        payment: true,
+        claim: true,
+        auth: false,
+    };
+
+    pub const PAYMENT: Self = Self {
+        payment: true,
+        claim: false,
+        auth: false,
+    };
+}
+
+/// ex: "payment" or "payment or claim"
+impl fmt::Display for PermittedMethods {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let kinds = [
+            (self.payment, "payment"),
+            (self.claim, "claim"),
+            (self.auth, "auth"),
+        ]
+        .into_iter()
+        .filter_map(|(on, kind)| on.then_some(kind));
+        let mut sep = "";
+        for kind in kinds {
+            write!(f, "{sep}{kind}")?;
+            sep = " or ";
+        }
+        Ok(())
     }
 }

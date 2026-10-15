@@ -13,7 +13,8 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 
 use crate::{
-    AuthMethod, Error, PaymentMethod, PaymentUriMethods, Resolvable,
+    AuthMethod, Error, PaymentMethod, PaymentUriMethods, PermittedMethods,
+    Resolvable,
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
@@ -194,6 +195,11 @@ impl PaymentUri {
         Err(Error::InvalidPaymentUri(Cow::from(
             "Unrecognized payment code",
         )))
+    }
+
+    /// The methods this URI may resolve to.
+    pub fn permitted_methods(&self) -> PermittedMethods {
+        PermittedMethods::ALL
     }
 
     /// "Flatten" the [`PaymentUri`] into its directly-known

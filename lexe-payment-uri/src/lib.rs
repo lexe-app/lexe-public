@@ -41,6 +41,8 @@ pub async fn resolve(
     network: Network,
     payment_uri: PaymentUri,
 ) -> anyhow::Result<PaymentUriMethods> {
+    let permitted_methods = payment_uri.permitted_methods();
+
     // Split the URI into its directly-known methods and any pieces that
     // require further resolution.
     let (mut methods, resolvables) = payment_uri.flatten(network);
@@ -90,6 +92,14 @@ pub async fn resolve(
         !methods.is_empty(),
         "Failed to resolve methods: {}",
         resolve_errors.join("; "),
+    );
+
+    // Drop the kinds of methods the URI doesn't permit. This waits until
+    // resolvables are resolved, since e.g. an LNURL may pay or claim.
+    methods.retain_permitted(permitted_methods);
+    ensure!(
+        !methods.is_empty(),
+        "Payment code doesn't contain a {permitted_methods} method"
     );
 
     // Filter out all methods that aren't valid for our current network
