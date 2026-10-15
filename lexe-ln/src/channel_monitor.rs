@@ -602,9 +602,17 @@ where
         )
         .await;
 
+        let channel_id =
+            lightning::ln::types::ChannelId::from(batch.channel_id);
         match result {
             Ok(()) => {
                 info!("Success: persisted monitor");
+                Ok(batch)
+            }
+            // LDK archived the monitor after this persist was queued, so
+            // there's nothing left to persist.
+            Err(e) if chain_monitor.get_monitor(channel_id).is_err() => {
+                warn!("Monitor archived before persist completed: {e:#}");
                 Ok(batch)
             }
             Err(e) => {
