@@ -231,6 +231,8 @@ impl PayInvoiceCaller<'_> {
                         let policy = FirstHopFeePolicy {
                             base_fee: partner_base_fee.unwrap_or(Amount::ZERO),
                             prop_fee: partner_prop_fee.unwrap_or(Ppm::ZERO),
+                            // Lexe's floor applies even with partner fees.
+                            min_fee: FirstHopFeePolicy::DEFAULT.min_fee,
                         };
                         Ok((Some(pff), policy))
                     }

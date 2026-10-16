@@ -91,18 +91,22 @@ pub fn all_channel_balances<PS: LexePersister>(
     }
 
     // The most we can send once our own first hop fee is paid: the amount `A`
-    // where `A + base_fee + A * prop_fee` exhausts the HTLC limits.
+    // where `A` plus its first-hop fee exhausts the HTLC limits.
     let limit_after_first_hop_fee = if caller_is_lsp {
         // The LSP pays no first-hop fee.
         total_htlc_limit
     } else {
-        let prop_fee = FirstHopFeePolicy::DEFAULT.prop_fee;
-        let base_fee = FirstHopFeePolicy::DEFAULT.base_fee;
-        // A + A·p + b <= L  ===>  A <= (L - b) / (1 + p)
+        let FirstHopFeePolicy {
+            base_fee,
+            prop_fee,
+            min_fee,
+        } = FirstHopFeePolicy::DEFAULT;
+        // A + max(A·p + b, m) <= L  ===>  A <= min((L - b) / (1 + p), L - m)
         let amount = {
             let numerator = total_htlc_limit.saturating_sub(base_fee);
             let denominator = dec!(1) + prop_fee.to_decimal();
-            numerator / denominator
+            (numerator / denominator)
+                .min(total_htlc_limit.saturating_sub(min_fee))
         };
         // `Amount` arithmetic rounds to a whole msat, so the division may
         // land up to 1 msat above the true bound, whichever direction it
