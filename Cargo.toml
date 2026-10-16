@@ -398,10 +398,11 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 # * ln: don't panic in test when coop closing zero-balance funders
 # * tx-sync: skip re-syncing known-confirmed transactions
 # * tx-sync: parallelize esplora status queries
-lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_01" }
-lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_01" }
-lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_01" }
-lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_01" }
+# * chainmonitor: add force_archive_channel_monitor
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_15" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_15" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_15" }
+lightning-types = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.3-rc3-2026_10_15" }
 # lightning.path = "../../ldk/lightning"
 # lightning-invoice.path = "../../ldk/lightning-invoice"
 # lightning-transaction-sync.path = "../../ldk/lightning-transaction-sync"
