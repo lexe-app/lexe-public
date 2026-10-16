@@ -14,8 +14,7 @@ use lexe_common::{
     api::user::{NodePk, Scid},
     constants::{ROUTING_FEE_LIMIT_BASE_MSAT, ROUTING_FEE_LIMIT_PROP},
     dec,
-    ln::amount::Amount,
-    ppm::Ppm,
+    ln::{amount::Amount, fees::FirstHopFeePolicy},
     rng::SysRngDerefHack,
     time::DisplayMs,
 };
@@ -609,7 +608,7 @@ impl RoutingContext {
     }
 
     /// Find a [`Route`] paying `amount` to the payee, adding a first-hop fee
-    /// (e.g. a sender fee) of `prop_fee * amount + base_fee` to our first
+    /// (e.g. a sender fee) of `first_hop_fee_policy.fee(amount)` to our first
     /// hop. The amount of first-hop fee actually included in the [`Route`] is
     /// returned in the [`RoutingResult`].
     ///
@@ -620,8 +619,7 @@ impl RoutingContext {
         &self,
         router: &LexeRouter,
         amount: Amount,
-        first_hop_prop_fee: Ppm,
-        first_hop_base_fee: Amount,
+        first_hop_fee_policy: FirstHopFeePolicy,
     ) -> anyhow::Result<RoutingResult> {
         let amount_msat = amount.msat();
         let routing_fee_limit_msat = helpers::routing_fee_limit(amount).msat();
@@ -631,10 +629,7 @@ impl RoutingContext {
             max_total_routing_fee_msat: Some(routing_fee_limit_msat),
         };
 
-        let first_hop_fee_msat = (first_hop_prop_fee * amount)
-            .checked_add(first_hop_base_fee)
-            .context("First-hop fee overflowed")?
-            .msat();
+        let first_hop_fee_msat = first_hop_fee_policy.fee(amount)?.msat();
 
         // If charging a first-hop fee, reserve each first-hop channel's
         // largest possible share of the fee out of its outbound HTLC limit, so
@@ -845,8 +840,7 @@ pub async fn compute_max_flow_to_recipient(
     router: &LexeRouter,
     routing_context: &RoutingContext,
     starting_amount: Amount,
-    first_hop_prop_fee: Ppm,
-    first_hop_base_fee: Amount,
+    first_hop_fee_policy: FirstHopFeePolicy,
 ) -> anyhow::Result<Amount> {
     cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
@@ -889,12 +883,8 @@ pub async fn compute_max_flow_to_recipient(
 
         let mid = (low + high) / dec!(2);
 
-        let route_result = routing_context.find_route(
-            router,
-            mid,
-            first_hop_prop_fee,
-            first_hop_base_fee,
-        );
+        let route_result =
+            routing_context.find_route(router, mid, first_hop_fee_policy);
 
         match route_result {
             Ok(_) => {

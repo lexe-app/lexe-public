@@ -11,6 +11,8 @@ pub mod amount_or_all;
 pub mod balance;
 /// Channel outpoint, details, counterparty
 pub mod channel;
+/// `FirstHopFeePolicy`.
+pub mod fees;
 /// Bitcoin hash types, such as `Txid`.
 pub mod hashes;
 /// `Network`, a newtype for [`bitcoin::Network`].

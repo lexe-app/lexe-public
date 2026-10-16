@@ -3,8 +3,8 @@ use std::cmp;
 use anyhow::Context;
 use lexe_api::cli::LspFees;
 use lexe_common::{
-    constants, dec,
-    ln::{amount::Amount, balance::LightningBalance},
+    dec,
+    ln::{amount::Amount, balance::LightningBalance, fees::FirstHopFeePolicy},
     ppm,
     ppm::Ppm,
 };
@@ -96,8 +96,8 @@ pub fn all_channel_balances<PS: LexePersister>(
         // The LSP pays no first-hop fee.
         total_htlc_limit
     } else {
-        let prop_fee = constants::DEFAULT_USERNODE_FIRST_HOP_PROP_FEE;
-        let base_fee = constants::DEFAULT_USERNODE_FIRST_HOP_BASE_FEE;
+        let prop_fee = FirstHopFeePolicy::DEFAULT.prop_fee;
+        let base_fee = FirstHopFeePolicy::DEFAULT.base_fee;
         // A + A·p + b <= L  ===>  A <= (L - b) / (1 + p)
         let amount = {
             let numerator = total_htlc_limit.saturating_sub(base_fee);

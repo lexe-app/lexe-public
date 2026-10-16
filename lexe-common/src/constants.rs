@@ -3,7 +3,7 @@ use std::{include_bytes, time::Duration};
 use lexe_enclave::enclave::{Measurement, MrShort};
 use lexe_std::{array, const_concat_str};
 
-use crate::{ln::amount::Amount, ppm, ppm::Ppm};
+use crate::{ppm, ppm::Ppm};
 
 /// Timeout constants and hierarchies.
 pub mod timeout;
@@ -51,17 +51,6 @@ pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 /// 2) having so many versions approved that Lexe could downgrade users to an
 ///    old version that may contain vulnerabilities.
 pub const RELEASE_WINDOW_SIZE: usize = 2;
-
-/// The default base fee a user node adds to the first hop of an outbound
-/// invoice payment, paid to the LSP on top of the routing fees.
-//
-// Zero for the same reasons as the LSP's zero base fees.
-pub const DEFAULT_USERNODE_FIRST_HOP_BASE_FEE: Amount = Amount::ZERO;
-
-/// The default proportional routing fee (in millionths) a user node adds to the
-/// first hop of an outbound invoice payment, paid to the LSP on top of the
-/// routing fees.
-pub const DEFAULT_USERNODE_FIRST_HOP_PROP_FEE: Ppm = ppm!(0.5%);
 
 /// A routing fee limit proportional to the principal paid, in addition to
 /// [`ROUTING_FEE_LIMIT_BASE_MSAT`]. Helps prevent a payer from paying

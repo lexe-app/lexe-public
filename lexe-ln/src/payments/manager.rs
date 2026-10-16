@@ -25,8 +25,7 @@ use lexe_api::{
 };
 use lexe_common::{
     api::test_event::TestEvent,
-    ln::{amount::Amount, hashes::Txid},
-    ppm::Ppm,
+    ln::{amount::Amount, fees::FirstHopFeePolicy, hashes::Txid},
     time::TimestampMs,
 };
 use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
@@ -178,10 +177,8 @@ pub(crate) struct InFlightRetryState {
     /// The amount the payee should receive, excluding fees. Routes may
     /// deliver more to satisfy `htlc_minimum_msat`.
     pub amount: Amount,
-    /// The proportional rate of the extra fee we pay our first hop.
-    pub first_hop_prop_fee: Ppm,
-    /// The base rate of the extra fee we pay our first hop.
-    pub first_hop_base_fee: Amount,
+    /// The policy for the extra fee we pay our first hop.
+    pub first_hop_fee_policy: FirstHopFeePolicy,
     /// The extra fee our latest route actually pays our first hop. In MPP,
     /// routing reassigns the fee proportionally across shards, where the
     /// assigned amount is truncated. Re-routing may produce a different
@@ -204,8 +201,7 @@ struct RetryInfo {
     id: PaymentId,
     invoice: Arc<Invoice>,
     amount: Amount,
-    first_hop_prop_fee: Ppm,
-    first_hop_base_fee: Amount,
+    first_hop_fee_policy: FirstHopFeePolicy,
     failed_channel_scids: Vec<u64>,
 }
 
@@ -470,8 +466,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         let route_result = routing_context.find_route(
             &self.router,
             retry.amount,
-            retry.first_hop_prop_fee,
-            retry.first_hop_base_fee,
+            retry.first_hop_fee_policy,
         );
         let RoutingResult {
             route,
@@ -604,8 +599,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         max_attempts: u8,
         invoice: Arc<Invoice>,
         amount: Amount,
-        first_hop_prop_fee: Ppm,
-        first_hop_base_fee: Amount,
+        first_hop_fee_policy: FirstHopFeePolicy,
         first_hop_fee: Amount,
     ) {
         let state = InFlightRetryState {
@@ -614,8 +608,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
             failed_channel_scids: HashSet::new(),
             invoice,
             amount,
-            first_hop_prop_fee,
-            first_hop_base_fee,
+            first_hop_fee_policy,
             latest_first_hop_fee: first_hop_fee,
         };
 
@@ -1782,8 +1775,7 @@ impl PaymentsData {
                 id: *id,
                 invoice: state.invoice.clone(),
                 amount: state.amount,
-                first_hop_prop_fee: state.first_hop_prop_fee,
-                first_hop_base_fee: state.first_hop_base_fee,
+                first_hop_fee_policy: state.first_hop_fee_policy,
                 failed_channel_scids,
             })
         } else {
@@ -2598,8 +2590,7 @@ mod test {
                 failed_channel_scids: HashSet::new(),
                 invoice: Arc::new(invoice),
                 amount,
-                first_hop_prop_fee: Ppm::ZERO,
-                first_hop_base_fee: Amount::ZERO,
+                first_hop_fee_policy: FirstHopFeePolicy::ZERO,
                 latest_first_hop_fee: Amount::ZERO,
             };
             data.start_in_flight(id, state);
@@ -2644,8 +2635,7 @@ mod test {
             failed_channel_scids: HashSet::new(),
             invoice: Arc::new(invoice),
             amount,
-            first_hop_prop_fee: Ppm::ZERO,
-            first_hop_base_fee: Amount::ZERO,
+            first_hop_fee_policy: FirstHopFeePolicy::ZERO,
             latest_first_hop_fee: Amount::ZERO,
         };
         data.start_in_flight(id, state);

@@ -60,13 +60,11 @@ use lexe_common::{
         auth::BearerAuthToken,
         user::{NodePk, Scid, UserPk},
     },
-    constants::{
-        DEFAULT_USERNODE_FIRST_HOP_BASE_FEE,
-        DEFAULT_USERNODE_FIRST_HOP_PROP_FEE, timeout,
-    },
+    constants::timeout,
     ln::{
         amount::Amount,
         channel::{ChannelId, LxChannelDetails, UserChannelId},
+        fees::FirstHopFeePolicy,
         network::Network,
         route::LxRoute,
     },
@@ -196,7 +194,7 @@ impl PayInvoiceCaller<'_> {
         partner_base_fee: Option<Amount>,
         amount: Amount,
         payee_node_pk: NodePk,
-    ) -> anyhow::Result<(Option<PartnerFeeFields>, Ppm, Amount)> {
+    ) -> anyhow::Result<(Option<PartnerFeeFields>, FirstHopFeePolicy)> {
         match self {
             // LSP doesn't pay first-hop fees
             Self::Lsp => {
@@ -206,10 +204,7 @@ impl PayInvoiceCaller<'_> {
                         && partner_base_fee.is_none(),
                     "Partner fees are unsupported for the LSP"
                 );
-                let pff = None;
-                let prop_fee = Ppm::ZERO;
-                let base_fee = Amount::ZERO;
-                Ok((pff, prop_fee, base_fee))
+                Ok((None, FirstHopFeePolicy::ZERO))
             }
             Self::UserNode {
                 lsp_node_pk,
@@ -233,9 +228,11 @@ impl PayInvoiceCaller<'_> {
                             partner_base_fee,
                         )
                         .await?;
-                        let prop_fee = partner_prop_fee.unwrap_or(Ppm::ZERO);
-                        let base_fee = partner_base_fee.unwrap_or(Amount::ZERO);
-                        Ok((Some(pff), prop_fee, base_fee))
+                        let policy = FirstHopFeePolicy {
+                            base_fee: partner_base_fee.unwrap_or(Amount::ZERO),
+                            prop_fee: partner_prop_fee.unwrap_or(Ppm::ZERO),
+                        };
+                        Ok((Some(pff), policy))
                     }
                     None => {
                         ensure!(
@@ -246,16 +243,10 @@ impl PayInvoiceCaller<'_> {
                         );
                         // No first-hop fees if payee is LSP
                         if payee_node_pk == **lsp_node_pk {
-                            let pff = None;
-                            let prop_fee = Ppm::ZERO;
-                            let base_fee = Amount::ZERO;
-                            return Ok((pff, prop_fee, base_fee));
+                            return Ok((None, FirstHopFeePolicy::ZERO));
                         }
                         // Otherwise, default Lexe fees
-                        let pff = None;
-                        let prop_fee = DEFAULT_USERNODE_FIRST_HOP_PROP_FEE;
-                        let base_fee = DEFAULT_USERNODE_FIRST_HOP_BASE_FEE;
-                        Ok((pff, prop_fee, base_fee))
+                        Ok((None, FirstHopFeePolicy::DEFAULT))
                     }
                 }
             }
@@ -1036,8 +1027,7 @@ where
         intended_amount,
         ldk_route,
         first_hop_fee,
-        first_hop_prop_fee,
-        first_hop_base_fee,
+        first_hop_fee_policy,
     ) = match preflighted {
         PreflightedPayInvoice::Exists { oipwm } => {
             let created_at =
@@ -1050,15 +1040,13 @@ where
             ldk_route,
             lx_route: _,
             first_hop_fee,
-            first_hop_prop_fee,
-            first_hop_base_fee,
+            first_hop_fee_policy,
         } => (
             oipwm,
             intended_amount,
             ldk_route,
             first_hop_fee,
-            first_hop_prop_fee,
-            first_hop_base_fee,
+            first_hop_fee_policy,
         ),
     };
     let hash = oipwm.payment.hash;
@@ -1118,8 +1106,7 @@ where
                     DEFAULT_MAX_RETRY_ATTEMPTS,
                     invoice,
                     intended_amount,
-                    first_hop_prop_fee,
-                    first_hop_base_fee,
+                    first_hop_fee_policy,
                     first_hop_fee,
                 )
                 .await;
@@ -1640,10 +1627,8 @@ enum PreflightedPayInvoice {
         lx_route: LxRoute,
         /// The fee added to the route's first hop.
         first_hop_fee: Amount,
-        /// The proportional rate used to derive `first_hop_fee`.
-        first_hop_prop_fee: Ppm,
-        /// The base rate used to derive `first_hop_fee`.
-        first_hop_base_fee: Amount,
+        /// The policy used to derive `first_hop_fee`.
+        first_hop_fee_policy: FirstHopFeePolicy,
     },
     /// This invoice payment attempt already exists (possibly paid).
     Exists {
@@ -1712,7 +1697,7 @@ where
         .or(req.fallback_amount)
         .context("Missing fallback amount for amountless invoice")?;
 
-    let (partner_fee, first_hop_prop_fee, first_hop_base_fee) = caller
+    let (partner_fee, first_hop_fee_policy) = caller
         .validate_and_compute_first_hop_fees(
             req.partner_pk.as_ref(),
             req.partner_prop_fee,
@@ -1752,8 +1737,7 @@ where
             ldk_route,
             lx_route,
             first_hop_fee,
-            first_hop_prop_fee,
-            first_hop_base_fee,
+            first_hop_fee_policy,
         });
     }
 
@@ -1796,8 +1780,7 @@ where
         router,
         &routing_context,
         intended_amount,
-        first_hop_prop_fee,
-        first_hop_base_fee,
+        first_hop_fee_policy,
         &lightning_balance,
         bypass_max_sendable,
     )
@@ -1813,8 +1796,7 @@ where
         network_graph,
         &routing_context,
         intended_amount,
-        first_hop_prop_fee,
-        first_hop_base_fee,
+        first_hop_fee_policy,
     )
     .await?;
 
@@ -1841,8 +1823,7 @@ where
         ldk_route,
         lx_route,
         first_hop_fee,
-        first_hop_prop_fee,
-        first_hop_base_fee,
+        first_hop_fee_policy,
     })
 }
 
@@ -1972,8 +1953,7 @@ where
         RoutingContext::from_payment_params(channel_manager, payment_params);
 
     // TODO(nicole): wire partner fees
-    let first_hop_prop_fee = Ppm::ZERO;
-    let first_hop_base_fee = Amount::ZERO;
+    let first_hop_fee_policy = FirstHopFeePolicy::ZERO;
 
     // Check that the amount is OK wrt `max_sendable`.
     let bypass_max_sendable = false;
@@ -1981,8 +1961,7 @@ where
         router,
         &routing_context,
         amount,
-        first_hop_prop_fee,
-        first_hop_base_fee,
+        first_hop_fee_policy,
         &lightning_balance,
         bypass_max_sendable,
     )
@@ -2000,8 +1979,7 @@ where
         network_graph,
         &routing_context,
         amount,
-        first_hop_prop_fee,
-        first_hop_base_fee,
+        first_hop_fee_policy,
     )
     .await?;
 
@@ -2159,8 +2137,7 @@ mod validate {
         router: &RouterType,
         routing_context: &RoutingContext,
         amount: Amount,
-        first_hop_prop_fee: Ppm,
-        first_hop_base_fee: Amount,
+        first_hop_fee_policy: FirstHopFeePolicy,
         lightning_balance: &LightningBalance,
         // Set `true` to skip checking `amount` against `max_sendable`, which
         // sometimes underestimates the true maximum.
@@ -2207,8 +2184,7 @@ mod validate {
             router,
             routing_context,
             amount,
-            first_hop_prop_fee,
-            first_hop_base_fee,
+            first_hop_fee_policy,
         )
         .await;
 
@@ -2242,15 +2218,10 @@ mod validate {
         network_graph: &NetworkGraphType,
         routing_context: &RoutingContext,
         amount: Amount,
-        first_hop_prop_fee: Ppm,
-        first_hop_base_fee: Amount,
+        first_hop_fee_policy: FirstHopFeePolicy,
     ) -> anyhow::Result<ValidatedRoute> {
-        let route_result = routing_context.find_route(
-            router,
-            amount,
-            first_hop_prop_fee,
-            first_hop_base_fee,
-        );
+        let route_result =
+            routing_context.find_route(router, amount, first_hop_fee_policy);
         let (route, first_hop_fee) = match route_result {
             Ok(routing_result) =>
                 (routing_result.route, routing_result.first_hop_fee),
@@ -2266,8 +2237,7 @@ mod validate {
                     router,
                     routing_context,
                     amount,
-                    first_hop_prop_fee,
-                    first_hop_base_fee,
+                    first_hop_fee_policy,
                 )
                 .await;
 
