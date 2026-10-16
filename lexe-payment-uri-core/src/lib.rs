@@ -43,6 +43,7 @@ use lexe_api_core::types::{invoice, offer};
 pub use crate::{
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
+    lexe_link::{LexePayUrl, LexeUri},
     lightning_uri::LightningUri,
     lnurl::{
         Lnurl, LnurlScheme, LnurlTag, LnurlWithdrawRequest,
@@ -62,6 +63,8 @@ pub mod helpers;
 mod bip321_uri;
 /// Email-like payment URIs, including Lightning Addresses and BIP353.
 mod email_like;
+/// Lexe links, which open a payment code directly in the Lexe app.
+mod lexe_link;
 /// "lightning:" URIs, containing a BOLT 11 invoice or BOLT12 offer.
 mod lightning_uri;
 /// LNURLs.

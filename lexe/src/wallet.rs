@@ -948,6 +948,8 @@ impl LexeWallet {
             PaymentUri::Lnurl(_) => "Failed to pay LNURL",
             PaymentUri::LexeConnect(_) =>
                 return Err(anyhow!("A LexeConnect request is not payable")),
+            PaymentUri::LexePayUrl(_) | PaymentUri::LexeUri(_) =>
+                "Failed to pay Lexe link",
         };
 
         // Resolve into best payment method

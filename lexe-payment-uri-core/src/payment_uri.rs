@@ -3,14 +3,8 @@ use std::{borrow::Cow, fmt, str::FromStr};
 use bitcoin::address::NetworkUnchecked;
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 use lexe_common::ln::network::Network;
-#[cfg(test)]
-use lexe_common::test_utils::arbitrary;
 use lexe_connect::request::CredentialRequest;
 use lexe_uri::Uri;
-#[cfg(test)]
-use proptest::strategy::Strategy;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 
 use crate::{
     AuthMethod, Error, PaymentMethod, PaymentUriMethods, PermittedMethods,
@@ -18,6 +12,7 @@ use crate::{
     bip321_uri::Bip321Uri,
     email_like::EmailLikeAddress,
     helpers::{self, AddressExt},
+    lexe_link::{LexePayUrl, LexeUri},
     lightning_uri::LightningUri,
     lnurl::Lnurl,
 };
@@ -32,7 +27,7 @@ const MAX_INPUT_LEN_KIB: usize = 8;
 /// Many variants give multiple ways to pay, with e.g. BOLT11 invoices including
 /// an onchain fallback, or BIP321 URIs including an optional BOLT11 invoice.
 #[derive(Debug)]
-#[cfg_attr(test, derive(Arbitrary, Eq, PartialEq))]
+#[cfg_attr(test, derive(Eq, PartialEq))]
 pub enum PaymentUri {
     /// An BIP321 URI, containing an onchain payment description, plus optional
     /// BOLT11 invoice and/or BOLT12 offer.
@@ -61,12 +56,6 @@ pub enum PaymentUri {
     /// A standalone onchain Bitcoin address.
     ///
     /// ex: "bc1qfjeyfl..."
-    #[cfg_attr(
-        test,
-        proptest(
-            strategy = "arbitrary::any_mainnet_addr_unchecked().prop_map(Self::Address)"
-        )
-    )]
     Address(bitcoin::Address<NetworkUnchecked>),
 
     /// An email-like payment address (BIP353 or Lightning Address).
@@ -83,14 +72,27 @@ pub enum PaymentUri {
     ///
     /// ex: `https://lexe.app/connect?v=1&redirect_uri=...`
     LexeConnect(Box<CredentialRequest>),
+
+    /// A Lexe pay app link, wrapping another payment code.
+    ///
+    /// ex: `https://lexe.app/pay?to=lightning%3Alnbc1pvjlue...`
+    LexePayUrl(LexePayUrl),
+
+    /// A `lexe:` URI deep link, wrapping another payment code.
+    ///
+    /// ex: "lexe:lightning:lnbc1pvjlue..." or
+    ///     "lexe://lightning:lnbc1pvjlue..."
+    LexeUri(LexeUri),
     //
     //
-    // NOTE: adding support for a new URI scheme? Remember to add it in these
-    // places!
+    // NOTE: adding support for a new URI scheme or lexe.app app link?
+    // Remember to add it in these places!
     //
-    // app/ios/Runner/Info.plist
-    // app/macos/Runner/Info.plist
-    // app/android/app/src/main/AndroidManifest.xml
+    // - app/ios/Runner/Info.plist (schemes)
+    // - app/macos/Runner/Info.plist (schemes)
+    // - app/android/app/src/main/AndroidManifest.xml (schemes + app links)
+    // - .well-known/apple-app-site-association (app links)
+    // - lexe-website: a fallback page (app links)
 }
 
 impl PaymentUri {
@@ -104,6 +106,24 @@ impl PaymentUri {
 
         let s = s.trim();
 
+        // Lexe links wrap one payment code, which can't be another Lexe link.
+        //
+        // ex: "lexe:lightning:lnbc1pvjlue..." or
+        //     "lexe://lightning:lnbc1pvjlue..."
+        if LexeUri::matches(s) {
+            return LexeUri::parse(s).map(Self::LexeUri);
+        }
+        // ex: "https://lexe.app/pay?to=lightning%3Alnbc1pvjlue..."
+        if LexePayUrl::matches(s) {
+            return LexePayUrl::parse(s).map(Self::LexePayUrl);
+        }
+
+        Self::parse_unwrapped(s)
+    }
+
+    /// Parse any payment code except a `lexe:` URI or `https://lexe.app/pay`
+    /// link.
+    pub(crate) fn parse_unwrapped(s: &str) -> Result<Self, Error> {
         // Try parsing a URI-looking thing
         //
         // ex: "bitcoin:bc1qfj..." or
@@ -199,14 +219,27 @@ impl PaymentUri {
 
     /// The methods this URI may resolve to.
     pub fn permitted_methods(&self) -> PermittedMethods {
-        PermittedMethods::ALL
+        match self {
+            Self::Bip321Uri(_)
+            | Self::LightningUri(_)
+            | Self::Invoice(_)
+            | Self::Offer(_)
+            | Self::Address(_)
+            | Self::EmailLikeAddress(_)
+            | Self::Lnurl(_)
+            | Self::LexeConnect(_) => PermittedMethods::ALL,
+            Self::LexePayUrl(_) => LexePayUrl::PERMITTED_METHODS,
+            Self::LexeUri(_) => LexeUri::PERMITTED_METHODS,
+        }
     }
 
     /// "Flatten" the [`PaymentUri`] into its directly-known
     /// [`PaymentUriMethods`] and any [`Resolvable`]s requiring further
     /// resolution.
     ///
-    /// Filters out onchain addresses that aren't valid for `network`.
+    /// Filters out onchain addresses that aren't valid for `network`. Doesn't
+    /// apply [`Self::permitted_methods`]; callers must, once the
+    /// [`Resolvable`]s are resolved.
     pub fn flatten(
         self,
         network: Network,
@@ -245,6 +278,9 @@ impl PaymentUri {
             Self::Lnurl(lnurl) => resolvables.push(Resolvable::Lnurl(lnurl)),
             Self::LexeConnect(request) =>
                 methods.auth_methods.push(AuthMethod::LexeConnect(request)),
+            Self::LexePayUrl(LexePayUrl { payment_uri })
+            | Self::LexeUri(LexeUri { payment_uri }) =>
+                (methods, resolvables) = (*payment_uri).flatten(network),
         }
         (methods, resolvables)
     }
@@ -263,6 +299,65 @@ impl fmt::Display for PaymentUri {
             Self::EmailLikeAddress(email_like) => Display::fmt(email_like, f),
             Self::Lnurl(lnurl) => Display::fmt(lnurl, f),
             Self::LexeConnect(request) => Display::fmt(request, f),
+            Self::LexePayUrl(pay_url) => Display::fmt(pay_url, f),
+            Self::LexeUri(lexe_uri) => Display::fmt(lexe_uri, f),
+        }
+    }
+}
+
+#[cfg(test)]
+mod arbitrary_impl {
+    use lexe_common::test_utils::arbitrary;
+    use proptest::{
+        arbitrary::{Arbitrary, any},
+        prop_oneof,
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+    use crate::lnurl::LnurlScheme;
+
+    impl PaymentUri {
+        /// Any [`PaymentUri`] except a Lexe link, which can't nest.
+        pub(crate) fn any_unwrapped() -> BoxedStrategy<Self> {
+            // Plain https:// URLs aren't recognized as LNURLs during parsing,
+            // and .onion LNURLs aren't supported, so skip them to roundtrip.
+            let any_parseable_lnurl = any::<Lnurl<'static>>().prop_filter(
+                "Unparseable LNURL scheme",
+                |lnurl| {
+                    !matches!(
+                        lnurl.scheme,
+                        LnurlScheme::Https | LnurlScheme::HttpOnion
+                    )
+                },
+            );
+
+            prop_oneof![
+                any::<Box<Bip321Uri>>().prop_map(Self::Bip321Uri),
+                any::<LightningUri>().prop_map(Self::LightningUri),
+                any::<Invoice>().prop_map(Self::Invoice),
+                any::<Offer>().prop_map(Self::Offer),
+                arbitrary::any_mainnet_addr_unchecked().prop_map(Self::Address),
+                any::<EmailLikeAddress<'static>>()
+                    .prop_map(Self::EmailLikeAddress),
+                any_parseable_lnurl.prop_map(Self::Lnurl),
+                any::<Box<CredentialRequest>>().prop_map(Self::LexeConnect),
+            ]
+            .boxed()
+        }
+    }
+
+    impl Arbitrary for PaymentUri {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: ()) -> Self::Strategy {
+            prop_oneof![
+                8 => Self::any_unwrapped(),
+                1 => any::<LexePayUrl>().prop_map(Self::LexePayUrl),
+                1 => any::<LexeUri>().prop_map(Self::LexeUri),
+            ]
+            .boxed()
         }
     }
 }
@@ -271,7 +366,7 @@ impl fmt::Display for PaymentUri {
 mod test {
     use lexe_common::test_utils::arbitrary;
     use lexe_crypto::rng::FastRng;
-    use proptest::{arbitrary::any, prop_assert_eq, prop_assume, proptest};
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
     use crate::PaymentUriMethod;
@@ -279,14 +374,6 @@ mod test {
     #[test]
     fn test_payment_uri_roundtrip() {
         proptest!(|(uri1: PaymentUri)| {
-            // Skip Lnurl with Https/HttpOnion schemes
-            // - plain https:// URLs aren't recognized as LNURLs during parsing,
-            // - .onion LNURLs are not supported
-            if let PaymentUri::Lnurl(ref lnurl) = uri1 {
-                prop_assume!(lnurl.scheme != crate::lnurl::LnurlScheme::Https);
-                prop_assume!(lnurl.scheme != crate::lnurl::LnurlScheme::HttpOnion);
-            }
-
             let uri2 = PaymentUri::parse(&uri1.to_string());
             prop_assert_eq!(Ok(&uri1), uri2.as_ref());
         });
@@ -314,6 +401,21 @@ mod test {
         let err =
             PaymentUri::parse("https://lexe.app/connect?v=2").unwrap_err();
         assert!(matches!(err, Error::InvalidLexeConnect(_)));
+    }
+
+    #[test]
+    fn test_lexe_link() {
+        let address = "13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU";
+        let uri =
+            PaymentUri::parse(&format!("https://lexe.app/pay?to={address}"))
+                .unwrap();
+        assert!(matches!(uri, PaymentUri::LexePayUrl(_)));
+        let uri = PaymentUri::parse(&format!("lexe:{address}")).unwrap();
+        assert!(matches!(uri, PaymentUri::LexeUri(_)));
+
+        // Only `/pay` is a pay url
+        PaymentUri::parse(&format!("https://lexe.app/payments?to={address}"))
+            .unwrap_err();
     }
 
     #[test]
