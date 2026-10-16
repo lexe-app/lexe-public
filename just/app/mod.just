@@ -6,6 +6,7 @@
 # recipes inherit the same cwd.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
+set positional-arguments := true
 set working-directory := '../../app'
 
 # select a recipe interactively
@@ -48,7 +49,7 @@ test-dart-defines:
 # --- build / run --- #
 
 flutter *args:
-    flutter {{ args }}
+    flutter "$@"
 
 pub-get:
     flutter pub get
@@ -75,10 +76,10 @@ rs-codegen *args:
       exit 1
     fi
     pushd ../app_rs_dart && flutter pub get && popd
-    cargo run -p app-rs-codegen -- {{ args }}
+    cargo run -p app-rs-codegen -- "$@"
 
 rs-freezed *args:
-    cd ../app_rs_dart && dart run build_runner build {{ args }}
+    cd ../app_rs_dart && dart run build_runner build "$@"
 
 # check that the Rust+Dart ffi codegen is up-to-date
 rs-codegen-check:
@@ -91,74 +92,74 @@ rs-lint-android *args:
     cd .. && cargo ndk \
         --target=aarch64-linux-android \
         --platform=24 \
-        -- clippy -p app-rs {{ args }}
+        -- clippy -p app-rs "$@"
 
 # lint native app-rs crate, built for ios target
 rs-lint-ios *args:
     cd .. && cargo clippy \
         --target=aarch64-apple-ios \
-        -p app-rs {{ args }}
+        -p app-rs "$@"
 
 run *args:
-    flutter run {{ dart-defines }} {{ args }}
+    flutter run {{ dart-defines }} "$@"
 
 build kind *args:
-    flutter build {{ kind }} {{ dart-defines }} {{ args }}
+    flutter build {{ kind }} {{ dart-defines }} "${@:2}"
 
 # run the app against local dev. config is pulled from <repo-root>/.env
 run-dev *args:
     dotenvy -f "$(git rev-parse --show-toplevel)/.env" \
-      just app run --flavor=dev {{ args }}
+      just app run --flavor=dev "$@"
 
 # run the app against staging/testnet
 run-staging *args:
     DEPLOY_ENVIRONMENT=staging NETWORK=testnet3 SGX=true \
-      just app run --flavor=staging {{ args }}
+      just app run --flavor=staging "$@"
 
 # run the app against production/mainnet
 run-prod *args:
     DEPLOY_ENVIRONMENT=prod NETWORK=mainnet SGX=true \
-      just app run --flavor=prod {{ args }}
+      just app run --flavor=prod "$@"
 
 # run the app in "design" mode for quickly iterating on pages and components.
 run-design *args:
     DEPLOY_ENVIRONMENT=dev NETWORK=regtest SGX=false \
-      just app run --flavor=design --target=lib/design_mode/main.dart {{ args }}
+      just app run --flavor=design --target=lib/design_mode/main.dart "$@"
 
 # --- test / lint / fmt --- #
 
 # run app unit tests on local machine
 test *args:
     cd .. && cargo rustc --lib --crate-type=cdylib -p app-rs
-    flutter test {{ dart-defines }} {{ args }}
-    cd ../app_lints && dart test {{ args }}
+    flutter test {{ dart-defines }} "$@"
+    cd ../app_lints && dart test "$@"
 
 # run on-device app integration tests
 integration *args:
-    flutter test integration_test {{ dart-defines }} {{ args }}
+    flutter test integration_test {{ dart-defines }} "$@"
 
 # run app integration tests in an isolated headless Android emulator
 integration-android *args:
-    ../just/app/integration-android.sh {{ dart-defines }} {{ args }}
+    ../just/app/integration-android.sh {{ dart-defines }} "$@"
 
 # lint the app's dart code
 lint *args:
-    flutter analyze {{ args }}
-    cd ../app_rs_dart && flutter analyze {{ args }}
-    cd ../app_embed_git_rev && flutter analyze {{ args }}
-    cd ../app_lints && flutter analyze {{ args }}
+    flutter analyze "$@"
+    cd ../app_rs_dart && flutter analyze "$@"
+    cd ../app_embed_git_rev && flutter analyze "$@"
+    cd ../app_lints && flutter analyze "$@"
 
     @# TODO: Figure out why this takes like 27sec to run via CLI
     @# dart run custom_lint
 
 # fix some app lints that have quickfixes available
 fix *args:
-    dart fix --apply {{ args }}
-    cd ../app_rs_dart && dart fix --apply {{ args }}
-    cd ../app_embed_git_rev && dart fix --apply {{ args }}
-    cd ../app_lints && dart fix --apply {{ args }}
+    dart fix --apply "$@"
+    cd ../app_rs_dart && dart fix --apply "$@"
+    cd ../app_embed_git_rev && dart fix --apply "$@"
+    cd ../app_lints && dart fix --apply "$@"
 
-    dart run custom_lint --fix {{ args }}
+    dart run custom_lint --fix "$@"
 
     just app fmt
 
@@ -200,7 +201,7 @@ logs-android args="lexeapp:V flutter:V *:S":
 logs-ios *args:
     idevicesyslog --process "Lexe|Lexe Design|Lexe Dev|Lexe Staging" \
         --match "flutter:" \
-        {{ args }}
+        "$@"
 
 # --- fastlane passthroughs --- #
 #
@@ -209,18 +210,18 @@ logs-ios *args:
 
 # run fastlane in the app android dir
 fastlane-android *args:
-    cd android && fastlane {{ args }}
+    cd android && fastlane "$@"
 
 # run fastlane in the app iOS dir
 fastlane-ios *args:
-    cd ios && fastlane {{ args }}
+    cd ios && fastlane "$@"
 
 # --- android build & inspect --- #
 
 # build the production Android app release artifact
 build-prod-android *args:
     DEPLOY_ENVIRONMENT=prod NETWORK=mainnet SGX=true \
-      just app build appbundle --flavor=prod --release {{ args }}
+      just app build appbundle --flavor=prod --release "$@"
 
 # print the Android app's requested permissions from the compiled bundle.
 android-bundle-permissions:
@@ -257,7 +258,7 @@ android-bundle-git-rev path:
 
 # build android app and check 16KiB page-size compatibility
 android-test-16kb-page-sizes *args:
-    just app build-prod-android {{ args }}
+    just app build-prod-android "$@"
     just app android-lint-16kb-page-sizes build/app/outputs/bundle/prodRelease/app-prod-release.aab
 
 android-lint-16kb-page-sizes path:
@@ -268,7 +269,7 @@ android-lint-16kb-page-sizes path:
 # build the production iOS app release artifact
 build-prod-ios *args:
     DEPLOY_ENVIRONMENT=prod NETWORK=mainnet SGX=true \
-        just app build ipa --flavor=prod --release {{ args }}
+        just app build ipa --flavor=prod --release "$@"
 
 # Regenerate ios/Podfile.lock in the app-ios-macos devshell.
 #
