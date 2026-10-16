@@ -752,7 +752,7 @@ where
     PS: LexePaymentsPersister,
 {
     let amount = &req.amount;
-    info!("Handling create_invoice command for {amount:?} msats");
+    info!("Handling create_invoice command for {amount:?} sats");
 
     let cltv_expiry = match caller {
         CreateInvoiceCaller::UserNode { .. } =>
