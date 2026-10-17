@@ -473,6 +473,9 @@ impl NwcClient {
 
 /// Verify a signed NWC request and derive its client's keys, rejecting
 /// requests not addressed to the client's derived wallet service key.
+///
+/// Doesn't deduplicate requests for idempotency; the `server::nwc` module
+/// docs explain why that's safe.
 pub(crate) fn verify_request_event(
     event: &nostr::Event,
     now: TimestampMs,

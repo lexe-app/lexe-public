@@ -1,3 +1,25 @@
+//! # Idempotency
+//!
+//! We don't deduplicate requests, so a method may run more than once for the
+//! same request: clients and relays may redeliver an event, clients may retry
+//! with a new event after a lost response, and a malicious relay may replay a
+//! captured event, even after the node restarts, until it falls outside
+//! [`NWC_REQUEST_MAX_CLOCK_SKEW`]. Rather than track seen event ids, which
+//! would need a DB write per request to survive restarts, each method must be
+//! idempotent or safe to replay:
+//!
+//! - Read-only methods return current state.
+//! - `make_invoice` may create an extra invoice, which just expires unpaid.
+//! - Payments must be keyed by payment hash, so a replay finds the existing
+//!   payment. A replayed `pay_invoice` should return the original payment's
+//!   outcome rather than fail as a duplicate.
+//! - Payments without a natural key (e.g. keysend without a client `preimage`)
+//!   must derive one from the event id, like `ClientPaymentId`. Event ids are
+//!   public, so the derivation must mix in a node secret.
+//! - Spending limits must count only new payments, not replays.
+//!
+//! [`NWC_REQUEST_MAX_CLOCK_SKEW`]: lexe_common::constants::NWC_REQUEST_MAX_CLOCK_SKEW
+
 use anyhow::Context;
 use lexe_api::{
     models::{
