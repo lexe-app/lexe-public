@@ -58,6 +58,7 @@ use crate::{
             ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
             NodeInfo, OpenChannelRequest, OpenChannelResponse,
             PayInvoiceRequest, PayLnurlRequest, PayOfferRequest,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
             PayOnchainRequest, PayRequest, PayableDetails, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
@@ -1273,6 +1274,29 @@ impl LexeWallet {
             .await?
             .payment
             .context("Onchain payment missing right after creation")
+    }
+
+    /// Preflight an on-chain send: validate the address and amount and
+    /// estimate the fee at every priority, without sending.
+    ///
+    /// Send via [`pay_onchain`](Self::pay_onchain) with the chosen priority.
+    #[instrument(skip_all, name = "(pay-onchain-preflight)")]
+    pub async fn pay_onchain_preflight(
+        &self,
+        req: PayOnchainPreflightRequest,
+    ) -> anyhow::Result<PayOnchainPreflightResponse> {
+        let req = command::PayOnchainPreflightRequest::from(req);
+        let resp = self
+            .node_client
+            .pay_onchain_preflight(req)
+            .await
+            .context("Failed to preflight on-chain send")?;
+
+        Ok(PayOnchainPreflightResponse {
+            high_fees: resp.high.map(|est| est.amount),
+            normal_fees: resp.normal.amount,
+            background_fees: resp.background.amount,
+        })
     }
 
     /// Pay an LNURL or Lightning Address via the LNURL `payRequest` flow.

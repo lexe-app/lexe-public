@@ -621,6 +621,40 @@ impl TryFrom<PayOnchainRequest> for command::PayOnchainRequest {
     }
 }
 
+/// A request to preflight an on-chain send.
+#[derive(Serialize, Deserialize)]
+pub struct PayOnchainPreflightRequest {
+    /// The Bitcoin address to send to.
+    /// Must be valid for the network this wallet is configured for.
+    pub address: bitcoin::Address<NetworkUnchecked>,
+    /// The amount we will send.
+    pub amount: Amount,
+    /// The `client_payment_id` the send will use, if known. A preflight for
+    /// an id that was already sent is rejected.
+    pub client_payment_id: Option<ClientPaymentId>,
+}
+
+impl From<PayOnchainPreflightRequest> for command::PayOnchainPreflightRequest {
+    fn from(req: PayOnchainPreflightRequest) -> Self {
+        Self {
+            client_payment_id: req.client_payment_id,
+            address: req.address,
+            amount: req.amount,
+        }
+    }
+}
+
+/// The response to a `pay_onchain_preflight` request.
+#[derive(Serialize, Deserialize)]
+pub struct PayOnchainPreflightResponse {
+    /// The fee at `"high"` priority. `None` if the wallet cannot afford it.
+    pub high_fees: Option<Amount>,
+    /// The fee at `"normal"` priority.
+    pub normal_fees: Amount,
+    /// The fee at `"background"` priority.
+    pub background_fees: Amount,
+}
+
 /// A request to pay to an LNURL-pay endpoint.
 ///
 /// Use [`analyze`] to get the associated [`LnurlPayRequest`], which
