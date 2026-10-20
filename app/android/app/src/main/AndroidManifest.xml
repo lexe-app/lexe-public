@@ -51,12 +51,13 @@
         <data android:scheme="LIGHTNING" />
         <data android:scheme="LNURLP" />
         <data android:scheme="LEXE" />
+        <data android:scheme="LNURLW" />
         <data android:scheme="bitcoin" />
         <data android:scheme="lightning" />
         <data android:scheme="lnurlp" />
         <data android:scheme="lexe" />
+        <data android:scheme="lnurlw" />
         <!-- Uncomment if we support these someday -->
-        <!-- <data android:scheme="lnurlw" /> -->
         <!-- <data android:scheme="lnurlc" /> -->
         <!-- <data android:scheme="keyauth" /> -->
       </intent-filter>

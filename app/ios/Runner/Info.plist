@@ -35,12 +35,13 @@
           <string>LIGHTNING</string>
           <string>LNURLP</string>
           <string>LEXE</string>
+          <string>LNURLW</string>
           <string>bitcoin</string>
           <string>lightning</string>
           <string>lnurlp</string>
           <string>lexe</string>
+          <string>lnurlw</string>
           <!-- Uncomment if we support these someday -->
-          <!-- <string>lnurlw</string> -->
           <!-- <string>lnurlc</string> -->
           <!-- <string>keyauth</string> -->
           </array>
