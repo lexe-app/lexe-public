@@ -728,6 +728,18 @@ pub fn fees(route: &Route) -> Amount {
     Amount::from_msat(route.paths.iter().map(Path::fee_msat).sum())
 }
 
+/// The amount sent over the channel of `path.hops[hop_idx]`, fees included.
+/// `None` if `hop_idx` is past the end of `path.hops`.
+pub(crate) fn hop_amount_msat(path: &Path, hop_idx: usize) -> Option<u64> {
+    let hops = path.hops.get(hop_idx..)?;
+    let unblinded = hops.iter().map(|hop| hop.fee_msat).sum::<u64>();
+    let blinded = path
+        .blinded_tail
+        .as_ref()
+        .map_or(0, |bt| bt.final_value_msat);
+    Some(unblinded + blinded)
+}
+
 /// Get a [`PaymentParameters`] from a payee or invoice in Lexe's default way.
 /// Payment parameters are amount-agnostic.
 // LDK's builder API is unergonomic and hides a lot of details, so we
@@ -1032,11 +1044,6 @@ mod helpers {
 
     /// The total amount (in msat) sent along `path`, fees included.
     fn path_amount_msat(path: &Path) -> u64 {
-        let unblinded: u64 = path.hops.iter().map(|hop| hop.fee_msat).sum();
-        let blinded = path
-            .blinded_tail
-            .as_ref()
-            .map_or(0, |bt| bt.final_value_msat);
-        unblinded + blinded
+        hop_amount_msat(path, 0).expect("`hops[0..]` always exists")
     }
 }
