@@ -28,10 +28,10 @@ use lexe::{
             CreatePayerProofRequest, CredentialKind, GetPaymentByIdRequest,
             GetPaymentRequest, GetUpdatedPaymentsRequest, OpenChannelRequest,
             PayInvoiceRequest, PayLnurlRequest, PayOfferRequest,
-            PayOnchainRequest, PayRequest, PayerProofDisclosures,
-            PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
-            WithdrawLnurlRequest,
+            PayOnchainPreflightRequest, PayOnchainRequest, PayRequest,
+            PayerProofDisclosures, PaymentSyncSummary, RevokeClientRequest,
+            UpdateClientRequest, UpdatePersonalNoteRequest,
+            WaitForNextPaymentRequest, WithdrawLnurlRequest,
         },
         payment::{
             ClientPaymentId, Order, Payment, PaymentCreatedIndex,
@@ -172,6 +172,7 @@ pub enum LexeCommand {
     PayOffer(PayOfferArgs),
     GetNextUnusedAddress(GetNextUnusedAddressArgs),
     PayOnchain(PayOnchainArgs),
+    PayOnchainPreflight(PayOnchainPreflightArgs),
     PayLnurl(PayLnurlArgs),
     WithdrawLnurl(WithdrawLnurlArgs),
     BuyWithCashApp(BuyWithCashAppArgs),
@@ -327,6 +328,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::GetNextUnusedAddress(a) => a.run(&wallet).await,
         LexeCommand::PayOnchain(a) => a.run(&wallet).await,
+        LexeCommand::PayOnchainPreflight(a) => a.run(&wallet).await,
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
         LexeCommand::WithdrawLnurl(a) => a.run(&wallet).await,
         LexeCommand::BuyWithCashApp(a) => a.run(&wallet).await,
@@ -1442,6 +1444,57 @@ impl PayOnchainArgs {
         }
 
         helpers::print_payment(&payment)
+    }
+}
+
+// --- `pay-onchain-preflight` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Preflight an on-chain send without sending",
+    long_about = "Preflight an on-chain send: validate the address and amount\n\
+        and estimate the fee at every priority, without sending.\n\
+        \n\
+        Send via `pay-onchain --priority` with the chosen priority.",
+    override_usage = "lexe pay-onchain-preflight [OPTIONS] \
+        --amount-sats <AMOUNT_SATS>\
+        \n                                    <ADDRESS>",
+    help_template = HELP_TEMPLATE,
+    // We must set this otherwise help text width exceeds 80 chars
+    next_line_help = true,
+)]
+pub struct PayOnchainPreflightArgs {
+    #[arg(help = "The Bitcoin address to send to.\n\
+            Must be valid for the network this wallet is configured for.")]
+    address: String,
+
+    #[arg(long, help = "The amount to send in satoshis.")]
+    amount_sats: Amount,
+
+    #[arg(
+        long,
+        help = "The client payment ID the send will use, if known.\n\
+            Format is a 64-character hex string.\n\
+            A preflight for an ID that was already sent is rejected."
+    )]
+    client_payment_id: Option<ClientPaymentId>,
+}
+
+impl PayOnchainPreflightArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let address =
+            Address::from_str(&self.address).context("Invalid address")?;
+
+        let req = PayOnchainPreflightRequest {
+            address,
+            amount: self.amount_sats,
+            client_payment_id: self.client_payment_id,
+        };
+        let resp = wallet
+            .pay_onchain_preflight(req)
+            .await
+            .context("Failed to preflight on-chain send")?;
+        helpers::print_json_pretty(&resp)
     }
 }
 

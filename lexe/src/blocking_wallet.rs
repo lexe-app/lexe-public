@@ -28,6 +28,7 @@ use crate::{
             ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
             NodeInfo, OpenChannelRequest, OpenChannelResponse,
             PayInvoiceRequest, PayLnurlRequest, PayOfferRequest,
+            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
             PayOnchainRequest, PayRequest, PaymentSyncSummary,
             RevokeClientRequest, UpdateClientRequest,
             UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
@@ -416,6 +417,17 @@ impl BlockingLexeWallet {
         req: PayOnchainRequest,
     ) -> anyhow::Result<Payment> {
         block_on(self.inner.pay_onchain(req))
+    }
+
+    /// Preflight an on-chain send: validate the address and amount and
+    /// estimate the fee at every priority, without sending.
+    ///
+    /// Send via [`pay_onchain`](Self::pay_onchain) with the chosen priority.
+    pub fn pay_onchain_preflight(
+        &self,
+        req: PayOnchainPreflightRequest,
+    ) -> anyhow::Result<PayOnchainPreflightResponse> {
+        block_on(self.inner.pay_onchain_preflight(req))
     }
 
     /// Pay an LNURL or Lightning Address via the LNURL `payRequest` flow.

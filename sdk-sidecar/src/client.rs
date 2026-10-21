@@ -13,6 +13,7 @@ use lexe::types::{
         GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
         ListPaymentsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
         PayOnchainRequest, PaymentSyncSummary, RevokeClientRequest,
         UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
@@ -157,6 +158,16 @@ impl UserSidecarApi for SidecarClient {
     ) -> Result<Payment, SdkApiError> {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/pay_onchain");
+        let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn pay_onchain_preflight(
+        &self,
+        req: &PayOnchainPreflightRequest,
+    ) -> Result<PayOnchainPreflightResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/pay_onchain_preflight");
         let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }

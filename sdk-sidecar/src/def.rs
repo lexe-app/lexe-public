@@ -20,6 +20,7 @@ use lexe::types::{
         GetUpdatedPaymentsResponse, ListChannelsResponse, ListClientsResponse,
         ListPaymentsResponse, NodeInfo, OpenChannelRequest,
         OpenChannelResponse, PayInvoiceRequest, PayOfferRequest,
+        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
         PayOnchainRequest, PaymentSyncSummary, RevokeClientRequest,
         UpdatePersonalNoteRequest, WaitForNextPaymentResponse,
     },
@@ -171,6 +172,18 @@ pub trait UserSidecarApi {
         &self,
         req: &PayOnchainRequest,
     ) -> Result<Payment, SdkApiError>;
+
+    /// POST /v2/node/pay_onchain_preflight [`PayOnchainPreflightRequest`]
+    ///                                  -> [`PayOnchainPreflightResponse`]
+    ///
+    /// Preflight an on-chain send: validate the address and amount and
+    /// estimate the fee at every priority, without sending.
+    ///
+    /// Send via `pay_onchain` with the chosen priority.
+    async fn pay_onchain_preflight(
+        &self,
+        req: &PayOnchainPreflightRequest,
+    ) -> Result<PayOnchainPreflightResponse, SdkApiError>;
 
     /// POST /v2/node/pay_lnurl [`PayLnurlRequest`] -> [`Payment`]
     ///

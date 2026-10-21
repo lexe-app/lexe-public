@@ -29,9 +29,11 @@ use lexe::{
             ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
             NodeInfo, OpenChannelRequest, OpenChannelResponse,
             PayInvoiceRequest, PayLnurlRequest as SdkPayLnurlRequest,
-            PayOfferRequest, PayOnchainRequest, PayRequest as SdkPayRequest,
-            PayableDetails as SdkPayableDetails, PaymentSyncSummary,
-            RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
+            PayOfferRequest, PayOnchainPreflightRequest,
+            PayOnchainPreflightResponse, PayOnchainRequest,
+            PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
+            PaymentSyncSummary, RevokeClientRequest,
+            UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
             WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
             WaitForNextPaymentResponse,
@@ -105,6 +107,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             post(node::get_next_unused_address),
         )
         .route("/v2/node/pay_onchain", post(node::pay_onchain))
+        .route(
+            "/v2/node/pay_onchain_preflight",
+            post(node::pay_onchain_preflight),
+        )
         .route("/v2/node/pay_lnurl", post(node::pay_lnurl))
         .route("/v2/node/withdraw_lnurl", post(node::withdraw_lnurl))
         .route("/v2/node/buy_with_cash_app", post(node::buy_with_cash_app))
@@ -519,6 +525,20 @@ mod node {
             .map_err(SdkApiError::command)?;
 
         helpers::try_track_payment(&state, credentials, resp.index);
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(pay-onchain-preflight)")]
+    pub(crate) async fn pay_onchain_preflight(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<PayOnchainPreflightRequest>,
+    ) -> Result<LxJson<PayOnchainPreflightResponse>, SdkApiError> {
+        let resp = wallet
+            .pay_onchain_preflight(req)
+            .await
+            .map_err(SdkApiError::command)?;
 
         Ok(LxJson(resp))
     }

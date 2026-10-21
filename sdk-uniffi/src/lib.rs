@@ -73,6 +73,8 @@ use lexe::{
             PayInvoiceRequest as SdkPayInvoiceRequest,
             PayLnurlRequest as SdkPayLnurlRequest,
             PayOfferRequest as SdkPayOfferRequest,
+            PayOnchainPreflightRequest as SdkPayOnchainPreflightRequest,
+            PayOnchainPreflightResponse as SdkPayOnchainPreflightResponse,
             PayOnchainRequest as SdkPayOnchainRequest,
             PayRequest as SdkPayRequest, PayableDetails as SdkPayableDetails,
             PayerProofDisclosures as SdkPayerProofDisclosures,
@@ -1263,6 +1265,38 @@ impl AsyncLexeWallet {
         Ok(Payment::from(resp))
     }
 
+    /// Preflight an on-chain send: validate the address and amount and
+    /// estimate the fee at every priority, without sending.
+    ///
+    /// `address` is the Bitcoin address to send to.
+    /// `amount_sats` is the amount to send in satoshis.
+    /// `client_payment_id` is the ID the send will use, if known. A preflight
+    /// for an ID that was already sent is rejected.
+    ///
+    /// Send via `pay_onchain` with the chosen priority.
+    #[uniffi::method(default(client_payment_id = None))]
+    pub async fn pay_onchain_preflight(
+        &self,
+        address: String,
+        amount_sats: u64,
+        client_payment_id: Option<Arc<ClientPaymentId>>,
+    ) -> Result<PayOnchainPreflightResponse, FfiError> {
+        let address =
+            SdkAddress::from_str(&address).context("Invalid address")?;
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+
+        let client_payment_id = client_payment_id.map(|id| id.inner);
+
+        let req = SdkPayOnchainPreflightRequest {
+            address,
+            amount,
+            client_payment_id,
+        };
+        let resp = self.inner.pay_onchain_preflight(req).await?;
+        Ok(PayOnchainPreflightResponse::from(resp))
+    }
+
     /// Pay an LNURL via the `payRequest` flow.
     ///
     /// Use `analyze` to get the associated LNURL pay request, which contains
@@ -2392,6 +2426,38 @@ impl BlockingLexeWallet {
         };
         let resp = self.inner.pay_onchain(req)?;
         Ok(Payment::from(resp))
+    }
+
+    /// Preflight an on-chain send: validate the address and amount and
+    /// estimate the fee at every priority, without sending.
+    ///
+    /// `address` is the Bitcoin address to send to.
+    /// `amount_sats` is the amount to send in satoshis.
+    /// `client_payment_id` is the ID the send will use, if known. A preflight
+    /// for an ID that was already sent is rejected.
+    ///
+    /// Send via `pay_onchain` with the chosen priority.
+    #[uniffi::method(default(client_payment_id = None))]
+    pub fn pay_onchain_preflight(
+        &self,
+        address: String,
+        amount_sats: u64,
+        client_payment_id: Option<Arc<ClientPaymentId>>,
+    ) -> Result<PayOnchainPreflightResponse, FfiError> {
+        let address =
+            SdkAddress::from_str(&address).context("Invalid address")?;
+        let amount = SdkAmount::try_from_sats_u64(amount_sats)
+            .context("Invalid amount")?;
+
+        let client_payment_id = client_payment_id.map(|id| id.inner);
+
+        let req = SdkPayOnchainPreflightRequest {
+            address,
+            amount,
+            client_payment_id,
+        };
+        let resp = self.inner.pay_onchain_preflight(req)?;
+        Ok(PayOnchainPreflightResponse::from(resp))
     }
 
     /// Pay an LNURL via the `payRequest` flow.
@@ -3963,6 +4029,28 @@ impl From<SdkGetNextUnusedAddressResponse> for GetNextUnusedAddressResponse {
     fn from(resp: SdkGetNextUnusedAddressResponse) -> Self {
         Self {
             address: resp.address.assume_checked_ref().to_string(),
+        }
+    }
+}
+
+/// The response to a `pay_onchain_preflight` request.
+#[derive(Clone, uniffi::Record)]
+pub struct PayOnchainPreflightResponse {
+    /// The fee at `"high"` priority, in satoshis. `None` if the wallet cannot
+    /// afford it.
+    pub high_fees_sats: Option<u64>,
+    /// The fee at `"normal"` priority, in satoshis.
+    pub normal_fees_sats: u64,
+    /// The fee at `"background"` priority, in satoshis.
+    pub background_fees_sats: u64,
+}
+
+impl From<SdkPayOnchainPreflightResponse> for PayOnchainPreflightResponse {
+    fn from(resp: SdkPayOnchainPreflightResponse) -> Self {
+        Self {
+            high_fees_sats: resp.high_fees.map(|a| a.sats_u64()),
+            normal_fees_sats: resp.normal_fees.sats_u64(),
+            background_fees_sats: resp.background_fees.sats_u64(),
         }
     }
 }

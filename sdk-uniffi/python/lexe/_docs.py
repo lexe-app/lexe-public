@@ -954,6 +954,30 @@ Example::
     print(f"Broadcast {payment.txid}")
 """)
 
+_set_method_doc(LexeWallet, "pay_onchain_preflight", """\
+Preflight an on-chain send: validate the address and amount and estimate the
+fee at every priority, without sending.
+
+Send via :meth:`pay_onchain` with the chosen priority.
+
+Args:
+    address: Bitcoin address to send to.
+    amount_sats: Amount to send in satoshis.
+    client_payment_id: The :class:`ClientPaymentId` the send will use, if
+        known. A preflight for an ID that was already sent is rejected.
+
+Returns:
+    A :class:`PayOnchainPreflightResponse` with the fee at each priority.
+
+Raises:
+    FfiError: If the address or amount is invalid, or fee estimation fails.
+
+Example::
+
+    resp = wallet.pay_onchain_preflight("bc1q...", 10_000)
+    print(f"Normal fee: {resp.normal_fees_sats} sats")
+""")
+
 _set_method_doc(LexeWallet, "pay_lnurl", """\
 Pay an LNURL via the ``payRequest`` flow.
 
@@ -1978,6 +2002,30 @@ Example::
     print(f"Broadcast {payment.txid}")
 """)
 
+_set_method_doc(AsyncLexeWallet, "pay_onchain_preflight", """\
+Preflight an on-chain send: validate the address and amount and estimate the
+fee at every priority, without sending.
+
+Send via :meth:`pay_onchain` with the chosen priority.
+
+Args:
+    address: Bitcoin address to send to.
+    amount_sats: Amount to send in satoshis.
+    client_payment_id: The :class:`ClientPaymentId` the send will use, if
+        known. A preflight for an ID that was already sent is rejected.
+
+Returns:
+    A :class:`PayOnchainPreflightResponse` with the fee at each priority.
+
+Raises:
+    FfiError: If the address or amount is invalid, or fee estimation fails.
+
+Example::
+
+    resp = await wallet.pay_onchain_preflight("bc1q...", 10_000)
+    print(f"Normal fee: {resp.normal_fees_sats} sats")
+""")
+
 _set_method_doc(AsyncLexeWallet, "pay_lnurl", """\
 Pay an LNURL via the ``payRequest`` flow.
 
@@ -2973,6 +3021,16 @@ Response from getting the next unused on-chain Bitcoin address.
 
 Attributes:
     address: An unused Bitcoin address from the wallet's on-chain keychain.
+"""
+
+lexe.PayOnchainPreflightResponse.__doc__ = """\
+The response to a ``pay_onchain_preflight`` request.
+
+Attributes:
+    high_fees_sats: The fee at ``"high"`` priority, in satoshis. ``None`` if
+        the wallet cannot afford it.
+    normal_fees_sats: The fee at ``"normal"`` priority, in satoshis.
+    background_fees_sats: The fee at ``"background"`` priority, in satoshis.
 """
 
 lexe.CashAppBuyResponse.__doc__ = """\
