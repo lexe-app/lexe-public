@@ -91,6 +91,7 @@ use crate::{
             UpsertGeneratedHumanBitcoinAddress,
             UpsertHumanBitcoinAddressResponse, UserSettings, VecPaymentId,
         },
+        lsp::GetExternalChannelsResponse,
         nwc::{
             CreateNwcClientRequest, CreateNwcClientResponse, DbNwcClient,
             DbNwcClientFields, GetNwcClients, ListNwcClientResponse,
@@ -1094,6 +1095,17 @@ pub trait NodeLspApi {
     ///
     /// Introduced in node-v0.6.17 and lsp-v0.6.33.
     async fn get_prob_scorer(&self) -> Result<Bytes, LspApiError>;
+
+    /// GET /node/v1/external_channels [`Empty`]
+    ///                             -> [`GetExternalChannelsResponse`]
+    ///
+    /// Returns the LSP's usable announced channels, so user nodes can avoid
+    /// routing over drained or closed LSP channels.
+    ///
+    /// Introduced in node-v0.10.8 and lsp-v0.10.10.
+    async fn get_external_channels(
+        &self,
+    ) -> Result<GetExternalChannelsResponse, LspApiError>;
 
     /// POST /node/v2/payment_path [`Bytes`] (LDK-serialized [`Event`])
     ///                         -> [`Empty`]

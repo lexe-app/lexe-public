@@ -19,6 +19,7 @@ use lexe_api::{
             UpsertGeneratedHumanBitcoinAddress,
             UpsertHumanBitcoinAddressResponse, VecPaymentId,
         },
+        lsp::GetExternalChannelsResponse,
         nwc::{
             DbNwcClient, DbNwcClientFields, GetNwcClients, NostrPkStruct,
             VecDbNwcClient,
@@ -188,6 +189,17 @@ impl NodeLspApi for NodeLspClient {
         let data = Empty {};
         let req = self.rest.get(format!("{lsp}/node/v1/prob_scorer"), &data);
         self.rest.send_no_deserialize::<LspApiError>(req).await
+    }
+
+    async fn get_external_channels(
+        &self,
+    ) -> Result<GetExternalChannelsResponse, LspApiError> {
+        let lsp = &self.lsp_url;
+        let data = Empty {};
+        let req = self
+            .rest
+            .get(format!("{lsp}/node/v1/external_channels"), &data);
+        self.rest.send(req).await
     }
 
     async fn payment_path(&self, event: &Event) -> Result<Empty, LspApiError> {
