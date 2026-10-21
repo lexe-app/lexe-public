@@ -153,7 +153,7 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     final ClaimFlowResult? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (_) =>
-            ClaimPaymentPage(claimCtx: claimCtx, startNewFlow: true),
+            ClaimPaymentPage(claimCtx: claimCtx, startNewFlow: false),
       ),
     );
     info(
