@@ -1,3 +1,4 @@
+import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AuthMethod,
@@ -164,27 +165,6 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
     return UriFlowResult_Claim(flowResult);
   }
 
-  Future<UriFlowResult?> _handleAuthMethod(AuthMethod authMethod) async {
-    final request = switch (authMethod) {
-      AuthMethod_LexeConnect(:final field0) => field0,
-    };
-    final LexeConnectFlowResult? flowResult = await Navigator.of(this.context)
-        .push(
-          MaterialPageRoute(
-            builder: (_) => LexeConnectPage(
-              app: this.widget.uriFlowCtx.app,
-              request: request,
-            ),
-          ),
-        );
-    info(
-      "NeedUriPage (auth): flowResult: $flowResult, mounted: ${this.mounted}",
-    );
-    if (!this.mounted || flowResult == null) return null;
-
-    return UriFlowResult_Auth(flowResult);
-  }
-
   Future<void> onNext() async {
     // Hide error message
     this.errorMessage.value = null;
@@ -241,7 +221,11 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
         flowResult = await this._handleClaimMethod(claimMethod);
 
       case (_, _, final authMethod?):
-        flowResult = await this._handleAuthMethod(authMethod);
+        flowResult = await pushAuthFlow(
+          this.context,
+          this.widget.uriFlowCtx.app,
+          authMethod,
+        );
 
       case _:
         this.isPending.value = false;
@@ -372,6 +356,25 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
         ),
       ),
     );
+  }
+}
+
+/// Opens the approval page for an [AuthMethod].
+Future<UriFlowResult?> pushAuthFlow(
+  BuildContext context,
+  AppHandle app,
+  AuthMethod authMethod,
+) async {
+  final navigator = Navigator.of(context);
+  switch (authMethod) {
+    case AuthMethod_LexeConnect(:final field0):
+      final LexeConnectFlowResult? flowResult = await navigator.push(
+        MaterialPageRoute(
+          builder: (_) => LexeConnectPage(app: app, request: field0),
+        ),
+      );
+      info("pushAuthFlow: LexeConnect flowResult: $flowResult");
+      return (flowResult != null) ? UriFlowResult_Auth(flowResult) : null;
   }
 }
 

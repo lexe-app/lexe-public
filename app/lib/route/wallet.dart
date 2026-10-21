@@ -10,8 +10,6 @@ import 'package:app_rs_dart/ffi/settings.dart'
     show Settings, WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
-        AuthMethod,
-        AuthMethod_LexeConnect,
         BestPaymentUriMethods,
         ClaimMethod,
         ClientPaymentId,
@@ -78,8 +76,7 @@ import 'package:lexeapp/route/clients.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/initial_deposit/page.dart'
     show InitialDepositPage;
-import 'package:lexeapp/route/lexe_connect.dart'
-    show LexeConnectFlowResult, LexeConnectPage;
+import 'package:lexeapp/route/lexe_connect.dart' show LexeConnectFlowResult;
 import 'package:lexeapp/route/node_info.dart' show NodeInfoPage;
 import 'package:lexeapp/route/open_channel.dart' show OpenChannelPage;
 import 'package:lexeapp/route/payment_detail.dart'
@@ -92,7 +89,7 @@ import 'package:lexeapp/route/security.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
 import 'package:lexeapp/route/uri/page.dart'
-    show NeedUriPage, SendOrClaimChoiceSheet, UriChoice;
+    show NeedUriPage, SendOrClaimChoiceSheet, UriChoice, pushAuthFlow;
 import 'package:lexeapp/route/uri/state.dart'
     show
         NeedUriState,
@@ -379,24 +376,6 @@ class WalletPageState extends State<WalletPage> {
     return UriFlowResult_Claim(flowResult);
   }
 
-  /// Handle an auth method; null on error or cancel
-  Future<UriFlowResult?> _handleAuthMethod(AuthMethod authMethod) async {
-    final request = switch (authMethod) {
-      AuthMethod_LexeConnect(:final field0) => field0,
-    };
-    final LexeConnectFlowResult? flowResult = await Navigator.of(this.context)
-        .push(
-          MaterialPageRoute(
-            builder: (context) =>
-                LexeConnectPage(app: this.widget.app, request: request),
-          ),
-        );
-    info("WalletPage: uriEvent: auth-flowResult: $flowResult");
-    if (!this.mounted || flowResult == null) return null;
-
-    return UriFlowResult_Auth(flowResult);
-  }
-
   /// When a user taps a payment URI (ex: "lightning:") in another app/browser,
   /// and chooses Lexe to handle it, we'll try to open a new send flow to handle
   /// it.
@@ -476,7 +455,11 @@ class WalletPageState extends State<WalletPage> {
         case (_, final claimMethod?, _):
           flowResult = await this._handleClaimMethod(uriFlowCtx, claimMethod);
         case (_, _, final authMethod?):
-          flowResult = await this._handleAuthMethod(authMethod);
+          flowResult = await pushAuthFlow(
+            this.context,
+            this.widget.app,
+            authMethod,
+          );
         case _:
           error(
             "WalletPage: unreachable: Resolve didn't return a payment, claim, "
@@ -486,7 +469,7 @@ class WalletPageState extends State<WalletPage> {
       }
 
       // Canceled or errored
-      if (flowResult == null) return;
+      if (!this.mounted || flowResult == null) return;
 
       // Refresh and open new payment detail
       await this.onUriFlowSuccess(flowResult);

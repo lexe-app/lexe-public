@@ -1,12 +1,7 @@
 // Page for scanning QR codes / barcodes
 
 import 'package:app_rs_dart/ffi/types.dart'
-    show
-        AuthMethod,
-        AuthMethod_LexeConnect,
-        BestPaymentUriMethods,
-        ClaimMethod,
-        PaymentMethod;
+    show BestPaymentUriMethods, ClaimMethod, PaymentMethod;
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show Code, FixedScannerOverlay, Format, ReaderWidget;
@@ -16,12 +11,10 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/claim/page.dart' show ClaimPaymentPage;
 import 'package:lexeapp/route/claim/state.dart'
     show ClaimFlowResult, ClaimState;
-import 'package:lexeapp/route/lexe_connect.dart'
-    show LexeConnectFlowResult, LexeConnectPage;
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
 import 'package:lexeapp/route/uri/page.dart'
-    show SendOrClaimChoiceSheet, UriChoice;
+    show SendOrClaimChoiceSheet, UriChoice, pushAuthFlow;
 import 'package:lexeapp/route/uri/state.dart';
 import 'package:lexeapp/style.dart' show LxColors, LxRadius, LxTheme, Space;
 
@@ -89,7 +82,11 @@ class _ScanPageState extends State<ScanPage> {
         flowResult = await this._handleClaimMethod(claimMethod);
 
       case (_, _, final authMethod?):
-        flowResult = await this._handleAuthMethod(authMethod);
+        flowResult = await pushAuthFlow(
+          this.context,
+          this.widget.uriFlowCtx.app,
+          authMethod,
+        );
 
       case _:
         error(
@@ -173,25 +170,6 @@ class _ScanPageState extends State<ScanPage> {
     if (!this.mounted || flowResult == null) return null;
 
     return UriFlowResult_Claim(flowResult);
-  }
-
-  Future<UriFlowResult?> _handleAuthMethod(AuthMethod authMethod) async {
-    final request = switch (authMethod) {
-      AuthMethod_LexeConnect(:final field0) => field0,
-    };
-    final LexeConnectFlowResult? flowResult = await Navigator.of(this.context)
-        .push(
-          MaterialPageRoute(
-            builder: (_) => LexeConnectPage(
-              app: this.widget.uriFlowCtx.app,
-              request: request,
-            ),
-          ),
-        );
-    info("ScanPage (auth): flowResult: $flowResult, mounted: ${this.mounted}");
-    if (!this.mounted || flowResult == null) return null;
-
-    return UriFlowResult_Auth(flowResult);
   }
 
   @override
