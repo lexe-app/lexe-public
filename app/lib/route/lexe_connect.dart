@@ -34,6 +34,7 @@ import 'package:lexeapp/components.dart'
         LxCloseButtonKind,
         LxOutlinedButton,
         ScrollableSinglePageBody,
+        WarningCard,
         showModalAsyncFlow;
 import 'package:lexeapp/date_time_ext.dart';
 import 'package:lexeapp/prelude.dart';
@@ -292,7 +293,14 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
           RequesterHeader(requester: request.requester),
           const SizedBox(height: Space.s400),
 
-          if (canApprove && this.canSpend()) const SpendWarningCard(),
+          if (canApprove && this.canSpend())
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.s200),
+              child: const WarningCard(
+                emphasis: "This app can spend your funds.",
+                detail: "Only approve connections you initiated.",
+              ),
+            ),
 
           // Access
           InfoCard(
@@ -673,54 +681,6 @@ class DestinationRow extends StatelessWidget {
         ),
       ),
     ],
-  );
-}
-
-/// Warns that the requested credentials can spend funds.
-class SpendWarningCard extends StatelessWidget {
-  const SpendWarningCard({super.key});
-
-  @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.only(bottom: Space.s200),
-    child: Card.filled(
-      color: LxColors.grey1000,
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: EdgeInsets.all(Space.s400),
-        child: Row(
-          children: [
-            Icon(
-              LxIcons.warning,
-              size: Fonts.size400,
-              color: LxColors.warningText,
-            ),
-            SizedBox(width: Space.s300),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "This app can spend your funds. ",
-                      style: TextStyle(
-                        fontVariations: [Fonts.weightSemiBold],
-                        color: LxColors.foreground,
-                      ),
-                    ),
-                    TextSpan(text: "Only approve connections you initiated."),
-                  ],
-                ),
-                style: TextStyle(
-                  fontSize: Fonts.size200,
-                  color: LxColors.fgSecondary,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
   );
 }
 

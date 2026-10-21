@@ -2471,6 +2471,54 @@ class ListIcon extends StatelessWidget {
       FilledCircle(size: Space.s650, color: this.background, child: this.icon);
 }
 
+/// A dark card with a warning icon, a bold [emphasis], and a [detail].
+class WarningCard extends StatelessWidget {
+  const WarningCard({super.key, required this.emphasis, required this.detail});
+
+  final String emphasis;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) => Card.filled(
+    color: LxColors.grey1000,
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(Space.s400),
+      child: Row(
+        children: [
+          const Icon(
+            LxIcons.warning,
+            size: Fonts.size400,
+            color: LxColors.warningText,
+          ),
+          const SizedBox(width: Space.s300),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: "${this.emphasis} ",
+                    style: const TextStyle(
+                      fontVariations: [Fonts.weightSemiBold],
+                      color: LxColors.foreground,
+                    ),
+                  ),
+                  TextSpan(text: this.detail),
+                ],
+              ),
+              style: const TextStyle(
+                fontSize: Fonts.size200,
+                color: LxColors.fgSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 /// A [Column] of [InfoRow]s, surrounded by a white rounded card. Includes
 /// optional header text above the card.
 class InfoCard extends StatelessWidget {
