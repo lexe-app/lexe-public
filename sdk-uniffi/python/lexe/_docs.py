@@ -778,6 +778,10 @@ Args:
         Max: ``604800`` (1 week).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    description_hash: Hex-encoded SHA-256 hash (64 chars) to encode as the
+        invoice's description hash, as required by e.g. LNURL-pay (LUD-06),
+        Nostr zaps (NIP-57), and x402.
+        Mutually exclusive with ``description``.
     personal_note: Optional personal note (not visible to the payer).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
     partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
@@ -1832,6 +1836,10 @@ Args:
         Max: ``604800`` (1 week).
     amount_sats: Amount in satoshis, or ``None`` for an amountless invoice.
     description: Optional description shown to the payer.
+    description_hash: Hex-encoded SHA-256 hash (64 chars) to encode as the
+        invoice's description hash, as required by e.g. LNURL-pay (LUD-06),
+        Nostr zaps (NIP-57), and x402.
+        Mutually exclusive with ``description``.
     personal_note: Optional personal note (not visible to the payer).
         If provided, it must be non-empty and <= 200 chars / 512 UTF-8 bytes.
     partner_pk: Hex-encoded user_pk of a Lexe partner setting custom fees.
@@ -2685,6 +2693,7 @@ A BOLT 11 Lightning invoice.
 Attributes:
     string: Full bech32-encoded invoice string.
     description: Invoice description, if present.
+    description_hash: Hex-encoded description hash, if present.
     created_at_ms: Creation timestamp (ms since UNIX epoch).
     expires_at_ms: Expiration timestamp (ms since UNIX epoch).
     amount_sats: Amount in satoshis, if specified.
@@ -3015,6 +3024,8 @@ Attributes:
     index: Unique payment identifier for this invoice.
     invoice: BOLT 11 invoice string.
     description: Description encoded in the invoice, if provided.
+    description_hash: Hex-encoded description hash encoded in the invoice, if
+        provided.
     amount_sats: Amount in satoshis, if specified.
     created_at_ms: Invoice creation time (ms since UNIX epoch).
     expires_at_ms: Invoice expiration time (ms since UNIX epoch).

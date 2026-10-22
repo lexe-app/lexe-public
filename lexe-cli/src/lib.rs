@@ -18,8 +18,9 @@ use lexe::{
             UserPk,
         },
         bitcoin::{
-            Amount, ChannelId, ClaimMethod, ConfirmationPriority, Invoice,
-            Offer, PaymentMethod, PaymentUriMethod, UserChannelId,
+            Amount, ChannelId, ClaimMethod, ConfirmationPriority,
+            DescriptionHash, Invoice, Offer, PaymentMethod, PaymentUriMethod,
+            UserChannelId,
         },
         command::{
             AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
@@ -1016,6 +1017,14 @@ pub struct CreateInvoiceArgs {
 
     #[arg(
         long,
+        conflicts_with = "description",
+        help = "Hex-encoded SHA-256 hash to encode as the invoice description\n\
+        hash (BOLT11 h tag). Required by LNURL-pay, Nostr zaps, and x402."
+    )]
+    description_hash: Option<DescriptionHash>,
+
+    #[arg(
+        long,
         help = "Personal note stored locally, not visible to sender.\n\
         Maximum length: 200 chars / 512 UTF-8 bytes."
     )]
@@ -1064,7 +1073,7 @@ impl CreateInvoiceArgs {
             expiration_secs: self.expiration_secs,
             amount: self.amount_sats,
             description: self.description,
-            description_hash: None,
+            description_hash: self.description_hash,
             personal_note: self.personal_note,
             partner_pk: self.partner_pk,
             partner_prop_fee: self.partner_prop_fee,

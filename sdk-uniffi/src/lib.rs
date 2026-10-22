@@ -34,7 +34,7 @@ use lexe::{
         bitcoin::{
             Amount as SdkAmount, ChannelId as SdkChannelId,
             ClaimMethod as SdkClaimMethod,
-            ConfirmationPriority as SdkConfirmationPriority,
+            ConfirmationPriority as SdkConfirmationPriority, DescriptionHash,
             Invoice as SdkInvoice, LnurlPayRequest as SdkLnurlPayRequest,
             LnurlPayRequestMetadata as SdkLnurlPayRequestMetadata,
             LnurlWithdrawRequest as SdkLnurlWithdrawRequest, Offer as SdkOffer,
@@ -985,6 +985,10 @@ impl AsyncLexeWallet {
     /// (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `description_hash` is a hex-encoded SHA-256 hash (64 chars) to encode
+    /// as the invoice's description hash, as required by e.g. LNURL-pay
+    /// (LUD-06), Nostr zaps (NIP-57), and x402.
+    /// Mutually exclusive with `description`.
     /// `personal_note` is a private note that the payer does not see.
     /// If provided, `personal_note` must be non-empty and at most 200 chars /
     /// 512 UTF-8 bytes.
@@ -1000,6 +1004,7 @@ impl AsyncLexeWallet {
         expiration_secs = None,
         amount_sats = None,
         description = None,
+        description_hash = None,
         personal_note = None,
         partner_pk = None,
         partner_prop_fee_ppm = None,
@@ -1010,6 +1015,7 @@ impl AsyncLexeWallet {
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
+        description_hash: Option<String>,
         personal_note: Option<String>,
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
@@ -1019,6 +1025,12 @@ impl AsyncLexeWallet {
             .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid amount")?;
+
+        let description_hash = description_hash
+            .as_deref()
+            .map(DescriptionHash::from_str)
+            .transpose()
+            .context("Invalid description_hash")?;
 
         let partner_pk = partner_pk
             .as_deref()
@@ -1037,7 +1049,7 @@ impl AsyncLexeWallet {
             expiration_secs,
             amount,
             description,
-            description_hash: None,
+            description_hash,
             personal_note,
             partner_pk,
             partner_prop_fee,
@@ -2164,6 +2176,10 @@ impl BlockingLexeWallet {
     /// (1 day).
     /// `amount_sats` is optional; if `None`, the invoice is amountless.
     /// `description` is shown to the payer, if provided.
+    /// `description_hash` is a hex-encoded SHA-256 hash (64 chars) to encode
+    /// as the invoice's description hash, as required by e.g. LNURL-pay
+    /// (LUD-06), Nostr zaps (NIP-57), and x402.
+    /// Mutually exclusive with `description`.
     /// `personal_note` is a private note that the payer does not see.
     /// If provided, `personal_note` must be non-empty and at most 200 chars /
     /// 512 UTF-8 bytes.
@@ -2179,6 +2195,7 @@ impl BlockingLexeWallet {
         expiration_secs = None,
         amount_sats = None,
         description = None,
+        description_hash = None,
         personal_note = None,
         partner_pk = None,
         partner_prop_fee_ppm = None,
@@ -2189,6 +2206,7 @@ impl BlockingLexeWallet {
         expiration_secs: Option<u32>,
         amount_sats: Option<u64>,
         description: Option<String>,
+        description_hash: Option<String>,
         personal_note: Option<String>,
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
@@ -2198,6 +2216,12 @@ impl BlockingLexeWallet {
             .map(SdkAmount::try_from_sats_u64)
             .transpose()
             .context("Invalid amount")?;
+
+        let description_hash = description_hash
+            .as_deref()
+            .map(DescriptionHash::from_str)
+            .transpose()
+            .context("Invalid description_hash")?;
 
         let partner_pk = partner_pk
             .as_deref()
@@ -2216,7 +2240,7 @@ impl BlockingLexeWallet {
             expiration_secs,
             amount,
             description,
-            description_hash: None,
+            description_hash,
             personal_note,
             partner_pk,
             partner_prop_fee,
@@ -3941,6 +3965,8 @@ pub struct Invoice {
     pub string: String,
     /// Invoice description, if present.
     pub description: Option<String>,
+    /// Hex-encoded description hash, if present.
+    pub description_hash: Option<String>,
     /// Creation timestamp (milliseconds since the UNIX epoch).
     pub created_at_ms: u64,
     /// Expiration timestamp (milliseconds since the UNIX epoch).
@@ -3956,6 +3982,7 @@ impl From<&SdkInvoice> for Invoice {
         Self {
             string: invoice.to_string(),
             description: invoice.description_str().map(String::from),
+            description_hash: invoice.description_hash().map(|h| h.to_string()),
             created_at_ms: invoice.saturating_created_at().to_millis(),
             expires_at_ms: invoice.saturating_expires_at().to_millis(),
             amount_sats: invoice.amount_sats(),
@@ -3973,6 +4000,8 @@ pub struct CreateInvoiceResponse {
     pub invoice: String,
     /// Description encoded in the invoice, if provided.
     pub description: Option<String>,
+    /// Hex-encoded description hash encoded in the invoice, if provided.
+    pub description_hash: Option<String>,
     /// Amount encoded in the invoice, in satoshis (if any).
     pub amount_sats: Option<u64>,
     /// Invoice creation time (milliseconds since the UNIX epoch).
@@ -3991,6 +4020,7 @@ impl From<SdkCreateInvoiceResponse> for CreateInvoiceResponse {
             index: resp.index.to_string(),
             invoice: resp.invoice.to_string(),
             description: resp.description,
+            description_hash: resp.description_hash.map(|h| h.to_string()),
             amount_sats: resp.amount.map(|a| a.sats_u64()),
             created_at_ms: resp.created_at.to_millis(),
             expires_at_ms: resp.expires_at.to_millis(),
