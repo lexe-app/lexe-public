@@ -14,7 +14,7 @@ use lexe_api::{
     revocable_clients::scopes::{self, ClientPermissions},
     types::{
         bounded_string::BoundedString,
-        invoice::Invoice,
+        invoice::{DescriptionHash, Invoice},
         lnurl::LnurlPayRequest,
         payments::{
             ClientPaymentId, PaymentCreatedIndex, PaymentHash, PaymentId,
@@ -41,7 +41,7 @@ use crate::{
         },
         payment::Payment,
     },
-    util::ed25519,
+    util::{ByteArray, ed25519},
 };
 
 /// Re-exports that are part of the SDK's public API.
@@ -278,10 +278,19 @@ pub struct CreateInvoiceRequest {
 
     /// The description to be encoded into the invoice.
     /// The payer will see this description when they scan the invoice.
-    // If `None`, the `description` field inside the invoice will be an empty
-    // string (""), as lightning _requires_ a description (or description
-    // hash) to be set.
+    ///
+    /// Only one of `description` or `description_hash` can be set.
+    //
+    // If both this and `description_hash` are `None`, the invoice's
+    // description is the empty string (""), as BOLT11 requires one of the two.
     pub description: Option<String>,
+
+    /// A SHA-256 hash to encode as the invoice's description hash (BOLT11
+    /// `h` tag). Some protocols require the invoice to commit to a payload
+    /// this way, e.g. LNURL-pay (LUD-06), Nostr zaps (NIP-57), and x402.
+    ///
+    /// Only one of `description` or `description_hash` can be set.
+    pub description_hash: Option<DescriptionHash>,
 
     /// An optional personal note for this invoice.
     ///
@@ -325,6 +334,8 @@ pub struct CreateInvoiceResponse {
     pub invoice: Invoice,
     /// The description encoded in the invoice, if one was provided.
     pub description: Option<String>,
+    /// The description hash encoded in the invoice, if one was provided.
+    pub description_hash: Option<DescriptionHash>,
     /// The amount encoded in the invoice, if there was one.
     /// Returning `None` means we created an amountless invoice.
     pub amount: Option<Amount>,
@@ -342,6 +353,7 @@ impl CreateInvoiceResponse {
     /// Build a [`CreateInvoiceResponse`] from an index and invoice.
     pub fn new(index: PaymentCreatedIndex, invoice: Invoice) -> Self {
         let description = invoice.description_str().map(|s| s.to_owned());
+        let description_hash = invoice.description_hash();
         let amount_sats = invoice.amount();
         let created_at = invoice.saturating_created_at();
         let expires_at = invoice.saturating_expires_at();
@@ -352,6 +364,7 @@ impl CreateInvoiceResponse {
             index,
             invoice,
             description,
+            description_hash,
             amount: amount_sats,
             created_at,
             expires_at,
@@ -374,8 +387,7 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
                 .unwrap_or(DEFAULT_EXPIRATION_SECS),
             amount: req.amount,
             description: req.description,
-            // TODO(maurice): Add description_hash if we really need it.
-            description_hash: None,
+            description_hash: req.description_hash.map(|h| h.to_array()),
             lud12_comment: None,
             personal_note: req
                 .personal_note

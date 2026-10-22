@@ -1064,6 +1064,7 @@ impl CreateInvoiceArgs {
             expiration_secs: self.expiration_secs,
             amount: self.amount_sats,
             description: self.description,
+            description_hash: None,
             personal_note: self.personal_note,
             partner_pk: self.partner_pk,
             partner_prop_fee: self.partner_prop_fee,

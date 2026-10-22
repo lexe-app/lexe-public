@@ -1507,6 +1507,7 @@ impl LexeWallet {
             description: Some(req.description.unwrap_or_else(|| {
                 withdraw_request.default_description.to_owned()
             })),
+            description_hash: None,
             personal_note: req.personal_note,
             partner_pk: None,
             partner_prop_fee: None,
