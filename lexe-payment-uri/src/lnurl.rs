@@ -280,7 +280,7 @@ impl LnurlClient {
         &self,
         lnurl: &Lnurl<'_>,
     ) -> anyhow::Result<LnurlPayRequest> {
-        let http_url = lnurl.http_url.as_ref();
+        let http_url = lnurl.http_url.as_str();
         debug!("Fetching LNURL-pay response from: {http_url}");
 
         /// The raw LNURL-pay response prior to parsing and validation.

@@ -71,8 +71,8 @@ pub struct Lnurl<'a> {
     ///
     /// Guaranteed to be `https://` or `http://` with `.onion`,
     /// although `.onion` LNURLs are currently rejected.
-    /// The scheme is also normalized to lowercase.
-    pub http_url: Cow<'a, str>,
+    /// Normalized by a [`Uri`] roundtrip.
+    pub http_url: String,
     /// The query parameters contained in the HTTP URL.
     ///
     /// Should NOT contain the "tag" parameter,
@@ -230,7 +230,7 @@ impl<'a> Lnurl<'a> {
 
     pub fn into_owned(self) -> Lnurl<'static> {
         Lnurl {
-            http_url: Cow::Owned(self.http_url.into_owned()),
+            http_url: self.http_url,
             params: self
                 .params
                 .into_iter()
@@ -430,7 +430,7 @@ impl<'a> Lnurl<'a> {
         uri.authority = true;
         debug_assert!(uri.is_https());
         Self::validate_http_uri(&uri)?;
-        let http_url = Cow::Owned(uri.to_string());
+        let http_url = uri.to_string();
 
         // Extract query parameters
         let mut params: HashMap<_, _> = uri
@@ -483,14 +483,9 @@ impl<'a> Lnurl<'a> {
             .map_err(|e| Error::InvalidLnurl(Cow::from(e.to_string())))?;
         let scheme = Self::validate_http_uri(&http_uri)?;
 
-        // Normalize scheme to lowercase if needed
-        let http_url = if http_uri.scheme.chars().any(|c| c.is_uppercase()) {
-            http_uri.scheme =
-                if http_uri.is_https() { "https" } else { "http" };
-            Cow::Owned(http_uri.to_string())
-        } else {
-            Cow::Borrowed(http_url)
-        };
+        // Normalize as LUD-17 URIs are.
+        http_uri.scheme = if http_uri.is_https() { "https" } else { "http" };
+        let http_url = http_uri.to_string();
 
         let mut params: HashMap<_, _> = http_uri
             .params
@@ -703,7 +698,7 @@ mod arbitrary_impl {
                         .collect();
 
                     Lnurl {
-                        http_url: Cow::Owned(http_url),
+                        http_url,
                         params: params_map,
                         scheme,
                         tag,

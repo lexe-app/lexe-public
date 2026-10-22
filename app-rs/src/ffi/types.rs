@@ -706,8 +706,7 @@ impl From<lexe_payment_uri::ClaimMethod> for ClaimMethod {
                 // This is unfortunate but we don't expose `Lnurl` type in SDK
                 let http_url = lexe_payment_uri::Lnurl::parse(&lnurl)
                     .expect("lnurl field should be lnurl-parseable")
-                    .http_url
-                    .to_string();
+                    .http_url;
 
                 Self::LnurlWithdraw {
                     http_url,
