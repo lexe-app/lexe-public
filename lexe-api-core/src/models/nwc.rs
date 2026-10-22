@@ -196,7 +196,6 @@ pub mod nip47 {
     use lexe_common::api::user::NodePk;
     #[cfg(any(test, feature = "test-utils"))]
     use lexe_common::test_utils::arbitrary;
-    use lexe_serde::hexstr_or_bytes_opt;
     #[cfg(any(test, feature = "test-utils"))]
     use proptest::strategy::Strategy;
     #[cfg(any(test, feature = "test-utils"))]
@@ -204,7 +203,10 @@ pub mod nip47 {
     use serde::{Deserialize, Serialize};
     use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-    use crate::types::{invoice::Invoice, payments::PaymentHash};
+    use crate::types::{
+        invoice::{DescriptionHash, Invoice},
+        payments::PaymentHash,
+    };
 
     /// NWC request method, e.g. `"get_info"`.
     #[derive(Clone, Debug, Eq, PartialEq, SerializeDisplay, DeserializeFromStr)]
@@ -319,12 +321,8 @@ pub mod nip47 {
         )]
         pub description: Option<String>,
         /// Invoice description hash.
-        #[serde(
-            with = "hexstr_or_bytes_opt",
-            default,
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub description_hash: Option<[u8; 32]>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub description_hash: Option<DescriptionHash>,
         /// Invoice expiry in seconds.
         #[serde(rename = "expiry", skip_serializing_if = "Option::is_none")]
         pub expiry_secs: Option<u32>,
@@ -394,12 +392,8 @@ pub mod nip47 {
             proptest(strategy = "arbitrary::any_option_string()")
         )]
         pub description: Option<String>,
-        #[serde(
-            with = "hexstr_or_bytes_opt",
-            default,
-            skip_serializing_if = "Option::is_none"
-        )]
-        pub description_hash: Option<[u8; 32]>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub description_hash: Option<DescriptionHash>,
         pub payment_hash: PaymentHash,
         #[serde(rename = "amount")]
         pub amount_msat: u64,
@@ -508,7 +502,10 @@ mod test {
     use proptest::arbitrary::any;
 
     use super::*;
-    use crate::types::{invoice::Invoice, payments::PaymentHash};
+    use crate::types::{
+        invoice::{DescriptionHash, Invoice},
+        payments::PaymentHash,
+    };
 
     #[test]
     fn db_nwc_client_fields_roundtrip() {
@@ -583,7 +580,7 @@ mod test {
         let expected = MakeInvoiceParams {
             amount_msat: 123,
             description: Some("string".to_owned()),
-            description_hash: Some([0x42; 32]),
+            description_hash: Some(DescriptionHash::from_array([0x42; 32])),
             expiry_secs: Some(213),
         };
         assert_eq!(params.unwrap(), expected);
@@ -594,7 +591,7 @@ mod test {
             transaction_type: NwcTransactionType::Incoming,
             invoice: invoice.clone(),
             description: Some("string".to_owned()),
-            description_hash: Some([0x42; 32]),
+            description_hash: Some(DescriptionHash::from_array([0x42; 32])),
             payment_hash: PaymentHash::from_array([0x69; 32]),
             amount_msat: 123,
             fees_paid_msat: 0,

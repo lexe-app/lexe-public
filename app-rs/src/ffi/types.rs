@@ -17,7 +17,7 @@ use lexe_api::{
     },
     revocable_clients::scopes::Scope as ScopeInternalRs,
     types::{
-        invoice::Invoice as InvoiceRs,
+        invoice::{DescriptionHash, Invoice as InvoiceRs},
         lnurl::{
             LnurlPayRequest as LnurlPayRequestRs,
             LnurlPayRequestMetadata as LnurlPayRequestMetadataRs,
@@ -1062,7 +1062,7 @@ impl From<LnurlPayRequestMetadataRs> for LnurlPayRequestMetadata {
             image_jpeg_base64: value.image_jpeg_base64,
             identifier: value.identifier,
             email: value.email,
-            description_hash: value.description_hash,
+            description_hash: value.description_hash.to_array(),
             raw: value.raw,
         }
     }
@@ -1089,7 +1089,9 @@ impl From<LnurlPayRequestMetadata> for LnurlPayRequestMetadataRs {
             image_jpeg_base64: value.image_jpeg_base64,
             identifier: value.identifier,
             email: value.email,
-            description_hash: value.description_hash,
+            description_hash: DescriptionHash::from_array(
+                value.description_hash,
+            ),
             raw: value.raw,
         }
     }

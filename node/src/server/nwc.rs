@@ -31,6 +31,7 @@ use lexe_api::{
     },
     types::payments::PaymentKind,
 };
+use lexe_byte_array::ByteArray;
 use lexe_common::ln::{amount::Amount, network::Network};
 use lexe_ln::command::CreateInvoiceCaller;
 use serde::Deserialize;
@@ -106,7 +107,7 @@ async fn handle_make_invoice(
         expiration_secs: expiry_secs,
         amount: Some(amount),
         description: params.description,
-        description_hash: params.description_hash,
+        description_hash: params.description_hash.map(|h| h.to_array()),
         lud12_comment: None,
         personal_note: None,
         kind: PaymentKind::Invoice,
@@ -142,7 +143,7 @@ async fn handle_make_invoice(
     Ok(MakeInvoiceResult {
         transaction_type: NwcTransactionType::Incoming,
         description: invoice.description_str().map(str::to_owned),
-        description_hash: invoice.description_hash().copied(),
+        description_hash: invoice.description_hash(),
         payment_hash: invoice.payment_hash(),
         amount_msat: amount.msat(),
         fees_paid_msat: 0,

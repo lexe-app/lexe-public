@@ -34,7 +34,7 @@ pub mod payment;
 /// Lightning and Bitcoin primitives.
 pub mod bitcoin {
     pub use lexe_api::types::{
-        invoice::Invoice,
+        invoice::{DescriptionHash, Invoice},
         lnurl::{LnurlPayRequest, LnurlPayRequestMetadata},
         offer::Offer,
         payer_proof::PayerProof,

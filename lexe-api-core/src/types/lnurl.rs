@@ -9,7 +9,9 @@ use lexe_sha256::sha256;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    invoice::Invoice, payments::PaymentPreimage, username::Username,
+    invoice::{DescriptionHash, Invoice},
+    payments::PaymentPreimage,
+    username::Username,
 };
 
 /// The validated and parsed LNURL-pay request ("payRequest").
@@ -278,7 +280,7 @@ pub struct LnurlPayRequestMetadata {
     /// LNURL-Pay via LUD-16 requires this or `text/identifier` to be set.
     pub email: Option<String>,
     /// SHA256 hash of raw metadata for invoice validation.
-    pub description_hash: [u8; 32],
+    pub description_hash: DescriptionHash,
     /// The original unparsed metadata string.
     pub raw: String,
 }
@@ -293,11 +295,13 @@ impl LnurlPayRequestMetadata {
             image_png_base64: None,
             image_jpeg_base64: None,
             identifier: None,
-            description_hash: [0; 32],
+            description_hash: DescriptionHash::from_array([0; 32]),
             raw: String::new(),
         };
         let raw = this.to_raw_string();
-        this.description_hash = sha256::digest(raw.as_bytes()).to_array();
+        this.description_hash = DescriptionHash::from_array(
+            sha256::digest(raw.as_bytes()).to_array(),
+        );
         this.raw = raw;
         this
     }
@@ -307,7 +311,9 @@ impl LnurlPayRequestMetadata {
     /// LUD-06 `metadata` field is a JSON array encoded as a string:
     /// `"[[\"text/plain\", \"lorem ipsum blah blah\"]]"`.
     pub fn from_raw_string(raw: String) -> anyhow::Result<Self> {
-        let description_hash = sha256::digest(raw.as_bytes()).to_array();
+        let description_hash = DescriptionHash::from_array(
+            sha256::digest(raw.as_bytes()).to_array(),
+        );
 
         // LUD-06: "The `metadata` json array is only allowed to contain
         // arrays. The first item of an array inside the `metadata` array is
@@ -423,7 +429,9 @@ pub mod arbitrary_impl {
                     )| {
                         let mut this = LnurlPayRequestMetadata {
                             description,
-                            description_hash: [0; 32],
+                            description_hash: DescriptionHash::from_array(
+                                [0; 32],
+                            ),
                             email,
                             identifier,
                             image_jpeg_base64,
@@ -432,8 +440,9 @@ pub mod arbitrary_impl {
                             raw: "".to_owned(),
                         };
                         let raw = this.to_raw_string();
-                        this.description_hash =
-                            sha256::digest(raw.as_bytes()).to_array();
+                        this.description_hash = DescriptionHash::from_array(
+                            sha256::digest(raw.as_bytes()).to_array(),
+                        );
                         this.raw = raw;
                         this
                     },

@@ -480,7 +480,7 @@ impl LnurlClient {
         //         "LNURL-pay: returned invoice must use description hash"
         //     )?;
         // ensure!(
-        //     description_hash == &pay_req.metadata.description_hash,
+        //     description_hash == pay_req.metadata.description_hash,
         //     "Invoice description hash mismatch"
         // );
 
@@ -733,7 +733,6 @@ mod test {
 
     use lexe_common::{env::DeployEnv, ln::amount::Amount};
     use lexe_crypto::rng::{RngExt, ThreadFastRng};
-    use lexe_hex::hex;
     use tracing::info;
 
     use super::*;
@@ -907,8 +906,7 @@ mod test {
 
         let amount = invoice.amount();
         let description_str = invoice.description_str();
-        let description_hash =
-            invoice.description_hash().map(|dh| hex::display(dh));
+        let description_hash = invoice.description_hash();
         let network = invoice.network();
         println!("Successfully received invoice: {invoice}");
         println!("Invoice amount: {amount:?}");

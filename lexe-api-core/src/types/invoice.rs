@@ -5,13 +5,19 @@ use std::{
 
 use anyhow::Context;
 use bitcoin::hashes::Hash;
+use lexe_byte_array::ByteArray;
 use lexe_common::{
     api::user::NodePk,
     ln::{amount::Amount, network::Network},
     time::{self, TimestampMs},
 };
+use lexe_serde::hexstr_or_bytes;
 use lexe_std::Apply;
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescriptionRef};
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
+use ref_cast::RefCast;
+use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::types::payments::{PaymentHash, PaymentId, PaymentSecret};
@@ -70,10 +76,10 @@ impl Invoice {
 
     /// If the invoice uses a description hash, return that. Otherwise
     /// return None.
-    pub fn description_hash(&self) -> Option<&[u8; 32]> {
+    pub fn description_hash(&self) -> Option<DescriptionHash> {
         match self.0.description() {
             Bolt11InvoiceDescriptionRef::Hash(hash) =>
-                Some(hash.0.as_byte_array()),
+                Some(DescriptionHash::from_array(*hash.0.as_byte_array())),
             _ => None,
         }
     }
@@ -191,6 +197,18 @@ impl Display for Invoice {
         Display::fmt(&self.0, f)
     }
 }
+
+/// The SHA-256 of a payment description, carried in the invoice's BOLT11 `h`
+/// tag in place of the description itself. Serialized as a 64-char hex string.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(RefCast, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct DescriptionHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+
+lexe_byte_array::impl_byte_array!(DescriptionHash, 32);
+lexe_byte_array::impl_fromstr_fromhex!(DescriptionHash, 32);
+lexe_byte_array::impl_debug_display_as_hex!(DescriptionHash);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParseError(pub lightning_invoice::ParseOrSemanticError);
@@ -452,6 +470,12 @@ lnbc1mmj7z2hd427xtea2gtw8et4p5ta7lm6xe02nemhxvg7zse98734qudr2pucwaz3ua647tl9tv8n
     #[test]
     fn invoice_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<Invoice>();
+    }
+
+    #[test]
+    fn description_hash_roundtrips() {
+        roundtrip::json_string_roundtrip_proptest::<DescriptionHash>();
+        roundtrip::fromstr_display_roundtrip_proptest::<DescriptionHash>();
     }
 
     #[test]

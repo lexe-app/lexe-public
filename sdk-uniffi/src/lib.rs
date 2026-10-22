@@ -3771,7 +3771,7 @@ impl From<SdkLnurlPayRequestMetadata> for LnurlPayRequestMetadata {
             image_jpeg_base64,
             identifier,
             email,
-            description_hash: lexe::util::hex::encode(&description_hash),
+            description_hash: description_hash.to_string(),
             raw,
         }
     }
