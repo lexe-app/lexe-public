@@ -1,0 +1,6 @@
+- Handle payment requests from `lexe:` and lexe.app/pay links
+- Handle LNURL-withdraw (lnurlw:) links
+- Android: LexeConnect can resume after installing Lexe from Google Play
+- Clearer errors when paying an invoice twice
+- Failed on-chain sends are rechecked and corrected if they later confirm
+- Bugfixes and security updates
