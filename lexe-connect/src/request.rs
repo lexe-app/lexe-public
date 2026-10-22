@@ -354,12 +354,14 @@ impl CredentialRequest {
                     ));
                 }
             }
+            // `https_host` also requires an LDH domain or IP address.
             Delivery::Post(url) if https_host(url).is_none() =>
                 return Err(RequestError::Invalid(
                     "post_url",
                     "Must be an https:// url".into(),
                 )),
-            Delivery::Mailbox(url) if https_host(url).is_none() =>
+            Delivery::Mailbox(url)
+                if !Uri::parse(url).is_ok_and(|uri| uri.is_https()) =>
                 return Err(RequestError::Invalid(
                     "mailbox_url",
                     "Must be an https:// url".into(),
@@ -684,11 +686,18 @@ mod test {
             RequestError::Invalid("post_url", "Must be an https:// url".into())
         );
         assert_eq!(
-            with(Delivery::Mailbox("https://".into()), true),
+            with(Delivery::Mailbox("http://m.com".into()), true),
             RequestError::Invalid(
                 "mailbox_url",
                 "Must be an https:// url".into()
             )
+        );
+        // `аpple.com` looks like `apple.com`, but its `а` is Cyrillic.
+        let lookalike = "аpple.com";
+        assert_ne!(lookalike, "apple.com");
+        assert_eq!(
+            with(Delivery::Post(format!("https://{lookalike}/x")), true),
+            RequestError::Invalid("post_url", "Must be an https:// url".into())
         );
 
         let mut request = base.clone();

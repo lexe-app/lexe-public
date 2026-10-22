@@ -1,11 +1,11 @@
 //! Minimal URI parsing and encoding: scheme, authority, body, and
 //! percent-encoded query params.
-//!
-//! Hosts are handled as ASCII only: there is no IDNA / punycode mapping, so
-//! `https://bücher.de/` is neither normalized to `xn--bcher-kva.de` nor
-//! rejected. Compare hosts only against ASCII values.
 
-use std::{borrow::Cow, fmt};
+use std::{
+    borrow::Cow,
+    fmt,
+    net::{Ipv4Addr, Ipv6Addr},
+};
 
 /// A URI failed to parse.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -130,8 +130,21 @@ impl<'a> Uri<'a> {
         });
     }
 
-    /// The lowercased host, e.g. `example.com` for `https://a@Example.Com:1/`.
-    /// `None` if there is no authority (`mailto:x`) or the host is empty.
+    /// The lowercased domain without any trailing dot, e.g. `example.com` for
+    /// `https://a@Example.Com.:1/`, or the IP address, e.g. `[::1]` for
+    /// `https://[0:0::1]:443/`.
+    /// `None` if the URI has:
+    /// - no authority, e.g. `mailto:x`
+    /// - an empty host
+    /// - a non-LDH character, e.g. `аpple.com` with a Cyrillic `а` (vs. its
+    ///   punycode `xn--pple-43d.com`)
+    /// - a numeric host that isn't a dotted-decimal IPv4 address, e.g.
+    ///   `2130706433`
+    /// - an IPv4-mapped IPv6 address, e.g. `[::ffff:127.0.0.1]`
+    /// - an `xn--` label that decodes to ASCII, e.g. `xn--example-`
+    ///
+    /// This way, every URI pointing to the domain name `example.com` returns
+    /// `"example.com"` or `None`, never another spelling.
     pub fn host(&self) -> Option<Cow<'_, str>> {
         if !self.authority {
             return None;
@@ -145,21 +158,65 @@ impl<'a> Uri<'a> {
         let host_port =
             authority.rsplit_once('@').map_or(authority, |(_, h)| h);
 
-        // `Example.Com:1` -> `Example.Com`
-        let host = match host_port.strip_prefix('[') {
-            // IPv6 literal, e.g. `[::1]:443`
-            Some(v6) => v6.split(']').next()?,
-            None => host_port.split(':').next()?,
-        };
+        // IPv6 literal, e.g. `[0:0::1]:443` -> `[::1]`
+        if let Some(v6) = host_port.strip_prefix('[') {
+            let (v6, port) = v6.split_once(']')?;
+            if !port.is_empty() && !port.starts_with(':') {
+                return None;
+            }
+            let ip = v6.parse::<Ipv6Addr>().ok()?;
+            // `Ipv6Addr` and `url` spell IPv4-mapped addresses differently,
+            // e.g. `::ffff:1.2.3.4` vs `::ffff:102:304`.
+            if ip.to_ipv4_mapped().is_some() {
+                return None;
+            }
+            return Some(Cow::Owned(format!("[{ip}]")));
+        }
 
-        if host.is_empty() {
+        // `Example.Com:1` -> `Example.Com`
+        let host = host_port.split(':').next()?;
+
+        // IPv4 literal, e.g. `127.0.0.1`. `Ipv4Addr` parses only four decimal
+        // octets; other forms, e.g. `0x7f.0.0.1`, are rejected below.
+        if host.parse::<Ipv4Addr>().is_ok() {
+            return Some(Cow::Borrowed(host));
+        }
+
+        // `Example.Com.` -> `Example.Com`
+        let host = host.strip_suffix('.').unwrap_or(host);
+
+        // Reject non-LDH characters.
+        // TODO(nicole): Encode Unicode domains (IDNs) with punycode.
+        let is_ldh = host
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'.');
+        if !is_ldh {
             return None;
         }
-        let lowercased = match host.bytes().any(|b| b.is_ascii_uppercase()) {
+
+        let host = match host.bytes().any(|b| b.is_ascii_uppercase()) {
             true => Cow::Owned(host.to_ascii_lowercase()),
             false => Cow::Borrowed(host),
         };
-        Some(lowercased)
+
+        // Reject A-labels that decode to ASCII, e.g. `xn--example-`, which
+        // `url` decodes to `example`. A real A-label ends with an encoded
+        // non-ASCII character, never the `-` delimiter.
+        let is_ascii_a_label =
+            |label: &str| label.starts_with("xn--") && label.ends_with('-');
+        if host.split('.').any(is_ascii_a_label) {
+            return None;
+        }
+
+        // Reject other numeric hosts, e.g. `0x7f.0.0.1`, whose last label
+        // can't be a TLD (TLDs start with a letter).
+        let last_label =
+            host.rsplit_once('.').map_or(&*host, |(_, label)| label);
+        if !last_label.starts_with(|c: char| c.is_ascii_alphabetic()) {
+            return None;
+        }
+
+        Some(host)
     }
 
     /// Whether this URI's domain ends with ".onion" (case-insensitive).
@@ -364,9 +421,35 @@ mod test {
             host("https://evil.com\\@victim.com/").as_deref(),
             Some("evil.com")
         );
-        assert_eq!(host("https://[::1]:443/").as_deref(), Some("::1"));
+        assert_eq!(host("https://site.com./").as_deref(), Some("site.com"));
+        assert_eq!(
+            host("https://xn--pple-43d.com/").as_deref(),
+            Some("xn--pple-43d.com")
+        );
+        assert_eq!(host("https://123.org/").as_deref(), Some("123.org"));
+        assert_eq!(host("https://127.0.0.1/").as_deref(), Some("127.0.0.1"));
+        assert_eq!(host("https://[0:0::1]:443/").as_deref(), Some("[::1]"));
         assert_eq!(host("https://"), None);
         assert_eq!(host("mailto:x@y"), None);
+
+        // `аpple.com` looks like `apple.com`, but its `а` is Cyrillic.
+        let lookalike = "аpple.com";
+        assert_ne!(lookalike, "apple.com");
+        for uri in [
+            format!("https://{lookalike}/").as_str(),
+            "https://%65xample.com/",
+            "https://2130706433/",
+            "https://010.0.0.1/",
+            "https://127.1/",
+            "https://[::1/",
+            "https://[::1]junk/",
+            "https://./",
+            "https://[::ffff:1.2.3.4]/",
+            "https://xn--example-.com/",
+            "https://a.XN--.com/",
+        ] {
+            assert_eq!(host(uri), None, "{uri}");
+        }
     }
 
     #[test]

@@ -274,6 +274,17 @@ mod test {
             display(Delivery::Post("https://paygate.com/x".into())),
             verified("paygate.com")
         );
+        // `аpple.com` looks like `apple.com`, but its `а` is Cyrillic.
+        let lookalike = "аpple.com";
+        assert_ne!(lookalike, "apple.com");
+        assert_eq!(
+            display(Delivery::Redirect(format!("https://{lookalike}/cb"))),
+            unverified(Some("https://"))
+        );
+        assert_eq!(
+            display(Delivery::Redirect("myprotocol://[::1]:1".into())),
+            unverified(Some("myprotocol://[::1]"))
+        );
         assert_eq!(
             display(Delivery::Redirect("myprotocol://".into())),
             unverified(Some("myprotocol://"))
