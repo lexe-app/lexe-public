@@ -72,7 +72,7 @@ impl PaymentsBus {
     /// The poll delay after a new waiter or a payment update. Doubles up to
     /// [`MAX_WAIT_MS`](Self::MAX_WAIT_MS) while nothing changes.
     const INITIAL_WAIT_MS: u64 = 250;
-    const MAX_WAIT_MS: u64 = 4_000;
+    const MAX_WAIT_MS: u64 = 1_500;
 
     /// Starts the cursor at `latest_update`. Polls only read updates after it.
     pub(crate) fn new(latest_update: Option<PaymentUpdatedIndex>) -> Self {
