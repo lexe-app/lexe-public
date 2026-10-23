@@ -2387,6 +2387,86 @@ class LoadingSpinnerModal extends StatelessWidget {
   const LoadingSpinnerModal({super.key});
 
   @override
+  Widget build(BuildContext context) => const ModalCard(
+    child: SizedBox.square(
+      dimension: Space.s700,
+      child: CircularProgressIndicator(
+        strokeWidth: 5.0,
+        color: LxColors.fgSecondary,
+      ),
+    ),
+  );
+}
+
+/// Confirms success: a checkmark draws itself above a short [label], then the
+/// modal closes itself.
+class SuccessCheckmarkModal extends StatefulWidget {
+  const SuccessCheckmarkModal({super.key, required this.label});
+
+  final String label;
+
+  @override
+  State<SuccessCheckmarkModal> createState() => _SuccessCheckmarkModalState();
+}
+
+class _SuccessCheckmarkModalState extends State<SuccessCheckmarkModal>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController checkmark;
+  late final Timer closeTimer;
+
+  @override
+  void dispose() {
+    this.closeTimer.cancel();
+    this.checkmark.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    this.checkmark = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..forward();
+    this.closeTimer = Timer(
+      const Duration(milliseconds: 1200),
+      () => Navigator.of(this.context).pop(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => ModalCard(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox.square(
+          dimension: Space.s700,
+          child: CustomPaint(
+            painter: CheckmarkPainter(progress: this.checkmark),
+          ),
+        ),
+        const SizedBox(height: Space.s400),
+        Text(
+          this.widget.label,
+          style: Fonts.fontUI.copyWith(
+            fontSize: Fonts.size300,
+            fontVariations: [Fonts.weightMedium],
+            color: LxColors.foreground,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// A small card for modals, styled by the [DialogTheme].
+class ModalCard extends StatelessWidget {
+  const ModalCard({super.key, required this.child});
+
+  final Widget child;
+
+  @override
   Widget build(BuildContext context) {
     final DialogThemeData dialogTheme = DialogTheme.of(context);
 
@@ -2404,20 +2484,59 @@ class LoadingSpinnerModal extends StatelessWidget {
         surfaceTintColor: dialogTheme.surfaceTintColor,
         textStyle: dialogTheme.contentTextStyle,
 
-        // The actual spinner
-        child: const Padding(
-          padding: EdgeInsets.all(Space.s600),
-          child: SizedBox.square(
-            dimension: Space.s700,
-            child: CircularProgressIndicator(
-              strokeWidth: 5.0,
-              color: LxColors.fgSecondary,
-            ),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(Space.s600),
+          child: this.child,
         ),
       ),
     );
   }
+}
+
+/// A checkmark that draws itself in a filled circle as [progress] goes from 0
+/// to 1.
+class CheckmarkPainter extends CustomPainter {
+  CheckmarkPainter({required this.progress}) : super(repaint: progress);
+
+  final Animation<double> progress;
+
+  static const Curve circleCurve = Interval(
+    0.0,
+    0.5,
+    curve: Curves.easeOutBack,
+  );
+  static const Curve checkCurve = Interval(0.4, 1.0, curve: Curves.easeOut);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = this.progress.value;
+    final s = size.shortestSide;
+    canvas.translate((size.width - s) / 2, (size.height - s) / 2);
+
+    // Circle
+    final circlePaint = Paint()..color = LxColors.moneyGoUp;
+    final radius = s / 2 * circleCurve.transform(t);
+    canvas.drawCircle(Offset(s / 2, s / 2), radius, circlePaint);
+
+    // Checkmark, drawn from its short stroke to its long stroke
+    final check = Path()
+      ..moveTo(0.28 * s, 0.52 * s)
+      ..lineTo(0.44 * s, 0.67 * s)
+      ..lineTo(0.72 * s, 0.37 * s);
+    final metric = check.computeMetrics().first;
+    final checkPaint = Paint()
+      ..color = LxColors.background
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.08 * s
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final length = metric.length * checkCurve.transform(t);
+    canvas.drawPath(metric.extractPath(0.0, length), checkPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CheckmarkPainter oldDelegate) =>
+      this.progress != oldDelegate.progress;
 }
 
 /// A filled circle with a widget inside.

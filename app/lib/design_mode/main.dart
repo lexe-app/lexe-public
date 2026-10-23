@@ -62,6 +62,7 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SplitAmountText,
         SubheadingText,
+        SuccessCheckmarkModal,
         showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/design_mode/mocks.dart' as mocks;
@@ -2352,6 +2353,13 @@ class ModalAsyncFlowDesignPage extends StatelessWidget {
     );
   }
 
+  Future<void> openSuccessModal(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (_) => const SuccessCheckmarkModal(label: "Success"),
+    );
+  }
+
   Future<void> showModalAsyncFlowOk(BuildContext context) async {
     final result = await showModalAsyncFlow(
       context: context,
@@ -2405,6 +2413,13 @@ class ModalAsyncFlowDesignPage extends StatelessWidget {
               LxOutlinedButton(
                 onTap: () => this.openLoadingModal(context),
                 label: const Text("Open loading spinner modal"),
+              ),
+              const SizedBox(height: Space.s400),
+
+              //
+              LxOutlinedButton(
+                onTap: () => this.openSuccessModal(context),
+                label: const Text("Open success checkmark modal"),
               ),
               const SizedBox(height: Space.s400),
 
