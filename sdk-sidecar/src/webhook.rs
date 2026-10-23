@@ -19,7 +19,7 @@
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, hash_map::Entry},
     fmt::Display,
     fs::{self, OpenOptions},
     io::Write,
@@ -31,29 +31,26 @@ use std::{
 
 use anyhow::{Context, anyhow, ensure};
 use bytes::Bytes;
+use futures::{StreamExt, stream::FuturesUnordered};
 use lexe::{
     config::WalletEnvConfig,
     types::{
         auth::{ClientCredentials, Credentials, CredentialsRef, UserPk},
-        command::{GetPaymentRequest, GetUpdatedPaymentsRequest},
         payment::Payment,
     },
     wallet::LexeWallet,
 };
-use lexe_api::types::payments::{PaymentCreatedIndex, PaymentUpdatedIndex};
+use lexe_api::types::payments::PaymentCreatedIndex;
 use lexe_common::time::TimestampMs;
 use lexe_crypto::ed25519;
-use lexe_std::{Apply, backoff};
+use lexe_std::backoff;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use quick_cache::unsync;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use standardwebhooks::Webhook as WebhookSigner;
-use tokio::{
-    sync::{Semaphore, mpsc},
-    time::MissedTickBehavior,
-};
+use tokio::sync::mpsc;
 use tracing::{error, info, info_span, warn};
 
 /// Cache of [`LexeWallet`]s, keyed by [`ClientCredentials`] `client_pk`.
@@ -65,14 +62,8 @@ pub(crate) type WalletCache =
 /// `$HOME/.lexe/sidecar/<wallet_env>/tracked_payments.json`.
 const TRACKED_PAYMENTS_FILE: &str = "tracked_payments.json";
 
-/// Polling interval for checking payment updates.
-const POLL_INTERVAL: Duration = Duration::from_secs(5);
-
 /// Channel buffer size for track requests.
 const TRACK_REQUEST_BUFFER: usize = 64;
-
-/// Maximum concurrent `get_updated_payments` API calls.
-const MAX_CONCURRENT_API_CALLS: usize = 4;
 
 /// Maximum number of webhook delivery attempts.
 const MAX_WEBHOOK_ATTEMPTS: u32 = 3;
@@ -80,7 +71,6 @@ const MAX_WEBHOOK_ATTEMPTS: u32 = 3;
 /// Request to track a payment for webhook notification.
 pub(crate) struct TrackRequest {
     pub creds_or_default: CredentialsOrDefault,
-    /// The payment's created index, used to initialize the cursor.
     pub payment_created_index: PaymentCreatedIndex,
 }
 
@@ -123,8 +113,9 @@ pub struct WebhookPayload {
 
 /// Sends webhook notifications when payments finalize.
 ///
-/// Runs as a dedicated task that receives track requests via channel and
-/// polls for payment updates using `get_updated_payments` batched tailing.
+/// Runs as a task which receives [`TrackRequest`]s and spawns a waiter task
+/// per tracked payment. Each waiter delivers the webhook once its payment
+/// finalizes.
 ///
 /// Tracked payments are persisted to disk, so tracking resumes after a restart.
 pub(crate) struct WebhookSender {
@@ -143,25 +134,28 @@ pub(crate) struct WebhookSender {
     /// cache, does.
     data_dir: PathBuf,
 
-    /// Webhook URL to send payment notifications to.
-    /// Notification format is described by [`WebhookPayload`].
-    webhook_url: Url,
-    /// Signs webhooks using the "Standard Webhooks" HMAC-SHA256 scheme, if a
-    /// secret is configured.
-    webhook_signer: Option<WebhookSigner>,
-    /// The HTTP client used for webhook delivery.
-    http_client: reqwest::Client,
+    client: Arc<WebhookClient>,
+    /// One task per tracked payment, which returns the payment once delivery
+    /// of its webhook has finished.
+    waiters: FuturesUnordered<LxTask<(WalletKey, PaymentCreatedIndex)>>,
 
     /// Receives track requests from the HTTP handlers.
     webhook_sender_rx: mpsc::Receiver<TrackRequest>,
     shutdown: NotifyOnce,
 }
 
+/// Posts [`WebhookPayload`]s to the user's webhook URL.
+struct WebhookClient {
+    http_client: reqwest::Client,
+    url: Url,
+    /// Signs webhooks using the "Standard Webhooks" HMAC-SHA256 scheme, if a
+    /// secret is configured.
+    signer: Option<WebhookSigner>,
+}
+
 /// Per-wallet state for payments being tracked. Persisted to disk.
 #[derive(Serialize, Deserialize)]
 pub(crate) struct WalletState {
-    /// Tracks the latest payment update we have received.
-    pub cursor: PaymentUpdatedIndex,
     pub tracked_payments: HashSet<PaymentCreatedIndex>,
     pub creds_or_default: CredentialsOrDefault,
 }
@@ -245,6 +239,12 @@ impl WebhookSender {
             tracked_payments_path.display()
         );
 
+        let client = Arc::new(WebhookClient {
+            http_client,
+            url,
+            signer: webhook_signer,
+        });
+
         let sender = Self {
             tracked_wallets: Self::load_wallets(&tracked_payments_path),
             tracked_payments_path,
@@ -252,10 +252,9 @@ impl WebhookSender {
             data_dir,
             default_wallet,
             wallet_env,
+            client,
+            waiters: FuturesUnordered::new(),
             webhook_sender_rx: rx,
-            webhook_url: url,
-            webhook_signer,
-            http_client,
             shutdown,
         };
 
@@ -270,12 +269,21 @@ impl WebhookSender {
         )
     }
 
-    /// Main run loop that handles track requests and polls for payment updates.
     async fn run(mut self) {
         info!("Webhook sender task started");
 
-        let mut poll_interval = tokio::time::interval(POLL_INTERVAL);
-        poll_interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        // Resume waiting on the payments tracked before the last shutdown.
+        let tracked = self
+            .tracked_wallets
+            .iter()
+            .flat_map(|(wallet_key, state)| {
+                let indexes = state.tracked_payments.iter();
+                indexes.map(move |index| (*wallet_key, *index))
+            })
+            .collect::<Vec<_>>();
+        for (wallet_key, index) in tracked {
+            self.spawn_waiter(wallet_key, index);
+        }
 
         loop {
             tokio::select! {
@@ -287,15 +295,21 @@ impl WebhookSender {
                 }
 
                 Some(req) = self.webhook_sender_rx.recv() => {
-                    self.handle_track_request(req).await;
+                    self.track_payment(
+                        req.creds_or_default,
+                        req.payment_created_index,
+                    );
                     // TODO(nicole): Consider writing incrementally
                     self.persist_state();
                 }
 
-                _ = poll_interval.tick() => {
-                    self.poll_wallets_and_send_webhooks().await;
-                    self.persist_state();
-                }
+                Some(result) = self.waiters.next() => match result {
+                    Ok((wallet_key, index)) => {
+                        self.untrack_payment(wallet_key, index);
+                        self.persist_state();
+                    }
+                    Err(e) => error!("Webhook waiter failed: {e:#}"),
+                },
             }
         }
 
@@ -303,283 +317,99 @@ impl WebhookSender {
         info!("Webhook sender task stopped");
     }
 
-    /// Handle a track request idempotently by adding the payment to
-    /// `self.tracked_wallets`. Payments which have already been finalized will
-    /// not be added, but a webhook notification will still be sent.
-    async fn handle_track_request(&mut self, req: TrackRequest) {
-        let payment_created_index = req.payment_created_index;
-        let handle_track_request_inner = async || -> anyhow::Result<()> {
-            // By the time we receive the TrackRequest, the payment might have
-            // been finalized already; call `get_payment` and check
-            let wallet = self
-                .get_wallet(&req.creds_or_default)
-                .context("Couldn't get wallet")?;
-            let get_payment_req = GetPaymentRequest {
-                index: req.payment_created_index,
-            };
-            let resp = wallet
-                .get_payment(get_payment_req)
-                .await
-                .context("Failed to make get_payment request")?;
-            if let Some(p) = resp.payment
-                && p.status.is_finalized()
-            {
-                // Send webhook
-                let user_pk = wallet.user_config().user_pk;
-                self.send_webhook(user_pk, p).await;
-                return Ok(());
-            }
-
-            Self::track_payment(
-                &mut self.tracked_wallets,
-                req.creds_or_default,
-                req.payment_created_index,
-            );
-
-            Ok(())
-        };
-
-        let result = handle_track_request_inner().await;
-        if let Err(e) = result {
-            warn!(
-                "Couldn't track payment with index \
-                 {payment_created_index}: {e:#}"
-            );
+    /// Track the payment and spawn its waiter, unless already tracked.
+    fn track_payment(
+        &mut self,
+        creds_or_default: CredentialsOrDefault,
+        index: PaymentCreatedIndex,
+    ) {
+        let wallet_key = WalletKey::from(&creds_or_default);
+        let newly_tracked = Self::insert_tracked(
+            &mut self.tracked_wallets,
+            creds_or_default,
+            index,
+        );
+        if newly_tracked {
+            self.spawn_waiter(wallet_key, index);
         }
     }
 
-    /// Add a not-yet-finalized payment to its wallet's tracking state,
-    /// creating the wallet state if this is the wallet's first tracked payment.
-    ///
-    /// An existing wallet's cursor is left as is: the payment isn't finalized
-    /// yet, so its finalizing update must come after the cursor.
-    fn track_payment(
+    /// Returns whether the payment was newly tracked.
+    fn insert_tracked(
         tracked_wallets: &mut HashMap<WalletKey, WalletState>,
         creds_or_default: CredentialsOrDefault,
-        payment_created_index: PaymentCreatedIndex,
-    ) {
-        let wallet_key = WalletKey::from(&creds_or_default);
+        index: PaymentCreatedIndex,
+    ) -> bool {
         tracked_wallets
-            .entry(wallet_key)
+            .entry(WalletKey::from(&creds_or_default))
             .or_insert_with(|| WalletState {
                 creds_or_default,
-                cursor: PaymentUpdatedIndex {
-                    id: payment_created_index.id,
-                    updated_at: payment_created_index.created_at,
-                },
                 tracked_payments: HashSet::new(),
             })
             .tracked_payments
-            .insert(payment_created_index);
+            .insert(index)
     }
 
-    /// Poll all tracked wallets for payment updates and send webhooks.
-    async fn poll_wallets_and_send_webhooks(&mut self) {
-        // Limit the number of concurrent API calls
-        let semaphore = Semaphore::new(MAX_CONCURRENT_API_CALLS);
-
-        // We make API calls to `get_updated_payments`, storing the results
-        // instead of consuming them so we can ignore failures
-        let results = self
-            .tracked_wallets
-            .iter()
-            .map(async |(wallet_key, state)| -> Result<_, (_, _)> {
-                // Get the associated wallet
-                let wallet = self
-                    .get_wallet(&state.creds_or_default)
-                    .with_context(|| {
-                        anyhow!("Couldn't fetch nor create a wallet")
-                    })
-                    .map_err(|e| (*wallet_key, e))?;
-
-                // Call `get_updated_payments`, with concurrency limit
-                let _permit = semaphore
-                    .acquire()
-                    .await
-                    .expect("Semaphore should not have been closed");
-                let req = GetUpdatedPaymentsRequest {
-                    start_index: Some(state.cursor),
-                    limit: None,
-                };
-                let resp = wallet
-                    .get_updated_payments(req)
-                    .await
-                    .with_context(|| {
-                        anyhow!("Couldn't make request to get updated payments")
-                    })
-                    .map_err(|e| (*wallet_key, e))?;
-
-                let user_pk = wallet.user_config().user_pk;
-
-                Ok((user_pk, *wallet_key, resp))
-            })
-            .apply(futures::future::join_all)
-            .await;
-
-        // Update tracking state according to updated payments and
-        // gather finalized payments
-        let mut finalized_payments = vec![];
-        for result in results {
-            match result {
-                Ok((user_pk, wallet_key, resp)) => {
-                    let state = self
-                        .tracked_wallets
-                        .get_mut(&wallet_key)
-                        .expect("Wallet key came from prior iteration");
-
-                    // Update cursor
-                    if let Some(index) = resp.updated_index
-                        && index > state.cursor
-                    {
-                        state.cursor = index;
-                    }
-
-                    // Check the updated payments
-                    for payment in resp.payments {
-                        // If the payment is one we are tracking, and is
-                        // finalized, then queue a webhook.
-                        //
-                        // Check `is_finalized` *before* removing so that
-                        // intermediate (non-finalizing) updates don't
-                        // prematurely remove the payment from tracking.
-                        //
-                        // It's safe to remove the payment from the state before
-                        // sending the webhook because the state is persisted
-                        // only after `poll_wallets_and_send_webhooks` returns.
-                        if payment.status.is_finalized()
-                            && state.tracked_payments.remove(&payment.index)
-                        {
-                            // Queue webhook
-                            finalized_payments.push((user_pk, payment));
-                        }
-                    }
-
-                    // Clean up tracking state if we're done with this wallet
-                    if state.tracked_payments.is_empty() {
-                        self.tracked_wallets.remove(&wallet_key);
-                    }
-                }
-                Err((wallet_key, e)) => {
-                    let wallet_hint = match wallet_key {
-                        WalletKey::Default(_) => "default wallet".to_string(),
-                        WalletKey::PerRequest(pk) =>
-                            format!("client credentials with public key {pk}"),
-                    };
-                    warn!(
-                        "Failed to check for payment updates \
-                         using {wallet_hint}: {e:#}"
-                    );
-                }
+    fn untrack_payment(
+        &mut self,
+        wallet_key: WalletKey,
+        index: PaymentCreatedIndex,
+    ) {
+        if let Entry::Occupied(mut entry) =
+            self.tracked_wallets.entry(wallet_key)
+        {
+            entry.get_mut().tracked_payments.remove(&index);
+            if entry.get().tracked_payments.is_empty() {
+                entry.remove();
             }
         }
-
-        // Send all webhooks in parallel
-        finalized_payments
-            .into_iter()
-            .map(|(user_pk, payment)| self.send_webhook(user_pk, payment))
-            .apply(futures::future::join_all)
-            .await;
     }
 
-    /// Send a webhook for a finalized payment with exponential backoff retry.
-    async fn send_webhook(&self, user_pk: UserPk, payment: Payment) {
-        let payment_index = payment.index;
-
-        // Use `payment.index` as the event id and `finalized_at` as the event
-        // timestamp, so that retries across sidecar restarts replay the same
-        // event. The `pf-` prefix stands for "payment finalized", which
-        // distinguishes this event from future event kinds.
-        let event_id = format!("pf-{payment_index}");
-        let finalized_at = payment
-            .finalized_at
-            .expect("Finalized payments should always have finalized_at");
-        let timestamp =
-            chrono::DateTime::from_timestamp_millis(finalized_at.to_i64())
-                .expect("TimestampMs is in chrono's representable range");
-
-        let payload = WebhookPayload {
-            r#type: "payment.finalized",
-            timestamp,
-            user_pk,
-            payment,
+    /// Untracks the payment if its wallet can't be loaded.
+    fn spawn_waiter(
+        &mut self,
+        wallet_key: WalletKey,
+        index: PaymentCreatedIndex,
+    ) {
+        let creds_or_default =
+            &self.tracked_wallets[&wallet_key].creds_or_default;
+        let wallet = match self.get_wallet(creds_or_default) {
+            Ok(wallet) => wallet,
+            Err(e) => {
+                warn!("Couldn't track payment with index {index}: {e:#}");
+                self.untrack_payment(wallet_key, index);
+                return;
+            }
         };
 
+        let client = self.client.clone();
+        let name = format!("(webhook-waiter-{index})");
+        let waiter = LxTask::spawn_unlogged(name, async move {
+            Self::wait_and_deliver(&wallet, &client, index).await;
+            (wallet_key, index)
+        });
+        self.waiters.push(waiter);
+    }
+
+    async fn wait_and_deliver(
+        wallet: &LexeWallet,
+        client: &WebhookClient,
+        index: PaymentCreatedIndex,
+    ) {
         let mut backoff = backoff::get_backoff_iter();
-
-        // Serialize once, so that the bytes sent are exactly the bytes signed.
-        let body = serde_json::to_vec(&payload)
-            .map(Bytes::from)
-            .expect("Always succeeds");
-
-        for attempt in 1..=MAX_WEBHOOK_ATTEMPTS {
-            let req = self
-                .http_client
-                .post(self.webhook_url.clone())
-                .header(reqwest::header::CONTENT_TYPE, "application/json")
-                .body(body.clone());
-
-            // Per the "Standard Webhooks" spec, re-sign each attempt with a
-            // fresh timestamp so the receiver can reject replayed requests.
-            //
-            // This per-request timestamp is distinct from the per-event
-            // timestamp which uses the payment's `finalized_at` value.
-            let req = match &self.webhook_signer {
-                Some(signer) => {
-                    let request_ts = TimestampMs::now().to_secs() as i64;
-                    let signature =
-                        match signer.sign(&event_id, request_ts, &body) {
-                            Ok(sig) => sig,
-                            Err(e) =>
-                                return warn!(
-                                    %user_pk, %payment_index,
-                                    "Failed to sign webhook payload: {e:#}"
-                                ),
-                        };
-                    req.header(standardwebhooks::HEADER_WEBHOOK_ID, &event_id)
-                        .header(
-                            standardwebhooks::HEADER_WEBHOOK_TIMESTAMP,
-                            request_ts.to_string(),
-                        )
-                        .header(
-                            standardwebhooks::HEADER_WEBHOOK_SIGNATURE,
-                            signature,
-                        )
+        let timeout = None;
+        let payment = loop {
+            match wallet.wait_for_payment(index, timeout).await {
+                Ok(payment) => break payment,
+                Err(e) => {
+                    warn!(%index, "Failed to wait for payment: {e:#}");
+                    tokio::time::sleep(backoff.next_delay()).await;
                 }
-                None => req,
-            };
-
-            let result = req.send().await;
-
-            match result {
-                Ok(resp) if resp.status().is_success() => {
-                    info!(
-                        %user_pk, %payment_index, "Webhook delivered successfully"
-                    );
-                    return;
-                }
-                Ok(resp) => warn!(
-                    %user_pk, %payment_index, attempt,
-                    status = %resp.status(),
-                    "Webhook delivery failed with non-success status"
-                ),
-
-                Err(e) => warn!(
-                    %user_pk, %payment_index, attempt,
-                    "Webhook delivery failed: {e:#}"
-                ),
             }
+        };
 
-            if attempt < MAX_WEBHOOK_ATTEMPTS {
-                let delay =
-                    backoff.next().expect("Backoff iterator is infinite");
-                tokio::time::sleep(delay).await;
-            }
-        }
-
-        error!(
-            %user_pk, %payment_index,
-            "Webhook delivery failed after {MAX_WEBHOOK_ATTEMPTS} attempts"
-        );
+        let user_pk = wallet.user_config().user_pk;
+        client.send(user_pk, payment).await;
     }
 
     fn persist_state(&self) {
@@ -686,6 +516,111 @@ impl WebhookSender {
     }
 }
 
+// --- impl WebhookClient --- //
+
+impl WebhookClient {
+    /// Send a webhook for a finalized payment with exponential backoff retry.
+    async fn send(&self, user_pk: UserPk, payment: Payment) {
+        let payment_index = payment.index;
+
+        // Use `payment.index` as the event id and `finalized_at` as the event
+        // timestamp, so that retries across sidecar restarts replay the same
+        // event. The `pf-` prefix stands for "payment finalized", which
+        // distinguishes this event from future event kinds.
+        let event_id = format!("pf-{payment_index}");
+        let finalized_at = payment
+            .finalized_at
+            .expect("Finalized payments should always have finalized_at");
+        let timestamp =
+            chrono::DateTime::from_timestamp_millis(finalized_at.to_i64())
+                .expect("TimestampMs is in chrono's representable range");
+
+        let payload = WebhookPayload {
+            r#type: "payment.finalized",
+            timestamp,
+            user_pk,
+            payment,
+        };
+
+        let mut backoff = backoff::get_backoff_iter();
+
+        // Serialize once, so that the bytes sent are exactly the bytes signed.
+        let body = serde_json::to_vec(&payload)
+            .map(Bytes::from)
+            .expect("Always succeeds");
+
+        for attempt in 1..=MAX_WEBHOOK_ATTEMPTS {
+            let req = self
+                .http_client
+                .post(self.url.clone())
+                .header(reqwest::header::CONTENT_TYPE, "application/json")
+                .body(body.clone());
+
+            // Per the "Standard Webhooks" spec, re-sign each attempt with a
+            // fresh timestamp so the receiver can reject replayed requests.
+            //
+            // This per-request timestamp is distinct from the per-event
+            // timestamp which uses the payment's `finalized_at` value.
+            let req = match &self.signer {
+                Some(signer) => {
+                    let request_ts = TimestampMs::now().to_secs() as i64;
+                    let signature =
+                        match signer.sign(&event_id, request_ts, &body) {
+                            Ok(sig) => sig,
+                            Err(e) =>
+                                return warn!(
+                                    %user_pk, %payment_index,
+                                    "Failed to sign webhook payload: {e:#}"
+                                ),
+                        };
+                    req.header(standardwebhooks::HEADER_WEBHOOK_ID, &event_id)
+                        .header(
+                            standardwebhooks::HEADER_WEBHOOK_TIMESTAMP,
+                            request_ts.to_string(),
+                        )
+                        .header(
+                            standardwebhooks::HEADER_WEBHOOK_SIGNATURE,
+                            signature,
+                        )
+                }
+                None => req,
+            };
+
+            let result = req.send().await;
+
+            match result {
+                Ok(resp) if resp.status().is_success() => {
+                    info!(
+                        %user_pk, %payment_index, "Webhook delivered successfully"
+                    );
+                    return;
+                }
+                Ok(resp) => warn!(
+                    %user_pk, %payment_index, attempt,
+                    status = %resp.status(),
+                    "Webhook delivery failed with non-success status"
+                ),
+
+                Err(e) => warn!(
+                    %user_pk, %payment_index, attempt,
+                    "Webhook delivery failed: {e:#}"
+                ),
+            }
+
+            if attempt < MAX_WEBHOOK_ATTEMPTS {
+                let delay =
+                    backoff.next().expect("Backoff iterator is infinite");
+                tokio::time::sleep(delay).await;
+            }
+        }
+
+        error!(
+            %user_pk, %payment_index,
+            "Webhook delivery failed after {MAX_WEBHOOK_ATTEMPTS} attempts"
+        );
+    }
+}
+
 #[cfg(test)]
 mod test {
     use lexe::types::payment::PaymentId;
@@ -696,7 +631,7 @@ mod test {
     /// Tracking a second open payment for an already-tracked wallet must add
     /// it to the existing state rather than dropping it.
     #[test]
-    fn track_payment_accumulates_per_wallet() {
+    fn insert_tracked_accumulates_per_wallet() {
         let user_pk = UserPk::from_array([1; 32]);
         let creds = || CredentialsOrDefault::Default(user_pk);
         let index = |secs: u32| PaymentCreatedIndex {
@@ -704,13 +639,16 @@ mod test {
             id: PaymentId::MIN,
         };
         let mut tracked_wallets = HashMap::new();
+        let mut insert = |index| {
+            WebhookSender::insert_tracked(&mut tracked_wallets, creds(), index)
+        };
 
-        WebhookSender::track_payment(&mut tracked_wallets, creds(), index(1));
-        WebhookSender::track_payment(&mut tracked_wallets, creds(), index(2));
+        assert!(insert(index(1)));
+        assert!(insert(index(2)));
+        assert!(!insert(index(2)));
 
         assert_eq!(tracked_wallets.len(), 1);
         let state = &tracked_wallets[&WalletKey::Default(user_pk)];
-        assert_eq!(state.cursor.updated_at, TimestampMs::from_secs_u32(1));
         assert_eq!(state.tracked_payments, HashSet::from([index(1), index(2)]));
     }
 }
