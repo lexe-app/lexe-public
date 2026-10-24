@@ -340,20 +340,19 @@ impl CredentialRequest {
 
         let p = &self.params;
         match &p.delivery {
-            Delivery::Redirect(uri) => {
-                if Uri::parse(uri).is_err() {
+            Delivery::Redirect(uri) => match Uri::parse(uri) {
+                Err(_) =>
                     return Err(RequestError::Invalid(
                         "redirect_uri",
                         "Not a uri".into(),
-                    ));
-                }
-                if uri.contains('#') {
+                    )),
+                Ok(uri) if uri.fragment.is_some() =>
                     return Err(RequestError::Invalid(
                         "redirect_uri",
                         "Must not contain a fragment".into(),
-                    ));
-                }
-            }
+                    )),
+                Ok(_) => (),
+            },
             // `https_host` also requires an LDH domain or IP address.
             Delivery::Post(url) if https_host(url).is_none() =>
                 return Err(RequestError::Invalid(
