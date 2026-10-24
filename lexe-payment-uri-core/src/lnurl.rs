@@ -936,6 +936,11 @@ mod test {
 
         // Invalid: lnurl:// is not in spec
         assert!(Lnurl::parse("lnurl://example.com").is_err());
+
+        // Invalid: .onion, with any case, port, or trailing dot
+        assert!(Lnurl::parse("lnurlp://x.onion/pay").is_err());
+        assert!(Lnurl::parse("lnurlp://X.Onion.:443/pay").is_err());
+        assert!(Lnurl::parse("lnurlp:x.onion/pay").is_err());
     }
 
     #[test]

@@ -219,28 +219,12 @@ impl<'a> Uri<'a> {
         Some(host)
     }
 
-    /// Whether this URI's domain ends with ".onion" (case-insensitive).
+    /// Whether this URI's [`host`](Self::host) is a `.onion` domain.
     ///
     /// Does NOT check for "http://" or "https://".
     // This is so we can use this method for e.g. "lnurlp://blargh.onion"
     pub fn ends_with_onion(&self) -> bool {
-        const ONION_SUFFIX: &str = ".onion";
-        const ONION_SUFFIX_LEN: usize = ONION_SUFFIX.len();
-
-        // Extract just the domain part (before any path)
-        let domain = self
-            .body
-            .split_once('/')
-            .map(|(domain, _path)| domain)
-            .unwrap_or(self.body.as_ref());
-
-        let suffix =
-            match domain.as_bytes().split_last_chunk::<ONION_SUFFIX_LEN>() {
-                Some((_, s)) => s,
-                _ => return false,
-            };
-
-        suffix.eq_ignore_ascii_case(ONION_SUFFIX.as_bytes())
+        self.host().is_some_and(|host| host.ends_with(".onion"))
     }
 }
 
@@ -449,6 +433,27 @@ mod test {
             "https://a.XN--.com/",
         ] {
             assert_eq!(host(uri), None, "{uri}");
+        }
+    }
+
+    #[test]
+    fn ends_with_onion() {
+        let is_onion = |s: &str| Uri::parse(s).unwrap().ends_with_onion();
+        for uri in [
+            "http://x.onion/",
+            "lnurlp://X.ONION./",
+            "http://u@x.onion:80/",
+            "http://x.onion#y",
+        ] {
+            assert!(is_onion(uri), "{uri}");
+        }
+        for uri in [
+            "http://x.onion.com/",
+            "http://evil.com#.onion",
+            "http://x.onion@evil.com/",
+            "http://onion/",
+        ] {
+            assert!(!is_onion(uri), "{uri}");
         }
     }
 
