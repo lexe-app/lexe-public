@@ -478,12 +478,6 @@ impl<'a> Lnurl<'a> {
                 Error::InvalidLnurl(Cow::from("Not a valid LNURL URI"))
             })?;
 
-        if uri.ends_with_onion() {
-            return Err(Error::InvalidLnurl(Cow::from(
-                "Tor (.onion) addresses are not supported",
-            )));
-        }
-
         // Reconstruct the HTTPS URI, validate it, and convert back to HTTP.
         // "https://example.com/path?foo=bar"
         uri.scheme = "https";
@@ -581,8 +575,8 @@ impl<'a> Lnurl<'a> {
     fn validate_http_uri(uri: &Uri) -> Result<LnurlScheme, Error> {
         // Technically, LNURL allows "http://" with .onion addresses, but until
         // a user asks us for Tor support, we will simply not support this.
-        if uri.is_http() && uri.ends_with_onion() {
-            // return Ok(LnurlScheme::HttpOnion);
+        if uri.ends_with_onion() {
+            // if uri.is_http() { return Ok(LnurlScheme::HttpOnion); }
             return Err(Error::InvalidLnurl(Cow::from(
                 ".onion LNURLs are not supported",
             )));
@@ -912,6 +906,13 @@ mod test {
         for s in invalid {
             assert!(Lnurl::parse_bech32(s).is_err());
         }
+
+        // .onion is not supported
+        for url in ["https://x.onion/pay", "http://x.onion/pay"] {
+            let s =
+                bech32::encode::<Bech32>(Lnurl::HRP, url.as_bytes()).unwrap();
+            assert!(Lnurl::parse_bech32(&s).is_err(), "{url}");
+        }
     }
 
     #[test]
@@ -989,6 +990,8 @@ mod test {
         let uri = Uri::parse("http://example.com").unwrap();
         assert!(Lnurl::validate_http_uri(&uri).is_err()); // Not HTTPS
         let uri = Uri::parse("http://something.onion/path").unwrap();
+        assert!(Lnurl::validate_http_uri(&uri).is_err()); // .onion not supported
+        let uri = Uri::parse("https://something.onion/path").unwrap();
         assert!(Lnurl::validate_http_uri(&uri).is_err()); // .onion not supported
         let uri = Uri::parse("ftp://example.com").unwrap();
         assert!(Lnurl::validate_http_uri(&uri).is_err()); // Wrong scheme
