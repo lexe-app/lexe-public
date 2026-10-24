@@ -55,7 +55,7 @@ use bech32::{Bech32, Hrp};
 use bitcoin::secp256k1;
 use lexe_common::{ln::amount::Amount, secp256k1_ctx::SECP256K1};
 use lexe_hex::hex::FromHex;
-use lexe_uri::Uri;
+use lexe_uri::{Uri, UriParam};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::Deserialize;
@@ -489,9 +489,8 @@ impl<'a> Lnurl<'a> {
         // Extract query parameters
         let mut params: HashMap<_, _> = uri
             .params()
-            .map(|param| {
-                let key = param.key_parsed().name.to_owned();
-                (Cow::Owned(key), Cow::Owned(param.value.into_owned()))
+            .map(|UriParam { key, value }| {
+                (Cow::Owned(key.into_owned()), Cow::Owned(value.into_owned()))
             })
             .collect();
 
@@ -543,9 +542,8 @@ impl<'a> Lnurl<'a> {
 
         let mut params: HashMap<_, _> = http_uri
             .params()
-            .map(|param| {
-                let key = param.key_parsed().name.to_owned();
-                (Cow::Owned(key), Cow::Owned(param.value.into_owned()))
+            .map(|UriParam { key, value }| {
+                (Cow::Owned(key.into_owned()), Cow::Owned(value.into_owned()))
             })
             .collect();
 
@@ -631,8 +629,8 @@ impl<'a> Lnurl<'a> {
         let mut base_url = path.to_owned();
         let mut sep = '?';
         for param in query.split('&') {
-            let key = param.split_once('=').map_or(param, |x| x.0);
-            if key != "k1" && key != "action" {
+            let key = UriParam::parse(param).map(|param| param.key);
+            if !matches!(key.as_deref(), Some("k1" | "action")) {
                 base_url.push(sep);
                 base_url.push_str(param);
                 sep = '&';
@@ -1053,6 +1051,18 @@ mod test {
                 "https://site.com/login?tag=login&session=x+y&flag"
             );
         }
+
+        // BIP21's `req-` prefix doesn't apply to LNURL params.
+        let lnurl =
+            format!("keyauth://site.com/login?tag=login&req-k1={k1_hex}");
+        let lnurl = Lnurl::parse(&lnurl).unwrap();
+        assert!(lnurl.params.contains_key("req-k1"));
+        assert!(lnurl.to_auth_request().is_err());
+
+        // Keys are stripped decoded, as they're read.
+        let lnurl = format!("keyauth://site.com/login?tag=login&k%31={k1_hex}");
+        let request = Lnurl::parse(&lnurl).unwrap().to_auth_request().unwrap();
+        assert_eq!(request.base_url, "https://site.com/login?tag=login");
     }
 
     /// Check that `domain()` follows LUD-05.
