@@ -282,6 +282,8 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["s
 # Generate bindings to our SDK in other languages.
 # NOTE: when upgrading, keep async-compat version in sync with uniffi_core.
 uniffi = { version = "0.30", default-features = false }
+# WHATWG URL parser, the one `reqwest` uses
+url = "2.5"
 # Mozilla's set of trusted webpki root certificates hard-coded into a const
 webpki-roots = "1"
 # Parsing x509 cert extensions

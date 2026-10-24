@@ -3217,6 +3217,7 @@ version = "0.1.27"
 dependencies = [
  "percent-encoding",
  "proptest",
+ "url",
 ]
 
 [[package]]

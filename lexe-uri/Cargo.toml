@@ -22,3 +22,4 @@ percent-encoding = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }
+url = { workspace = true }
