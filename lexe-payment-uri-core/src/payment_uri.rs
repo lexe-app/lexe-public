@@ -66,7 +66,7 @@ pub enum PaymentUri {
     /// An LNURL.
     ///
     /// ex: "lnurl1dp68g..." (LUD-01) or "lnurlp://domain.com/path" (LUD-17)
-    Lnurl(Lnurl<'static>),
+    Lnurl(Lnurl),
 
     /// A LexeConnect credential request.
     ///
@@ -148,9 +148,7 @@ impl PaymentUri {
 
             // Non-bech32 LNURL URI (LUD-17): "lnurlp://domain.com/path"
             if Lnurl::matches_lud17_uri_scheme(uri.scheme)?.is_some() {
-                return Lnurl::parse_lud17_uri(uri)
-                    .map(Lnurl::into_owned)
-                    .map(Self::Lnurl);
+                return Lnurl::parse_lud17_uri(uri).map(Self::Lnurl);
             }
 
             // LexeConnect: "https://lexe.app/connect?v=1&..."
@@ -326,7 +324,7 @@ mod arbitrary_impl {
         pub(crate) fn any_unwrapped() -> BoxedStrategy<Self> {
             // Plain https:// URLs aren't recognized as LNURLs during parsing,
             // and .onion LNURLs aren't supported, so skip them to roundtrip.
-            let any_parseable_lnurl = any::<Lnurl<'static>>().prop_filter(
+            let any_parseable_lnurl = any::<Lnurl>().prop_filter(
                 "Unparseable LNURL scheme",
                 |lnurl| {
                     !matches!(

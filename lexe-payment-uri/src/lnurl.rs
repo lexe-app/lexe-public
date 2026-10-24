@@ -199,7 +199,7 @@ impl LnurlClient {
     /// Uses the flow type indicated by the LNURL scheme or tag, if available.
     pub async fn get_lnurl_intermediate(
         &self,
-        lnurl: &Lnurl<'_>,
+        lnurl: &Lnurl,
     ) -> anyhow::Result<LnurlIntermediate> {
         use LnurlScheme::*;
 
@@ -287,7 +287,7 @@ impl LnurlClient {
     /// Doesn't verify expected LNURL flow type.
     pub async fn get_pay_request(
         &self,
-        lnurl: &Lnurl<'_>,
+        lnurl: &Lnurl,
     ) -> anyhow::Result<LnurlPayRequest> {
         let http_url = lnurl.http_url.as_str();
         debug!("Fetching LNURL-pay response from: {http_url}");
@@ -534,7 +534,7 @@ impl LnurlClient {
     /// Doesn't verify expected LNURL flow type.
     pub async fn get_withdraw_request(
         &self,
-        lnurl: &Lnurl<'_>,
+        lnurl: &Lnurl,
     ) -> anyhow::Result<LnurlWithdrawRequest> {
         match lnurl.to_fast_withdraw_request() {
             Ok(req) => Ok(req),
@@ -547,7 +547,7 @@ impl LnurlClient {
     /// Doesn't verify expected LNURL flow type.
     pub async fn fetch_withdraw_request(
         &self,
-        lnurl: &Lnurl<'_>,
+        lnurl: &Lnurl,
     ) -> anyhow::Result<LnurlWithdrawRequest> {
         let http_url: &str = &lnurl.http_url;
 
@@ -660,7 +660,7 @@ impl LnurlClient {
     /// Compare with [`resolve`](crate::resolve()).
     pub async fn resolve_lnurl(
         &self,
-        mut lnurl: Lnurl<'static>,
+        mut lnurl: Lnurl,
         lightning_address: Option<String>,
     ) -> anyhow::Result<(Vec<PaymentMethod>, Vec<ClaimMethod>)> {
         let lnurl_intermediate = self

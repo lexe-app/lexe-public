@@ -68,7 +68,7 @@ use crate::{AuthMethod, Error, PaymentUriMethods, Resolvable};
 /// A parsed LNURL.
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(Eq, PartialEq))]
-pub struct Lnurl<'a> {
+pub struct Lnurl {
     /// The decoded HTTP URL that the LNURL points to.
     ///
     /// Guaranteed to be `https://` or `http://` with `.onion`,
@@ -79,7 +79,7 @@ pub struct Lnurl<'a> {
     ///
     /// Should NOT contain the "tag" parameter,
     /// which is stored separately in `tag`.
-    pub params: HashMap<Cow<'a, str>, Cow<'a, str>>,
+    pub params: HashMap<String, String>,
     /// The original LNURL scheme encountered during parsing.
     /// Resolvers may use this to determine intent.
     /// Should agree with `tag`.
@@ -283,25 +283,10 @@ pub enum LnurlWithdrawRequestTag {
 
 // --- impl Lnurl --- //
 
-impl<'a> Lnurl<'a> {
+impl Lnurl {
     /// The Human Readable Part for bech32-encoded LNURLs.
     const HRP: Hrp = Hrp::parse_unchecked(Self::HRP_STR);
     const HRP_STR: &'static str = "lnurl";
-
-    pub fn into_owned(self) -> Lnurl<'static> {
-        Lnurl {
-            http_url: self.http_url,
-            params: self
-                .params
-                .into_iter()
-                .map(|(k, v)| {
-                    (Cow::Owned(k.into_owned()), Cow::Owned(v.into_owned()))
-                })
-                .collect(),
-            scheme: self.scheme,
-            tag: self.tag,
-        }
-    }
 
     /// Parse a LNURL from various formats.
     ///
@@ -313,13 +298,13 @@ impl<'a> Lnurl<'a> {
     ///
     /// Returns an error if the input doesn't match any LNURL format, or if
     /// the LNURL's scheme and tag are inconsistent (LUD17 only).
-    pub fn parse(s: &str) -> Result<Lnurl<'static>, Error> {
+    pub fn parse(s: &str) -> Result<Lnurl, Error> {
         let s = s.trim();
 
         if let Ok(uri) = Uri::parse(s) {
             // lnurlp://, lnurlw://, lnurlc://, keyauth://
             if Lnurl::matches_lud17_uri_scheme(uri.scheme)?.is_some() {
-                return Lnurl::parse_lud17_uri(uri).map(Lnurl::into_owned);
+                return Lnurl::parse_lud17_uri(uri);
             }
 
             // `https://service.com?lightning=lnurl1...`
@@ -445,7 +430,7 @@ impl<'a> Lnurl<'a> {
     /// Parse a LNURL from a bech32 string.
     ///
     /// Example: `lnurl1dp68...`
-    pub(crate) fn parse_bech32(s: &str) -> Result<Lnurl<'static>, Error> {
+    pub(crate) fn parse_bech32(s: &str) -> Result<Lnurl, Error> {
         let (hrp, bytes) = bech32::decode(s)
             .map_err(|e| format!("Bech32 decode error: {e}"))
             .map_err(|e| Error::InvalidLnurl(Cow::from(e)))?;
@@ -460,7 +445,7 @@ impl<'a> Lnurl<'a> {
             .map_err(|e| format!("Doesn't contain valid UTF-8: {e}"))
             .map_err(|e| Error::InvalidLnurl(Cow::from(e)))?;
 
-        Self::from_http_url(&http_url).map(|lnurl| lnurl.into_owned())
+        Self::from_http_url(&http_url)
     }
 
     /// Parse a LUD-17 LNURL URI.
@@ -470,9 +455,7 @@ impl<'a> Lnurl<'a> {
     ///
     /// Returns an error if the input doesn't match any LUD17 scheme, or if
     /// the LNURL's scheme and tag are inconsistent.
-    pub(crate) fn parse_lud17_uri(
-        mut uri: Uri<'a>,
-    ) -> Result<Lnurl<'a>, Error> {
+    pub(crate) fn parse_lud17_uri(mut uri: Uri<'_>) -> Result<Lnurl, Error> {
         let scheme =
             Self::matches_lud17_uri_scheme(uri.scheme)?.ok_or_else(|| {
                 Error::InvalidLnurl(Cow::from("Not a valid LNURL URI"))
@@ -490,7 +473,7 @@ impl<'a> Lnurl<'a> {
         let mut params: HashMap<_, _> = uri
             .params()
             .map(|UriParam { key, value }| {
-                (Cow::Owned(key.into_owned()), Cow::Owned(value.into_owned()))
+                (key.into_owned(), value.into_owned())
             })
             .collect();
 
@@ -531,7 +514,7 @@ impl<'a> Lnurl<'a> {
     /// Construct a [`Lnurl`] from a cleartext HTTP URL.
     ///
     /// Example: `https://service.com/path?foo=bar`
-    pub fn from_http_url<'b>(http_url: &'b str) -> Result<Lnurl<'b>, Error> {
+    pub fn from_http_url(http_url: &str) -> Result<Lnurl, Error> {
         let mut http_uri = Uri::parse(http_url)
             .map_err(|e| Error::InvalidLnurl(Cow::from(e.to_string())))?;
         let scheme = Self::validate_http_uri(&http_uri)?;
@@ -543,7 +526,7 @@ impl<'a> Lnurl<'a> {
         let mut params: HashMap<_, _> = http_uri
             .params()
             .map(|UriParam { key, value }| {
-                (Cow::Owned(key.into_owned()), Cow::Owned(value.into_owned()))
+                (key.into_owned(), value.into_owned())
             })
             .collect();
 
@@ -598,7 +581,7 @@ impl<'a> Lnurl<'a> {
                 }
                 (methods, None)
             }
-            _ => (methods, Some(Resolvable::Lnurl(self.into_owned()))),
+            _ => (methods, Some(Resolvable::Lnurl(self))),
         }
     }
 
@@ -702,7 +685,7 @@ impl<'a> Lnurl<'a> {
     }
 }
 
-impl<'a> fmt::Display for Lnurl<'a> {
+impl fmt::Display for Lnurl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scheme = match self.scheme {
             LnurlScheme::Https | LnurlScheme::HttpOnion => {
@@ -747,7 +730,7 @@ mod arbitrary_impl {
 
     use super::*;
 
-    impl<'a> Arbitrary for Lnurl<'a> {
+    impl Arbitrary for Lnurl {
         /// If `Some(s)`, generated LNURLs are coerced to scheme `s`.
         /// If `None`, the scheme is chosen randomly.
         type Parameters = Option<LnurlScheme>;
@@ -807,7 +790,6 @@ mod arbitrary_impl {
                     let params_map: HashMap<_, _> = params
                         .into_iter()
                         .filter(|(k, _)| k != "tag")
-                        .map(|(k, v)| (Cow::Owned(k), Cow::Owned(v)))
                         .collect();
 
                     Lnurl {
@@ -857,7 +839,7 @@ mod test {
 
     #[test]
     fn prop_lnurl_roundtrip() {
-        proptest!(|(lnurl1: Lnurl<'static>)| {
+        proptest!(|(lnurl1: Lnurl)| {
             // Https and HttpOnion schemes don't roundtrip through Display+Parse
             // since plain https:// URLs aren't recognized as LNURLs, and .onion
             // LNURLs are rejected. Use prop_bech32_roundtrip to test Https scheme
@@ -873,7 +855,7 @@ mod test {
 
     #[test]
     fn prop_bech32_roundtrip() {
-        proptest!(|(lnurl1: Lnurl<'static>)| {
+        proptest!(|(lnurl1: Lnurl)| {
             // Coerce to Https
             let mut lnurl1 = lnurl1;
             lnurl1.scheme = LnurlScheme::Https;

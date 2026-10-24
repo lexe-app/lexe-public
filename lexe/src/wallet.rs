@@ -1334,7 +1334,7 @@ impl LexeWallet {
                         ));
                     }
                     let http_url = e.lightning_address_url;
-                    Lnurl::from_http_url(&http_url)?.into_owned()
+                    Lnurl::from_http_url(&http_url)?
                 } else {
                     Lnurl::parse(&s)?
                 };

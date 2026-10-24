@@ -155,7 +155,7 @@ pub enum Resolvable {
     /// A Lightning Address or BIP353 address.
     EmailLike(EmailLikeAddress<'static>),
     /// An LNURL-pay endpoint.
-    Lnurl(Lnurl<'static>),
+    Lnurl(Lnurl),
 }
 
 // --- impl PaymentMethod --- //

@@ -39,7 +39,7 @@ use crate::{
 pub enum LightningUri {
     Invoice(Invoice),
     Offer(Offer),
-    Lnurl(Lnurl<'static>),
+    Lnurl(Lnurl),
     EmailLike(EmailLikeAddress<'static>),
 }
 
@@ -168,7 +168,7 @@ mod arbitrary_impl {
             // `parse_bech32` only ever yields `LnurlScheme::Https`. Force
             // generation to match so the proptest roundtrips cleanly.
             let scheme_override = Some(LnurlScheme::Https);
-            let any_https_lnurl = any_with::<Lnurl<'static>>(scheme_override);
+            let any_https_lnurl = any_with::<Lnurl>(scheme_override);
 
             prop_oneof![
                 any::<Invoice>().prop_map(Self::Invoice),
