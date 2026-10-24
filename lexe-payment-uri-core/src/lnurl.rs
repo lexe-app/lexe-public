@@ -461,35 +461,14 @@ impl Lnurl {
                 Error::InvalidLnurl(Cow::from("Not a valid LNURL URI"))
             })?;
 
-        // Reconstruct the HTTPS URI, validate it, and convert back to HTTP.
-        // "https://example.com/path?foo=bar"
+        // "lnurlp://example.com/path" -> "https://example.com/path"
         uri.scheme = "https";
         uri.authority = true;
-        debug_assert!(uri.is_https());
-        Self::validate_http_uri(&uri)?;
-        let http_url = uri.to_string();
-
-        // Extract query parameters
-        let mut params: HashMap<_, _> = uri
-            .params()
-            .map(|UriParam { key, value }| {
-                (key.into_owned(), value.into_owned())
-            })
-            .collect();
-
-        // Extract the tag query parameter if present (LUD-01)
-        let tag = params
-            .remove("tag")
-            .map(|t| LnurlTag::from_str(&t))
-            .transpose()
-            .map_err(|e| {
-                Error::InvalidLnurl(Cow::from(format!(
-                    "Unrecognized LNURL tag: {e}"
-                )))
-            })?;
+        let mut lnurl = Self::from_http_url(&uri.to_string())?;
+        lnurl.scheme = scheme;
 
         // Ensure scheme and tag are consistent
-        if let Some(tag) = tag {
+        if let Some(tag) = lnurl.tag {
             match (scheme, tag) {
                 (LnurlScheme::Pay, LnurlTag::PayRequest)
                 | (LnurlScheme::Withdraw, LnurlTag::WithdrawRequest)
@@ -503,12 +482,7 @@ impl Lnurl {
             }
         }
 
-        Ok(Self {
-            http_url,
-            params,
-            scheme,
-            tag,
-        })
+        Ok(lnurl)
     }
 
     /// Construct a [`Lnurl`] from a cleartext HTTP URL.
@@ -519,7 +493,7 @@ impl Lnurl {
             .map_err(|e| Error::InvalidLnurl(Cow::from(e.to_string())))?;
         let scheme = Self::validate_http_uri(&http_uri)?;
 
-        // Lowercase the scheme, as LUD-17 URIs are.
+        // `Display` expects a lowercase scheme.
         http_uri.scheme = if http_uri.is_https() { "https" } else { "http" };
         let http_url = http_uri.to_string();
 
