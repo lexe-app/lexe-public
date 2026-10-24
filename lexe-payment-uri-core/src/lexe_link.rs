@@ -60,8 +60,7 @@ impl LexePayUrl {
 
         let uri = Uri::parse(s).map_err(Error::InvalidUri)?;
         let payment_code = uri
-            .params
-            .into_iter()
+            .params()
             .find(|param| param.key == "to")
             .map_or(Cow::Borrowed(""), |param| param.value);
         helpers::parse_lexe_wrapped(&payment_code)

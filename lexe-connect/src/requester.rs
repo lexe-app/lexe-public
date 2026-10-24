@@ -107,8 +107,7 @@ impl PendingRequest {
         let encoded = Uri::parse(url)
             .ok()
             .and_then(|uri| {
-                uri.params
-                    .into_iter()
+                uri.params()
                     .find(|param| param.key == "response")
                     .map(|param| param.value.into_owned())
             })

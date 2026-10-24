@@ -73,7 +73,7 @@ pub struct Lnurl<'a> {
     ///
     /// Guaranteed to be `https://` or `http://` with `.onion`,
     /// although `.onion` LNURLs are currently rejected.
-    /// Normalized by a [`Uri`] roundtrip.
+    /// Verbatim apart from the scheme.
     pub http_url: String,
     /// The query parameters contained in the HTTP URL.
     ///
@@ -405,19 +405,19 @@ impl<'a> Lnurl<'a> {
     /// bech32-encoded LNURL. Returns the bech32 string if found.
     ///
     /// Example: `https://service.com/pay?lightning=lnurl1getrekt...`
-    pub(crate) fn matches_http_with_bech32_param<'param>(
-        uri: &Uri<'param>,
-    ) -> Option<Cow<'param, str>> {
+    pub(crate) fn matches_http_with_bech32_param<'uri>(
+        uri: &'uri Uri<'_>,
+    ) -> Option<Cow<'uri, str>> {
         if !uri.is_http() && !uri.is_https() {
             return None;
         }
 
         // Check for `lightning=` param with bech32 value with "lnurl" HRP
-        uri.params.iter().find_map(|param| {
+        uri.params().find_map(|param| {
             if param.key_parsed().is("lightning")
                 && Self::matches_bech32_hrp_prefix(&param.value)
             {
-                Some(param.value.clone())
+                Some(param.value)
             } else {
                 None
             }
@@ -484,17 +484,14 @@ impl<'a> Lnurl<'a> {
         uri.authority = true;
         debug_assert!(uri.is_https());
         Self::validate_http_uri(&uri)?;
-        // TODO(nicole): LUD-04 requires sending the original query params
-        // back, but `Uri`'s roundtrip drops valueless and non-UTF-8 params and
-        // re-encodes a bare `+` as `%2B`, which servers decode differently.
         let http_url = uri.to_string();
 
         // Extract query parameters
         let mut params: HashMap<_, _> = uri
-            .params
-            .into_iter()
+            .params()
             .map(|param| {
-                (Cow::Owned(param.key_parsed().name.to_string()), param.value)
+                let key = param.key_parsed().name.to_owned();
+                (Cow::Owned(key), Cow::Owned(param.value.into_owned()))
             })
             .collect();
 
@@ -540,15 +537,15 @@ impl<'a> Lnurl<'a> {
             .map_err(|e| Error::InvalidLnurl(Cow::from(e.to_string())))?;
         let scheme = Self::validate_http_uri(&http_uri)?;
 
-        // Normalize as LUD-17 URIs are.
+        // Lowercase the scheme, as LUD-17 URIs are.
         http_uri.scheme = if http_uri.is_https() { "https" } else { "http" };
         let http_url = http_uri.to_string();
 
         let mut params: HashMap<_, _> = http_uri
-            .params
-            .into_iter()
+            .params()
             .map(|param| {
-                (Cow::Owned(param.key_parsed().name.to_string()), param.value)
+                let key = param.key_parsed().name.to_owned();
+                (Cow::Owned(key), Cow::Owned(param.value.into_owned()))
             })
             .collect();
 
@@ -1040,7 +1037,8 @@ mod test {
     fn test_to_auth_request_strips_only_k1_and_action() {
         let k1_hex = "ab".repeat(32);
 
-        let query = format!("tag=login&k1={k1_hex}&action=login&session=xyz");
+        let query =
+            format!("tag=login&k1={k1_hex}&action=login&session=x+y&flag");
         let lud17 = format!("keyauth://site.com/login?{query}");
         let bech32 =
             Lnurl::from_http_url(&format!("https://site.com/login?{query}"))
@@ -1052,7 +1050,7 @@ mod test {
                 Lnurl::parse(&lnurl).unwrap().to_auth_request().unwrap();
             assert_eq!(
                 request.base_url,
-                "https://site.com/login?tag=login&session=xyz"
+                "https://site.com/login?tag=login&session=x+y&flag"
             );
         }
     }

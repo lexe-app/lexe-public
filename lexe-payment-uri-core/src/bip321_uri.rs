@@ -10,7 +10,7 @@ use std::{borrow::Cow, fmt, str::FromStr};
 use bitcoin::address::NetworkUnchecked;
 use lexe_api_core::types::{invoice::Invoice, offer::Offer};
 use lexe_common::ln::{amount::Amount, network::Network};
-use lexe_uri::{Uri, UriParam};
+use lexe_uri::Uri;
 use rust_decimal::Decimal;
 
 use crate::{
@@ -130,7 +130,7 @@ impl Bip321Uri {
         }
 
         // Parse URI parameters
-        for param in uri.params {
+        for param in uri.params() {
             use bitcoin::Network;
 
             let key = param.key_parsed();
@@ -213,7 +213,8 @@ impl Bip321Uri {
             scheme: Self::URI_SCHEME,
             body: Cow::Borrowed(""),
             authority: false,
-            params: Vec::new(),
+            query: None,
+            fragment: None,
         };
 
         // Lightning-first: Put an HBA / Lightning Address in the URI body if we
@@ -264,52 +265,34 @@ impl Bip321Uri {
                 continue;
             };
 
-            out.params.push(UriParam {
-                key: Cow::Borrowed(hrp),
-                value: Cow::Owned(address.assume_checked_ref().to_string()),
-            });
+            out.push_param(hrp, address.assume_checked_ref().to_string());
         }
 
         // BIP21 onchain amount
         if let Some(amount) = &self.amount {
-            out.params.push(UriParam {
-                key: Cow::Borrowed("amount"),
-                // We need to round to satoshi-precision for this to be a
-                // valid on-chain amount.
-                value: Cow::Owned(amount.round_sat().btc().to_string()),
-            });
+            // We need to round to satoshi-precision for this to be a
+            // valid on-chain amount.
+            out.push_param("amount", amount.round_sat().btc().to_string());
         }
 
         // BIP21 onchain label
         if let Some(label) = &self.label {
-            out.params.push(UriParam {
-                key: Cow::Borrowed("label"),
-                value: Cow::Borrowed(label),
-            });
+            out.push_param("label", label);
         }
 
         // BIP21 onchain message
         if let Some(message) = &self.message {
-            out.params.push(UriParam {
-                key: Cow::Borrowed("message"),
-                value: Cow::Borrowed(message),
-            });
+            out.push_param("message", message);
         }
 
         // BOLT11 invoice param
         if let Some(invoice) = &self.invoice {
-            out.params.push(UriParam {
-                key: Cow::Borrowed("lightning"),
-                value: Cow::Owned(invoice.to_string()),
-            });
+            out.push_param("lightning", invoice.to_string());
         }
 
         // BOLT12 offer param
         if let Some(offer) = &self.offer {
-            out.params.push(UriParam {
-                key: Cow::Borrowed("lno"),
-                value: Cow::Owned(offer.to_string()),
-            });
+            out.push_param("lno", offer.to_string());
         }
 
         out
@@ -489,7 +472,6 @@ mod test {
     use lexe_common::{
         ln::amount::Amount, test_utils::arbitrary::any_mainnet_addr_unchecked,
     };
-    use lexe_uri::UriParam;
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
@@ -506,6 +488,18 @@ mod test {
             Bip321Uri::parse("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
             Ok(Bip321Uri {
                 onchain: vec![address.clone()],
+                ..Bip321Uri::default()
+            }),
+        );
+
+        // `#` starts a fragment (RFC 3986), even unencoded in a param value
+        assert_eq!(
+            Bip321Uri::parse(
+                "bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU?message=a#b&amount=1"
+            ),
+            Ok(Bip321Uri {
+                onchain: vec![address.clone()],
+                message: Some("a".to_owned()),
                 ..Bip321Uri::default()
             }),
         );
@@ -677,9 +671,11 @@ mod test {
     fn test_bip321_uri_prop_lightning_offer_param() {
         proptest!(|(uri: Bip321Uri, offer: Offer)| {
             let mut uri_raw = uri.to_uri();
-            let offer_str = Cow::Owned(offer.to_string());
-            let param = UriParam { key: "lightning".into(), value: offer_str };
-            uri_raw.params.insert(0, param);
+            let query = match &uri_raw.query {
+                Some(query) => format!("lightning={offer}&{query}"),
+                None => format!("lightning={offer}"),
+            };
+            uri_raw.query = Some(Cow::Owned(query));
 
             let actual = Bip321Uri::parse_uri(uri_raw);
             let mut expected = uri;

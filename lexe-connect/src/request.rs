@@ -185,7 +185,7 @@ impl CredentialRequest {
 
         // Later duplicates override earlier ones; unrecognized keys are
         // dropped.
-        for param in uri.params {
+        for param in uri.params() {
             let value = param.value;
             match param.key.as_ref() {
                 "v" => v = Some(value.into_owned()),

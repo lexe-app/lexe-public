@@ -1,9 +1,9 @@
-//! Minimal URI parsing and encoding: scheme, authority, body, and
-//! percent-encoded query params.
+//! Minimal URI parsing and encoding: scheme, authority, body, query, and
+//! fragment, with percent-encoded query params.
 
 use std::{
     borrow::Cow,
-    fmt,
+    fmt::{self, Write},
     net::{Ipv4Addr, Ipv6Addr},
 };
 
@@ -18,15 +18,17 @@ impl fmt::Display for ParseError {
     }
 }
 
-/// A raw, parsed URI. The params (both key and value) are percent-encoded. See
+/// A raw, parsed URI. Each component is stored verbatim, so displaying a
+/// parsed URI reproduces its input exactly. See
 /// [URI syntax - RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
 ///
-/// ex: `http://example.com/path?foo=bar%20baz`
+/// ex: `http://example.com/path?foo=bar%20baz#top`
 /// -> Uri {
 ///     scheme: "http",
 ///     authority: true,
 ///     body: "example.com/path",
-///     params: [("foo", "bar baz")],
+///     query: Some("foo=bar%20baz"),
+///     fragment: Some("top"),
 /// }
 #[derive(Debug, Eq, PartialEq)]
 pub struct Uri<'a> {
@@ -36,7 +38,10 @@ pub struct Uri<'a> {
     pub authority: bool,
     /// "example.com/path"
     pub body: Cow<'a, str>,
-    pub params: Vec<UriParam<'a>>,
+    /// "foo=bar%20baz", still percent-encoded. Read with [`Uri::params`].
+    pub query: Option<Cow<'a, str>>,
+    /// "top"
+    pub fragment: Option<&'a str>,
 }
 
 impl<'a> Uri<'a> {
@@ -55,7 +60,7 @@ impl<'a> Uri<'a> {
             .remove(b'_')
             .remove(b'~');
 
-    // syntax: "{scheme}:[//]{body}?{key1}={value1}&{key2}={value2}&..."
+    // syntax: "{scheme}:[//]{body}[?{query}][#{fragment}]"
     pub fn parse(s: &'a str) -> Result<Self, ParseError> {
         /// Maximum length of a URI in bytes.
         const MAX_URI_LEN: usize = 8192;
@@ -80,10 +85,19 @@ impl<'a> Uri<'a> {
             )));
         }
 
+        // ex: "http://example.com/#a?b" -> `fragment = Some("a?b")`
+        let (rest, fragment) = match rest.split_once('#') {
+            Some((rest, fragment)) => (rest, Some(fragment)),
+            None => (rest, None),
+        };
+
         // ex: "bitcoin:bc1qfj...?message=hello" -> `body = "bc1qfj..."`
         // ex: "http://example.com?foo=bar" -> `body = "example.com"`
         // ex: "http://example.com/foo/bar" -> `body = "example.com/foo/bar"`
-        let (body, rest) = rest.split_once('?').unwrap_or((rest, ""));
+        let (body, query) = match rest.split_once('?') {
+            Some((body, query)) => (body, Some(Cow::Borrowed(query))),
+            None => (rest, None),
+        };
 
         // Check if the URI has an authority (starts with "//")
         let (authority, body) = if let Some(stripped) = body.strip_prefix("//")
@@ -93,19 +107,25 @@ impl<'a> Uri<'a> {
             (false, body)
         };
 
-        // ex: "bitcoin:bc1qfj...?message=hello%20world&amount=0.1"
-        //     -> `params = [("message", "hello world"), ("amount", "0.1")]`
-        let params = rest
-            .split('&')
-            .filter_map(UriParam::parse)
-            .collect::<Vec<_>>();
-
         Ok(Self {
             scheme,
-            body: Cow::Borrowed(body),
             authority,
-            params,
+            body: Cow::Borrowed(body),
+            query,
+            fragment,
         })
+    }
+
+    /// The percent-decoded `key=value` query params, skipping any without a
+    /// `=` or that aren't UTF-8 after decoding.
+    ///
+    /// ex: "bitcoin:bc1qfj...?message=hello%20world&amount=0.1"
+    ///     -> `[("message", "hello world"), ("amount", "0.1")]`
+    pub fn params(&self) -> impl Iterator<Item = UriParam<'_>> {
+        self.query
+            .iter()
+            .flat_map(|query| query.split('&'))
+            .filter_map(UriParam::parse)
     }
 
     /// Whether this URI starts with "https://" (case-insensitive).
@@ -118,16 +138,17 @@ impl<'a> Uri<'a> {
         self.scheme.eq_ignore_ascii_case("http") && self.authority
     }
 
-    /// Append a query param; it is percent-encoded on display.
-    pub fn push_param(
-        &mut self,
-        key: impl Into<Cow<'a, str>>,
-        value: impl Into<Cow<'a, str>>,
-    ) {
-        self.params.push(UriParam {
-            key: key.into(),
-            value: value.into(),
-        });
+    /// Percent-encode and append a `key=value` query param.
+    pub fn push_param(&mut self, key: &str, value: impl AsRef<str>) {
+        let query = self.query.get_or_insert_default().to_mut();
+        if !query.is_empty() {
+            query.push('&');
+        }
+        let param = UriParam {
+            key: Cow::Borrowed(key),
+            value: Cow::Borrowed(value.as_ref()),
+        };
+        write!(query, "{param}").expect("Writing to a String can't fail");
     }
 
     /// The lowercased domain without any trailing dot, e.g. `example.com` for
@@ -154,7 +175,7 @@ impl<'a> Uri<'a> {
         // Browsers and the `url` crate treat `\` like `/` in `https://` urls,
         // so it ends the authority too, else `https://evil.com\@victim.com/`
         // would report `victim.com` while requests go to `evil.com`.
-        let authority = self.body.split(['/', '\\', '#']).next()?;
+        let authority = self.body.split(['/', '\\']).next()?;
         let host_port =
             authority.rsplit_once('@').map_or(authority, |(_, h)| h);
 
@@ -228,25 +249,24 @@ impl<'a> Uri<'a> {
     }
 }
 
-// "{scheme}:[//]{body}?{key1}={value1}&{key2}={value2}&..."
+// "{scheme}:[//]{body}[?{query}][#{fragment}]"
 impl fmt::Display for Uri<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let scheme = self.scheme;
         let scheme_sep = if self.authority { "://" } else { ":" };
         let body = &self.body;
         write!(f, "{scheme}{scheme_sep}{body}")?;
-
-        let mut param_sep: char = '?';
-        for param in &self.params {
-            write!(f, "{param_sep}{param}")?;
-            param_sep = '&';
+        if let Some(query) = &self.query {
+            write!(f, "?{query}")?;
         }
-
+        if let Some(fragment) = self.fragment {
+            write!(f, "#{fragment}")?;
+        }
         Ok(())
     }
 }
 
-/// A single `<key>=<value>` URI parameter.
+/// A single decoded `<key>=<value>` URI parameter.
 ///
 /// + Both `key` and `value` are percent-encoded when displayed.
 #[derive(Debug, Eq, PartialEq)]
@@ -326,6 +346,7 @@ mod arbitrary_impl {
     use proptest::{
         arbitrary::{Arbitrary, any},
         collection::vec,
+        option,
         sample::select,
         strategy::{BoxedStrategy, Strategy},
     };
@@ -348,26 +369,31 @@ mod arbitrary_impl {
             ]);
             let any_string =
                 || vec(any::<char>(), 0..16).prop_map(String::from_iter);
-            // `?` would start the params, and a leading `//` would be read as
-            // an authority marker.
+            // `?` would start the query, `#` the fragment, and a leading `//`
+            // would be read as an authority marker.
             let any_body = any_string().prop_filter(
-                "body must not contain `?` or start with `//`",
-                |body| !body.contains('?') && !body.starts_with("//"),
+                "body must not contain `?` or `#` or start with `//`",
+                |body| !body.contains(['?', '#']) && !body.starts_with("//"),
             );
-            let any_param =
-                (any_string(), any_string()).prop_map(|(key, value)| {
-                    UriParam {
-                        key: Cow::Owned(key),
-                        value: Cow::Owned(value),
-                    }
+            let any_fragment = select(&["", "top", "a?b", "#", "%20", "é"]);
+            let any_query = any_string()
+                .prop_filter("query must not contain `#`", |query| {
+                    !query.contains('#')
                 });
 
-            (any_scheme, any::<bool>(), any_body, vec(any_param, 0..4))
-                .prop_map(|(scheme, authority, body, params)| Uri {
+            (
+                any_scheme,
+                any::<bool>(),
+                any_body,
+                option::of(any_query),
+                option::of(any_fragment),
+            )
+                .prop_map(|(scheme, authority, body, query, fragment)| Uri {
                     scheme,
                     authority,
                     body: Cow::Owned(body),
-                    params,
+                    query: query.map(Cow::Owned),
+                    fragment,
                 })
                 .boxed()
         }
@@ -400,22 +426,50 @@ mod test {
         });
     }
 
+    // roundtrip: String -> Uri -> String
     #[test]
-    fn param_round_trip() {
-        let uri =
-            Uri::parse("https://a/cb?e=x%20y%2Bz%26%3D%25&b=&c=1+2").unwrap();
+    fn str_prop_roundtrip() {
+        proptest!(|(uri_str in "[a-cA-F0-9:/?#&=%+ é]{0,24}")| {
+            if let Ok(uri) = Uri::parse(&uri_str) {
+                prop_assert_eq!(uri.to_string(), uri_str);
+            }
+        });
+    }
+
+    // roundtrip: push_param -> params
+    #[test]
+    fn param_prop_roundtrip() {
+        proptest!(|(mut uri: Uri<'static>, key: String, value: String)| {
+            uri.push_param(&key, &value);
+            let param = uri.params().last().unwrap();
+            prop_assert_eq!(&param.key, &key);
+            prop_assert_eq!(&param.value, &value);
+        });
+    }
+
+    #[test]
+    fn params() {
+        let uri_str = "https://a/cb?e=x%20y%2Bz%26%3D%25&b=&c=1+2&bare&%ff=1#f";
+        let uri = Uri::parse(uri_str).unwrap();
         let values = uri
-            .params
-            .iter()
-            .map(|p| p.value.as_ref())
+            .params()
+            .map(|p| p.value.into_owned())
             .collect::<Vec<_>>();
-        // `+` stays literal; a bare key is dropped.
+        // `+` stays literal; bare keys and non-UTF-8 params are skipped.
         assert_eq!(values, ["x y+z&=%", "", "1+2"]);
+        assert_eq!(uri.to_string(), uri_str);
+
+        let push_param = |uri_str: &str| {
+            let mut uri = Uri::parse(uri_str).unwrap();
+            uri.push_param("k", "a b");
+            uri.to_string()
+        };
+        assert_eq!(push_param("https://a/cb#f"), "https://a/cb?k=a%20b#f");
+        assert_eq!(push_param("https://a/cb?"), "https://a/cb?k=a%20b");
         assert_eq!(
-            uri.to_string(),
-            "https://a/cb?e=x%20y%2Bz%26%3D%25&b=&c=1%2B2"
+            push_param("https://a/cb?x=1+2&bare#f"),
+            "https://a/cb?x=1+2&bare&k=a%20b#f"
         );
-        assert!(Uri::parse("https://a/cb?bare").unwrap().params.is_empty());
     }
 
     #[test]
