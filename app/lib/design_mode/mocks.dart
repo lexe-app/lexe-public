@@ -2138,17 +2138,17 @@ final LnurlWithdrawRequest defaultLnurlWithdrawRequest = LnurlWithdrawRequest(
 );
 
 final LnurlAuthRequest defaultLnurlAuthRequest = LnurlAuthRequest(
-  baseUrl: "https://accounts.example.com/lnurl-auth?tag=login",
+  url:
+      "https://accounts.example.com/lnurl-auth?tag=login&k1=${'00' * 32}&action=login",
   domain: "accounts.example.com",
-  k1: U8Array32(Uint8List(32)),
   action: LnurlAuthAction.login,
 );
 
 /// Imitates `wallet.legit-money.site` with `vv`, `1`, `rn`, and `0`.
 final LnurlAuthRequest lookalikeLnurlAuthRequest = LnurlAuthRequest(
-  baseUrl: "https://vvallet.1egit-rn0ney.site/lnurl-auth?tag=login",
+  url:
+      "https://vvallet.1egit-rn0ney.site/lnurl-auth?tag=login&k1=${'00' * 32}&action=login",
   domain: "vvallet.1egit-rn0ney.site",
-  k1: U8Array32(Uint8List(32)),
   action: LnurlAuthAction.login,
 );
 

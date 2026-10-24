@@ -128,7 +128,6 @@ use lexe_api_core::types::{
 use lexe_common::{
     constants, env::DeployEnv, ln::amount::Amount, root_seed::RootSeed,
 };
-use lexe_hex::hex;
 use lexe_payment_uri_core::{
     ClaimMethod, Lnurl, LnurlAuthRequest, LnurlScheme, LnurlTag,
     LnurlWithdrawRequest, LnurlWithdrawRequestWire, PaymentMethod,
@@ -598,7 +597,7 @@ impl LnurlClient {
     }
 
     /// Completes an LNURL-auth request (LUD-04) by sending a GET request to
-    /// the callback URL with `k1` signed by the domain's linking key (LUD-05).
+    /// its URL with `k1` signed by the domain's linking key (LUD-05).
     ///
     /// The caller must first obtain the user's approval.
     pub async fn resolve_auth_request(
@@ -610,14 +609,10 @@ impl LnurlClient {
         let linking_key_pair = root_seed.derive_lnurl_auth_key_pair(&domain);
         let sig = auth_req.sign(&linking_key_pair);
         let key = linking_key_pair.public_key();
-        let mut request = self.0.get(&auth_req.base_url).query(&[
-            ("k1", hex::encode(&auth_req.k1)),
-            ("sig", sig.to_string()),
-            ("key", key.to_string()),
-        ]);
-        if let Some(action) = auth_req.action {
-            request = request.query(&[("action", action.to_string())]);
-        }
+        let request = self
+            .0
+            .get(&auth_req.url)
+            .query(&[("sig", sig.to_string()), ("key", key.to_string())]);
 
         self.send_and_check_status("LNURL-auth", request).await
     }
@@ -730,6 +725,7 @@ mod test {
 
     use lexe_common::{env::DeployEnv, ln::amount::Amount};
     use lexe_crypto::rng::{RngExt, ThreadFastRng};
+    use lexe_hex::hex;
     use tracing::info;
 
     use super::*;

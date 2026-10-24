@@ -1429,9 +1429,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               (_) => LnurlAuthPage(
                 app: mockApp,
                 request: LnurlAuthRequest(
-                  baseUrl: mocks.defaultLnurlAuthRequest.baseUrl,
+                  url: mocks.defaultLnurlAuthRequest.url,
                   domain: mocks.defaultLnurlAuthRequest.domain,
-                  k1: mocks.defaultLnurlAuthRequest.k1,
                   action: action,
                 ),
               ),

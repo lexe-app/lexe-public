@@ -745,7 +745,7 @@ impl AppHandle {
         &self,
         request: LnurlAuthRequest,
     ) -> anyhow::Result<()> {
-        let auth_req = lexe_payment_uri::LnurlAuthRequest::from(request);
+        let auth_req = lexe_payment_uri::LnurlAuthRequest::try_from(request)?;
         let root_seed = self.inner.read_root_seed()?;
         self.inner
             .lnurl_client()

@@ -753,10 +753,9 @@ impl TryFrom<lexe_payment_uri::AuthMethod> for AuthMethod {
 
 /// A LUD-04 LNURL-auth request, for the user's approval.
 pub struct LnurlAuthRequest {
-    pub base_url: String,
-    /// The service's domain, derived from `base_url`, for display purposes.
+    pub url: String,
+    /// The service's domain, derived from `url`, for display purposes.
     pub domain: String,
-    pub k1: [u8; 32],
     pub action: Option<LnurlAuthAction>,
 }
 
@@ -768,21 +767,18 @@ impl TryFrom<lexe_payment_uri::LnurlAuthRequest> for LnurlAuthRequest {
     ) -> anyhow::Result<Self> {
         let domain = request.domain()?;
         Ok(Self {
-            base_url: request.base_url,
+            url: request.url,
             domain,
-            k1: request.k1,
             action: request.action.map(LnurlAuthAction::from),
         })
     }
 }
 
-impl From<LnurlAuthRequest> for lexe_payment_uri::LnurlAuthRequest {
-    fn from(request: LnurlAuthRequest) -> Self {
-        Self {
-            base_url: request.base_url,
-            k1: request.k1,
-            action: request.action.map(lexe_payment_uri::LnurlAuthAction::from),
-        }
+impl TryFrom<LnurlAuthRequest> for lexe_payment_uri::LnurlAuthRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(request: LnurlAuthRequest) -> anyhow::Result<Self> {
+        lexe_payment_uri::Lnurl::from_http_url(&request.url)?.to_auth_request()
     }
 }
 

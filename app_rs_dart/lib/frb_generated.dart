@@ -4713,13 +4713,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   LnurlAuthRequest dco_decode_lnurl_auth_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return LnurlAuthRequest(
-      baseUrl: dco_decode_String(arr[0]),
+      url: dco_decode_String(arr[0]),
       domain: dco_decode_String(arr[1]),
-      k1: dco_decode_u_8_array_32(arr[2]),
-      action: dco_decode_opt_box_autoadd_lnurl_auth_action(arr[3]),
+      action: dco_decode_opt_box_autoadd_lnurl_auth_action(arr[2]),
     );
   }
 
@@ -6830,14 +6829,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   @protected
   LnurlAuthRequest sse_decode_lnurl_auth_request(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_baseUrl = sse_decode_String(deserializer);
+    var var_url = sse_decode_String(deserializer);
     var var_domain = sse_decode_String(deserializer);
-    var var_k1 = sse_decode_u_8_array_32(deserializer);
     var var_action = sse_decode_opt_box_autoadd_lnurl_auth_action(deserializer);
     return LnurlAuthRequest(
-      baseUrl: var_baseUrl,
+      url: var_url,
       domain: var_domain,
-      k1: var_k1,
       action: var_action,
     );
   }
@@ -9154,9 +9151,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.baseUrl, serializer);
+    sse_encode_String(self.url, serializer);
     sse_encode_String(self.domain, serializer);
-    sse_encode_u_8_array_32(self.k1, serializer);
     sse_encode_opt_box_autoadd_lnurl_auth_action(self.action, serializer);
   }
 

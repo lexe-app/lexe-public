@@ -2407,17 +2407,15 @@ impl SseDecode for crate::ffi::types::LnurlAuthRequest {
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
-        let mut var_baseUrl = <String>::sse_decode(deserializer);
+        let mut var_url = <String>::sse_decode(deserializer);
         let mut var_domain = <String>::sse_decode(deserializer);
-        let mut var_k1 = <[u8; 32]>::sse_decode(deserializer);
         let mut var_action =
             <Option<crate::ffi::types::LnurlAuthAction>>::sse_decode(
                 deserializer,
             );
         return crate::ffi::types::LnurlAuthRequest {
-            base_url: var_baseUrl,
+            url: var_url,
             domain: var_domain,
-            k1: var_k1,
             action: var_action,
         };
     }
@@ -4856,9 +4854,8 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::LnurlAuthAction>
 impl flutter_rust_bridge::IntoDart for crate::ffi::types::LnurlAuthRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.base_url.into_into_dart().into_dart(),
+            self.url.into_into_dart().into_dart(),
             self.domain.into_into_dart().into_dart(),
-            self.k1.into_into_dart().into_dart(),
             self.action.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -6947,9 +6944,8 @@ impl SseEncode for crate::ffi::types::LnurlAuthRequest {
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        <String>::sse_encode(self.base_url, serializer);
+        <String>::sse_encode(self.url, serializer);
         <String>::sse_encode(self.domain, serializer);
-        <[u8; 32]>::sse_encode(self.k1, serializer);
         <Option<crate::ffi::types::LnurlAuthAction>>::sse_encode(
             self.action,
             serializer,

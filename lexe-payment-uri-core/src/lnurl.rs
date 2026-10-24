@@ -137,10 +137,8 @@ pub enum LnurlScheme {
 /// LUD-04 LNURL-auth request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LnurlAuthRequest {
-    /// The callback URL, without its `k1` and `action` params. Must add `k1`,
-    /// `action`, `sig`, and `key` query parameters before sending the GET
-    /// request.
-    pub base_url: String,
+    /// The LNURL's URL. The callback appends `sig` and `key` to it.
+    pub url: String,
     /// The challenge the wallet signs with its linking key.
     pub k1: [u8; 32],
     /// The request's stated intent, for display purposes.
@@ -166,7 +164,7 @@ impl LnurlAuthRequest {
     /// The service's domain per LUD-05: the FQDN with its trailing dot
     /// omitted. Shown to the user and used to derive the linking key.
     pub fn domain(&self) -> anyhow::Result<String> {
-        let uri = Uri::parse(&self.base_url).context("Invalid base URL")?;
+        let uri = Uri::parse(&self.url).context("Invalid URL")?;
         // Different spellings of a domain would derive different linking
         // keys. `host()` prevents this by returning one canonical spelling.
         let domain = uri.host().context("Missing or unsupported domain")?;
@@ -573,29 +571,12 @@ impl Lnurl {
         let action = self
             .params
             .get("action")
-            .map(|s| s.parse::<LnurlAuthAction>())
+            .map(|s| LnurlAuthAction::from_str(s))
             .transpose()
             .context("Invalid 'action' parameter")?;
 
-        // Extract `k1` and `action` from the callback and store the remaining
-        // base URL verbatim.
-        let (path, query) = self
-            .http_url
-            .split_once('?')
-            .expect("k1 is a query param, so there's a query");
-        let mut base_url = path.to_owned();
-        let mut sep = '?';
-        for param in query.split('&') {
-            let key = UriParam::parse(param).map(|param| param.key);
-            if !matches!(key.as_deref(), Some("k1" | "action")) {
-                base_url.push(sep);
-                base_url.push_str(param);
-                sep = '&';
-            }
-        }
-
         let request = LnurlAuthRequest {
-            base_url,
+            url: self.http_url.clone(),
             k1,
             action,
         };
@@ -973,7 +954,7 @@ mod test {
         );
 
         let request = LnurlAuthRequest {
-            base_url: "https://lightninglogin.live/login".to_owned(),
+            url: "https://lightninglogin.live/login".to_owned(),
             k1: hex::decode_const(
                 b"a7830ce0d70e447ff888a72253cb3b564d52362a0aba25c9bd74c36f54d5431e",
             ),
@@ -988,24 +969,25 @@ mod test {
     }
 
     #[test]
-    fn test_to_auth_request_strips_only_k1_and_action() {
+    fn test_to_auth_request() {
         let k1_hex = "ab".repeat(32);
 
-        let query =
-            format!("tag=login&k1={k1_hex}&action=login&session=x+y&flag");
-        let lud17 = format!("keyauth://site.com/login?{query}");
-        let bech32 =
-            Lnurl::from_http_url(&format!("https://site.com/login?{query}"))
-                .unwrap()
-                .to_bech32()
-                .unwrap();
+        // The URL is kept verbatim, per LUD-04.
+        let http_url = format!(
+            "https://site.com/login?tag=login&k1={k1_hex}&action=login\
+             &session=x+y&flag"
+        );
+        let lud17 = http_url.replace("https://", "keyauth://");
+        let bech32 = Lnurl::from_http_url(&http_url)
+            .unwrap()
+            .to_bech32()
+            .unwrap();
         for lnurl in [lud17, bech32] {
             let request =
                 Lnurl::parse(&lnurl).unwrap().to_auth_request().unwrap();
-            assert_eq!(
-                request.base_url,
-                "https://site.com/login?tag=login&session=x+y&flag"
-            );
+            assert_eq!(request.url, http_url);
+            assert_eq!(request.k1, [0xab; 32]);
+            assert_eq!(request.action, Some(LnurlAuthAction::Login));
         }
 
         // BIP21's `req-` prefix doesn't apply to LNURL params.
@@ -1015,18 +997,18 @@ mod test {
         assert!(lnurl.params.contains_key("req-k1"));
         assert!(lnurl.to_auth_request().is_err());
 
-        // Keys are stripped decoded, as they're read.
+        // Keys are percent-decoded.
         let lnurl = format!("keyauth://site.com/login?tag=login&k%31={k1_hex}");
         let request = Lnurl::parse(&lnurl).unwrap().to_auth_request().unwrap();
-        assert_eq!(request.base_url, "https://site.com/login?tag=login");
+        assert_eq!(request.k1, [0xab; 32]);
     }
 
     /// Check that `domain()` follows LUD-05.
     #[test]
     fn test_auth_request_domain() {
-        let domain = |base_url: &str| {
+        let domain = |url: &str| {
             let request = LnurlAuthRequest {
-                base_url: base_url.to_owned(),
+                url: url.to_owned(),
                 k1: [0; 32],
                 action: None,
             };
@@ -1039,33 +1021,33 @@ mod test {
         );
 
         // Other spellings of `site.com` canonicalize to it.
-        for base_url in [
+        for url in [
             "https://site.com:8443/login",
             "https://site.com./login",
             "https://Site.COM/login",
             "https://user@site.com/login",
         ] {
-            assert_eq!(domain(base_url).unwrap(), "site.com", "{base_url}");
+            assert_eq!(domain(url).unwrap(), "site.com", "{url}");
         }
 
         // IPs are rejected.
-        for base_url in [
+        for url in [
             "https://127.0.0.1/login",
             "https://[::1]/login",
             "https://2130706433/login",
             "https://[::ffff:127.0.0.1]/login",
         ] {
-            assert!(domain(base_url).is_err(), "{base_url}");
+            assert!(domain(url).is_err(), "{url}");
         }
 
         // Spellings `reqwest` would send to `site.com` are rejected, rather
         // than deriving another linking key for it.
-        for base_url in [
+        for url in [
             "https://xn--site-.com/login",
             "https://sit%65.com/login",
             "https://ｓite.com/login",
         ] {
-            assert!(domain(base_url).is_err(), "{base_url}");
+            assert!(domain(url).is_err(), "{url}");
         }
     }
 
