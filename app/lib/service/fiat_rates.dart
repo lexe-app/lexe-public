@@ -24,8 +24,9 @@ class FiatRateService {
     svc.fiatRates.addListener(svc.updateFiatRate);
     appData.preferredFiatCurrency.addListener(svc.updateFiatRate);
 
-    // Kick off with an initial fetch
+    // Kick off with an initial fetch, then refresh periodically.
     unawaited(svc.fetch());
+    svc._ticker = Timer.periodic(const Duration(minutes: 15), svc._onTick);
 
     return svc;
   }
@@ -36,10 +37,7 @@ class FiatRateService {
 
   bool isDisposed = false;
 
-  late final Timer _ticker = Timer.periodic(
-    const Duration(minutes: 15),
-    (timer) => this.fetch,
-  );
+  late final Timer _ticker;
 
   final AlwaysValueNotifier<FiatRates?> fiatRates = AlwaysValueNotifier(null);
   final ValueNotifier<FiatRate?> fiatRate = ValueNotifier(null);
@@ -60,6 +58,8 @@ class FiatRateService {
 
     if (fiatRates case Ok(:final ok)) this.fiatRates.value = ok;
   }
+
+  void _onTick(Timer _) => unawaited(this.fetch());
 
   void updateFiatRate() {
     final fiatCurrency = this._appData.preferredFiatCurrency.value;
