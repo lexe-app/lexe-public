@@ -130,6 +130,7 @@ import 'package:lexeapp/route/send/state.dart'
         SendFlowResult,
         SendState_NeedAmount,
         SendState_Preflighted;
+import 'package:lexeapp/route/settings.dart' show SettingsPage;
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show
@@ -144,10 +145,12 @@ import 'package:lexeapp/route/uri/state.dart' show NeedUriState;
 import 'package:lexeapp/route/wallet.dart'
     show WalletActionButton, WalletBanner, WalletPage;
 import 'package:lexeapp/save_file.dart' as save_file;
+import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
 import 'package:lexeapp/service/human_bitcoin_address.dart'
     show HumanBitcoinAddressService;
 import 'package:lexeapp/service/node_info.dart' show NodeInfoService;
 import 'package:lexeapp/service/provision.dart' show ProvisionService;
+import 'package:lexeapp/service/user_settings.dart' show UserSettingsService;
 import 'package:lexeapp/settings.dart' show LxSettings;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
@@ -1273,6 +1276,19 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
         ],
       ),
+      Component("SettingsPage", (_) {
+        final appData = LxAppData(mockApp.appDataDb());
+        return SettingsPage(
+          fiatRateService: FiatRateService.start(
+            app: mockApp,
+            appData: appData,
+          ),
+          userSettingsService: UserSettingsService(
+            app: mockApp,
+            appData: appData,
+          ),
+        );
+      }),
       Component(
         "ChangeBackupPasswordPage (mock gdrive)",
         (context) => ChangeBackupPasswordPage(

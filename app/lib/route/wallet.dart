@@ -89,6 +89,7 @@ import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/security.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart' show SendFlowResult, SendState;
+import 'package:lexeapp/route/settings.dart' show SettingsPage;
 import 'package:lexeapp/route/uri/page.dart'
     show NeedUriPage, SendOrClaimChoiceSheet, UriChoice, pushAuthFlow;
 import 'package:lexeapp/route/uri/state.dart'
@@ -810,6 +811,18 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
+  /// Called when "Settings" is pressed in the menu drawer.
+  void onSettingsMenuPressed() {
+    Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (context) => SettingsPage(
+          fiatRateService: this.fiatRateService,
+          userSettingsService: this.userSettingsService,
+        ),
+      ),
+    );
+  }
+
   /// Called when "Documentation" is pressed in the menu drawer.
   void onDocsMenuPressed() {
     unawaited(url.open(lexeDocsUrl));
@@ -871,6 +884,7 @@ class WalletPageState extends State<WalletPage> {
       drawer: WalletDrawer(
         config: this.widget.config,
         humanBitcoinAddressService: this.humanBitcoinAddressService,
+        onSettingsMenuPressed: this.onSettingsMenuPressed,
         onChannelsMenuPressed: this.onOpenChannelsPage,
         onNodeInfoMenuPressed: this.onNodeInfoMenuPressed,
         onClientsMenuPressed: this.onClientsMenuPressed,
@@ -1423,7 +1437,7 @@ class WalletDrawer extends StatelessWidget {
     super.key,
     required this.config,
     required this.humanBitcoinAddressService,
-    // this.onSettingsPressed,
+    this.onSettingsMenuPressed,
     // this.onBackupPressed,
     // this.onSecurityPressed,
     // this.onSupportPressed,
@@ -1440,7 +1454,7 @@ class WalletDrawer extends StatelessWidget {
   final Config config;
   final HumanBitcoinAddressService humanBitcoinAddressService;
 
-  // final VoidCallback? onSettingsPressed;
+  final VoidCallback? onSettingsMenuPressed;
   // final VoidCallback? onBackupPressed;
   // final VoidCallback? onSecurityPressed;
   // final VoidCallback? onSupportPressed;
@@ -1490,15 +1504,14 @@ class WalletDrawer extends StatelessWidget {
                   icon: LxIcons.security,
                   onTap: this.onSecurityMenuPressed,
                 ),
+                DrawerListItem(
+                  title: "Settings",
+                  icon: LxIcons.settings,
+                  onTap: this.onSettingsMenuPressed,
+                ),
                 // TODO(phlip9): impl
-                // // * Settings
                 // // * Backup
                 // // * Support
-                // DrawerListItem(
-                //   title: "Settings",
-                //   icon: LxIcons.settings,
-                //   onTap: this.onSettingsPressed,
-                // ),
                 // DrawerListItem(
                 //   title: "Backup",
                 //   icon: LxIcons.backup,

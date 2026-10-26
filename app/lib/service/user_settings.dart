@@ -30,6 +30,10 @@ class UserSettingsService {
 
   bool isDisposed = false;
 
+  /// The user's preferred fiat currency. `null` if we haven't stored one yet.
+  ValueListenable<String?> get preferredFiatCurrency =>
+      this._appData.preferredFiatCurrency;
+
   /// Notifies after each completed fetch, successful or otherwise.
   Listenable get completed => this._completed;
   final LxChangeNotifier _completed = LxChangeNotifier();

@@ -43,6 +43,15 @@ class FiatRateService {
   final AlwaysValueNotifier<FiatRates?> fiatRates = AlwaysValueNotifier(null);
   final ValueNotifier<FiatRate?> fiatRate = ValueNotifier(null);
 
+  /// The [_fiatCurrencies] we have a rate for, or `null` until the first fetch.
+  List<({String code, String name})>? get supportedFiatCurrencies {
+    final fiatRates = this.fiatRates.value;
+    if (fiatRates == null) return null;
+    return _fiatCurrencies
+        .where((currency) => fiatRates.findByFiat(currency.code) != null)
+        .toList();
+  }
+
   Future<void> fetch() async {
     assert(!this.isDisposed);
 
@@ -104,3 +113,10 @@ Future<Result<FiatRates, void>?> _fetchWithRetries({
 
 Future<Result<FiatRates, FfiError>> _fetch(AppHandle app) async =>
     Result.tryFfiAsync(app.fiatRates);
+
+/// Fiat currencies the user can pick, if we have a rate for them.
+const List<({String code, String name})> _fiatCurrencies = [
+  (code: "CAD", name: "Canadian dollar"),
+  (code: "EUR", name: "Euro"),
+  (code: "USD", name: "US dollar"),
+];

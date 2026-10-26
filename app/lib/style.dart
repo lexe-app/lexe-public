@@ -1001,6 +1001,9 @@ final class LxIcons {
   /// Settings icon (gear)
   static const IconData settings = Symbols.settings_rounded;
 
+  /// Search icon (magnifying glass)
+  static const IconData search = Symbols.search_rounded;
+
   /// Backup icon (cloud with up arrow)
   static const IconData backup = Symbols.backup_rounded;
 
