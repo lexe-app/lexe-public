@@ -1049,6 +1049,9 @@ final class LxIcons {
   /// Eye icon (read-only access)
   static const IconData view = Symbols.visibility_rounded;
 
+  /// Eye icon with slash through it (no access)
+  static const IconData private = Symbols.visibility_off_rounded;
+
   /// Key icon (full access)
   static const IconData key = Symbols.key_rounded;
 

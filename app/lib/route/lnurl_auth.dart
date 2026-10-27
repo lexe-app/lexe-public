@@ -1,5 +1,5 @@
-/// LNURL-auth (LUD-04): approve authenticating to a service with a key
-/// unique to its domain.
+/// LNURL-auth (LUD-04): approve signing in to a service with a private login
+/// linked to the user's Lexe wallet.
 library;
 
 import 'dart:async' show unawaited;
@@ -8,14 +8,16 @@ import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
     show LnurlAuthAction, LnurlAuthRequest;
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart'
-    show MarkdownBody;
 import 'package:lexeapp/components.dart'
     show
+        AccessItem,
+        AccessKind,
+        AccessRow,
         AnimatedFillButton,
         ErrorMessage,
         ErrorMessageSection,
         HeadingText,
+        InfoCard,
         LxBackButton,
         LxCloseButton,
         LxCloseButtonKind,
@@ -24,8 +26,7 @@ import 'package:lexeapp/components.dart'
         SuccessCheckmarkModal,
         WarningCard;
 import 'package:lexeapp/prelude.dart';
-import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxTheme, Space;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 enum LnurlAuthFlowResult { approved }
 
@@ -52,23 +53,54 @@ class _LnurlAuthPageState extends State<LnurlAuthPage> {
     super.dispose();
   }
 
-  /// The heading for the request's LUD-04 `action`.
-  String heading() => switch (this.widget.request.action) {
-    LnurlAuthAction.register => "Sign up with Lexe",
-    LnurlAuthAction.login => "Sign in with Lexe",
-    LnurlAuthAction.link => "Link with Lexe",
-    LnurlAuthAction.auth => "Authorize with Lexe",
-    null => "Continue with Lexe",
+  /// The heading, button label, and error title for the request's LUD-04
+  /// `action`.
+  ({
+    String heading,
+    String button,
+    String warning,
+    String approval,
+    String errorTitle,
+  })
+  actionText() => switch (this.widget.request.action) {
+    LnurlAuthAction.register => (
+      heading: "Sign up for",
+      button: "Sign up",
+      warning: "a sign-up",
+      approval: "Signed up",
+      errorTitle: "Couldn't sign up",
+    ),
+    LnurlAuthAction.login ||
+    LnurlAuthAction.link ||
+    LnurlAuthAction.auth ||
+    null => (
+      heading: "Sign in to",
+      button: "Sign in",
+      warning: "sign-ins",
+      approval: "Signed in",
+      errorTitle: "Couldn't sign in",
+    ),
   };
 
-  /// The error title for the request's LUD-04 `action`.
-  String errorTitle() => switch (this.widget.request.action) {
-    LnurlAuthAction.register => "Failed to sign up",
-    LnurlAuthAction.login => "Failed to sign in",
-    LnurlAuthAction.link => "Failed to link account",
-    LnurlAuthAction.auth => "Failed to approve action",
-    null => "Failed to authenticate",
-  };
+  static const List<AccessItem> accessItems = [
+    (
+      icon: LxIcons.security,
+      title: Text("No wallet access"),
+      description: Text(
+        "This site can't see your balance or payments, or spend your money.",
+      ),
+      kind: AccessKind.scope,
+    ),
+    (
+      icon: LxIcons.private,
+      title: Text("Private login"),
+      description: Text(
+        "You get a separate login for every site, so they can't recognize you "
+        "elsewhere.",
+      ),
+      kind: AccessKind.scope,
+    ),
+  ];
 
   Future<void> onApprove() async {
     if (this.isPending.value) return;
@@ -81,12 +113,14 @@ class _LnurlAuthPageState extends State<LnurlAuthPage> {
     );
     if (!this.mounted) return;
 
+    final actionText = this.actionText();
+
     switch (result) {
       case Ok():
         info("LnurlAuthPage: approved");
         await showDialog(
           context: this.context,
-          builder: (_) => const SuccessCheckmarkModal(label: "Approved"),
+          builder: (_) => SuccessCheckmarkModal(label: actionText.approval),
         );
         if (!this.mounted) return;
         unawaited(
@@ -96,7 +130,7 @@ class _LnurlAuthPageState extends State<LnurlAuthPage> {
         error("LnurlAuthPage: error approving: ${err.message}");
         this.isPending.value = false;
         this.errorMessage.value = ErrorMessage(
-          title: this.errorTitle(),
+          title: actionText.errorTitle,
           message: err.message,
         );
     }
@@ -105,6 +139,7 @@ class _LnurlAuthPageState extends State<LnurlAuthPage> {
   @override
   Widget build(BuildContext context) {
     final domain = this.widget.request.domain;
+    final actionText = this.actionText();
 
     return Scaffold(
       appBar: AppBar(
@@ -117,7 +152,8 @@ class _LnurlAuthPageState extends State<LnurlAuthPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          HeadingText(text: this.heading()),
+          // Heading
+          HeadingText(text: actionText.heading),
           Text(
             domain,
             style: Fonts.fontUI.copyWith(
@@ -132,32 +168,31 @@ class _LnurlAuthPageState extends State<LnurlAuthPage> {
             ),
           ),
           const SizedBox(height: Space.s400),
+
+          // Scam warning
           WarningCard(
-            emphasis: "Scammers can use this to break into your account.",
-            detail:
-                "Only approve if the site above gave you this code or link "
-                "directly.",
+            emphasis: "Only approve ${actionText.warning} you initiated.",
+            detail: "Anyone who sent you this link can login to your account.",
           ),
-          const SizedBox(height: Space.s400),
+          const SizedBox(height: Space.s200),
 
-          // Explanation
-          MarkdownBody(
-            data: '''
-Your Lexe wallet is your login, no password needed.
-
-- This site learns nothing about your wallet.
-- Each site sees you as a different person.
-''',
-            styleSheet: LxTheme.markdownStyle,
+          // Access
+          InfoCard(
+            header: const Text("Grants"),
+            bodyPadding: Space.s400,
+            children: [
+              for (final item in accessItems)
+                AccessRow(item: item, expanded: true, onTap: null),
+            ],
           ),
 
           // Error
           Padding(
-            padding: const EdgeInsets.only(top: Space.s500),
+            padding: const EdgeInsets.only(top: Space.s400),
             child: ValueListenableBuilder(
               valueListenable: this.errorMessage,
               builder: (context, errorMessage, _) =>
-                  ErrorMessageSection(errorMessage),
+                  ErrorMessageSection(errorMessage, bodyPadding: Space.s400),
             ),
           ),
         ],
@@ -168,8 +203,9 @@ Your Lexe wallet is your login, no password needed.
             builder: (context, isPending, _) => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Approve
                 AnimatedFillButton(
-                  label: const Text("Approve"),
+                  label: Text(actionText.button),
                   icon: const Icon(LxIcons.next),
                   onTap: isPending ? null : this.onApprove,
                   loading: isPending,
@@ -180,6 +216,8 @@ Your Lexe wallet is your login, no password needed.
                   ),
                 ),
                 const SizedBox(height: Space.s300),
+
+                // Cancel
                 SizedBox(
                   width: double.infinity,
                   // LUD-04 has no rejection callback, so just back out.
