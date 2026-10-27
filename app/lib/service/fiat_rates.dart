@@ -5,6 +5,7 @@ import 'package:app_rs_dart/ffi/api.dart'
 import 'package:app_rs_dart/ffi/api.ext.dart' show FiatRatesExt;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/backoff.dart' show ClampedExpBackoff, retryWithBackoff;
 import 'package:lexeapp/notifier_ext.dart' show AlwaysValueNotifier;
@@ -37,6 +38,17 @@ class FiatRateService {
   void Function(String)? _onError;
 
   bool isDisposed = false;
+
+  /// The device region's fiat currency, if supported.
+  ///
+  /// On iOS, Flutter takes the region from the preferred language, rather than
+  /// the Region setting: e.g. English (US) with Region = France gives USD.
+  // TODO(nicole): get currency from OS directly
+  static String? get deviceFiatCurrency {
+    final region = WidgetsBinding.instance.platformDispatcher.locale.countryCode
+        ?.toUpperCase();
+    return _regionFiatCurrencies[region];
+  }
 
   late final Timer _ticker;
 
@@ -120,3 +132,21 @@ const List<({String code, String name})> _fiatCurrencies = [
   (code: "EUR", name: "Euro"),
   (code: "USD", name: "US dollar"),
 ];
+
+/// A region (ISO 3166-1 alpha-2) to fiat currency map. A user who hasn't
+/// picked a currency starts with their device region's, if available.
+const Map<String, String> _regionFiatCurrencies = {
+  // CAD
+  "CA": "CAD",
+  // EUR
+  "AT": "EUR", "BE": "EUR", "BG": "EUR", "CY": "EUR", "DE": "EUR",
+  "EE": "EUR", "ES": "EUR", "FI": "EUR", "FR": "EUR", "GR": "EUR",
+  "HR": "EUR", "IE": "EUR", "IT": "EUR", "LT": "EUR", "LU": "EUR",
+  "LV": "EUR", "MT": "EUR", "NL": "EUR", "PT": "EUR", "SI": "EUR",
+  "SK": "EUR",
+  // USD
+  "AS": "USD", "BQ": "USD", "DG": "USD", "EC": "USD", "FM": "USD",
+  "GU": "USD", "IO": "USD", "MH": "USD", "MP": "USD", "PR": "USD",
+  "PW": "USD", "SV": "USD", "TC": "USD", "TL": "USD", "UM": "USD",
+  "US": "USD", "VG": "USD", "VI": "USD",
+};

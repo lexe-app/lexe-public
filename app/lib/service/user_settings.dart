@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart'
 import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/notifier_ext.dart' show LxChangeNotifier;
 import 'package:lexeapp/prelude.dart';
+import 'package:lexeapp/service/fiat_rates.dart' show FiatRateService;
 
 /// [AppHandle.getUserSettings] and [AppHandle.updateUserSettings], instrumented
 /// with various signals for UI consumption.
@@ -64,12 +65,16 @@ class UserSettingsService {
           AppData(preferredFiatCurrency: ok.preferredFiatCurrency),
         );
 
-        final cached = this._appData.preferredFiatCurrency.value;
-        // If the node doesn't have a setting and an update to the node fails,
-        // the app may store a value that can't be cleared by `AppData.update`.
-        // So, push the cached value to the node instead.
-        if (ok.preferredFiatCurrency != cached) {
-          await this.update(preferredFiatCurrency: cached);
+        if (ok.preferredFiatCurrency == null) {
+          // If an earlier update never reached the node, the app still has
+          // its value cached, so push that. Otherwise, seed one from
+          // `deviceFiatCurrency`, which is derived from the device's region.
+          final fiatCurrency =
+              this._appData.preferredFiatCurrency.value ??
+              FiatRateService.deviceFiatCurrency;
+          if (fiatCurrency != null) {
+            await this.update(preferredFiatCurrency: fiatCurrency);
+          }
         }
       case Err(:final err):
         error("user-settings: err: ${err.message}");
