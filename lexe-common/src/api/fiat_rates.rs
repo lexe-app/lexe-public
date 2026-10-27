@@ -76,8 +76,16 @@ impl FiatRates {
         Self {
             timestamp_ms: TimestampMs::now(),
             rates: BTreeMap::from_iter([
-                (IsoCurrencyCode::USD, FiatBtcPrice(67086.56654977065)),
+                (IsoCurrencyCode::AUD, FiatBtcPrice(131111.68301688813)),
+                (IsoCurrencyCode::CAD, FiatBtcPrice(111606.89358163814)),
+                (IsoCurrencyCode::CHF, FiatBtcPrice(67245.95344545957)),
                 (IsoCurrencyCode::EUR, FiatBtcPrice(62965.97545915064)),
+                (IsoCurrencyCode::GBP, FiatBtcPrice(61606.07950770778)),
+                (IsoCurrencyCode::JPY, FiatBtcPrice(11596697.414154712)),
+                (IsoCurrencyCode::NOK, FiatBtcPrice(860716.4833879912)),
+                (IsoCurrencyCode::NZD, FiatBtcPrice(141700.72528343397)),
+                (IsoCurrencyCode::SEK, FiatBtcPrice(789538.1335822475)),
+                (IsoCurrencyCode::USD, FiatBtcPrice(67086.56654977065)),
             ]),
         }
     }
