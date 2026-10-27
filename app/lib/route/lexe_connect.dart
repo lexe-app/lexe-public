@@ -22,6 +22,9 @@ import 'package:app_rs_dart/ffi/types.dart'
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
+        AccessItem,
+        AccessKind,
+        AccessRow,
         AnimatedFillButton,
         EditableInfoRow,
         ErrorMessage,
@@ -684,119 +687,8 @@ class DestinationRow extends StatelessWidget {
   );
 }
 
-/// One requested capability.
-typedef AccessItem = ({
-  IconData icon,
-  Widget title,
-  Widget description,
-  AccessKind kind,
-});
-
-enum AccessKind {
-  scope,
-  permissions,
-
-  /// A scope the user can't grant.
-  error,
-}
-
 /// Monospace for raw ids, keeping the surrounding size and color.
 final TextStyle _monoStyle = TextStyle(fontFamily: Fonts.fontUIMono.fontFamily);
-
-/// An [AccessItem] row inside the access [InfoCard]. Tapping toggles the
-/// description, unless [onTap] is null.
-class AccessRow extends StatelessWidget {
-  const AccessRow({
-    super.key,
-    required this.item,
-    required this.expanded,
-    required this.onTap,
-  });
-
-  final AccessItem item;
-  final bool expanded;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: this.onTap,
-    child: Padding(
-      // Icon glyphs have their own insets, so trim the side padding to
-      // align them optically with the card's text edges.
-      padding: const EdgeInsets.fromLTRB(
-        Space.s400 - 3.0,
-        Space.s200,
-        Space.s300,
-        Space.s200,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Matches the title's weight and color, or red for an error.
-              Icon(
-                this.item.icon,
-                size: Fonts.size400,
-                color: (this.item.kind == AccessKind.error)
-                    ? LxColors.errorText
-                    : LxColors.foreground,
-                weight: LxIcons.weightMedium,
-                grade: LxIcons.gradeNormal,
-              ),
-              const SizedBox(width: Space.s200),
-              Expanded(
-                child: DefaultTextStyle.merge(
-                  style: const TextStyle(
-                    fontSize: Fonts.size300,
-                    fontVariations: [Fonts.weightMedium],
-                    color: LxColors.foreground,
-                    height: 1.25,
-                  ),
-                  child: this.item.title,
-                ),
-              ),
-              if (this.onTap != null) ...[
-                const SizedBox(width: Space.s200),
-                AnimatedRotation(
-                  turns: this.expanded ? 0.25 : 0.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: const Icon(
-                    LxIcons.nextSecondary,
-                    size: Fonts.size400,
-                    color: LxColors.grey650,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            alignment: Alignment.topLeft,
-            child: this.expanded
-                ? Padding(
-                    // Align with the title, past the icon and its gap.
-                    padding: const EdgeInsets.only(
-                      top: Space.s100,
-                      left: Fonts.size400 + Space.s200,
-                    ),
-                    child: DefaultTextStyle.merge(
-                      style: const TextStyle(
-                        fontSize: Fonts.size200,
-                        color: LxColors.grey550,
-                        height: 1.3,
-                      ),
-                      child: this.item.description,
-                    ),
-                  )
-                : const SizedBox(width: double.infinity),
-          ),
-        ],
-      ),
-    ),
-  );
-}
 
 extension on Scope {
   IconData icon() => switch (this) {
