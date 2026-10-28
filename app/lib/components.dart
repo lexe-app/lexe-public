@@ -2923,7 +2923,7 @@ class InfoRow extends StatelessWidget {
     color: LxColors.fgSecondary,
     fontSize: Fonts.size200,
     height: 1.2,
-    fontFeatures: [Fonts.featDisambugation],
+    fontFeatures: [Fonts.featDisambugation, Fonts.featNoContextualAlts],
     decorationColor: LxColors.grey500,
   );
 

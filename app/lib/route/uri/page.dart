@@ -291,7 +291,10 @@ class _NeedUriPageInnerState extends State<NeedUriPageInner> {
               // Use unambiguous character alternatives (0OIl1) to avoid
               // confusion in the unfortunate event that a user has to
               // manually type in an address.
-              fontFeatures: [Fonts.featDisambugation],
+              fontFeatures: const [
+                Fonts.featDisambugation,
+                Fonts.featNoContextualAlts,
+              ],
               letterSpacing: -0.5,
               // Add a bit of extra height to make the text area look nicer.
               height: 1.3,

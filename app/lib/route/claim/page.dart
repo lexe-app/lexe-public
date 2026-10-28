@@ -422,7 +422,10 @@ class _ClaimPaymentConfirmPageState extends State<ClaimPaymentConfirmPage> {
               Text(
                 shortPayer,
                 style: textStylePrimary.copyWith(
-                  fontFeatures: [Fonts.featDisambugation],
+                  fontFeatures: const [
+                    Fonts.featDisambugation,
+                    Fonts.featNoContextualAlts,
+                  ],
                 ),
               ),
             ],

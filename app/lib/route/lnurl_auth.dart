@@ -124,7 +124,10 @@ class _LnurlAuthPageState extends State<LnurlAuthPage> {
               fontSize: Fonts.size400,
               fontVariations: const [Fonts.weightMedium],
               // Helps the user spot lookalike domains, e.g. `examp1e.com`.
-              fontFeatures: const [Fonts.featDisambugation],
+              fontFeatures: const [
+                Fonts.featDisambugation,
+                Fonts.featNoContextualAlts,
+              ],
               height: 1.2,
             ),
           ),

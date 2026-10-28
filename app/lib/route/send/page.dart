@@ -761,7 +761,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               Text(
                 shortPayee,
                 style: textStylePrimary.copyWith(
-                  fontFeatures: [Fonts.featDisambugation],
+                  fontFeatures: const [
+                    Fonts.featDisambugation,
+                    Fonts.featNoContextualAlts,
+                  ],
                 ),
               ),
               // TODO(phlip9): button to expand address for full verification
