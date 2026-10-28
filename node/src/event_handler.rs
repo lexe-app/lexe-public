@@ -57,15 +57,13 @@ use lexe_common::{
 };
 use lexe_crypto::rng::{RngExt, ThreadFastRng};
 use lexe_ln::{
-    alias::{
-        BumpTransactionEventHandlerType, NetworkGraphType,
-        ProbabilisticScorerType,
-    },
+    alias::{BumpTransactionEventHandlerType, NetworkGraphType},
     channel::ChannelEvent,
     esplora::FeeEstimates,
     event::{self, EventHandleError, EventId, LexeEventHandlerMethods},
     keys_manager::LexeKeysManager,
     payments::outbound::LxOutboundPaymentFailure,
+    scorer::LexeScorer,
     test_event::TestEventSender,
     traits::LexePersister,
     tx_broadcaster::TxBroadcaster,
@@ -108,7 +106,7 @@ pub(crate) struct EventCtx {
     pub channel_manager: NodeChannelManager,
     pub keys_manager: Arc<LexeKeysManager>,
     pub network_graph: Arc<NetworkGraphType>,
-    pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    pub scorer: Arc<Mutex<LexeScorer>>,
     pub payments_manager: PaymentsManagerType,
 
     pub channel_events_bus: EventsBus<ChannelEvent>,

@@ -35,10 +35,11 @@ use tracing::{Instrument, debug, error, info, info_span, warn};
 
 use crate::{
     TxDisplay,
-    alias::{NetworkGraphType, ProbabilisticScorerType},
+    alias::NetworkGraphType,
     esplora::FeeEstimates,
     keys_manager::LexeKeysManager,
     persister::LightningPersisterMethods,
+    scorer::LexeScorer,
     test_event::TestEventSender,
     traits::{LexeChannelManager, LexeEventHandler, LexePersister},
     tx_broadcaster::TxBroadcaster,
@@ -626,8 +627,8 @@ pub fn handle_network_graph_update(
     }
 }
 
-/// If the given [`Event`] contains information the [`ProbabilisticScorerType`]
-/// should be updated with, this fn updates the scorer accordingly.
+/// If the given [`Event`] contains information the [`LexeScorer`] should be
+/// updated with, this fn updates the scorer accordingly.
 ///
 /// Based on the `update_scorer` fn in LDK's BGP:
 /// <https://github.com/lightningdevkit/rust-lightning/blob/8da30df223d50099c75ba8251615bd2026fcea75/lightning-background-processor/src/lib.rs#L272>
@@ -635,10 +636,7 @@ pub fn handle_network_graph_update(
 /// NOTE: Unlike LDK's BGP, we don't notify the BGP if the scorer was updated,
 /// as we already have the scorer on an auto-persist interval, including a final
 /// persist at shutdown. It's OK if we lose the last ~5 min of data in a crash.
-pub fn handle_scorer_update(
-    scorer: &Mutex<ProbabilisticScorerType>,
-    event: &Event,
-) {
+pub fn handle_scorer_update(scorer: &Mutex<LexeScorer>, event: &Event) {
     let now_since_epoch = TimestampMs::now().to_duration();
     match event {
         Event::PaymentPathFailed {

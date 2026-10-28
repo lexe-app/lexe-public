@@ -49,7 +49,7 @@ use lexe_ln::{
     alias::{
         BroadcasterType, BumpTransactionEventHandlerType,
         EsploraSyncClientType, FeeEstimatorType, LexeOnionMessengerType,
-        NetworkGraphType, ProbabilisticScorerType,
+        NetworkGraphType,
     },
     background_processor,
     channel_monitor::ChannelMonitorPersister,
@@ -62,6 +62,7 @@ use lexe_ln::{
     payments::manager::PaymentsManager,
     persister::{NodeState, PaymentsPersisterMethods},
     route::LexeRouter,
+    scorer::LexeScorer,
     sync::{self, BdkSyncRequest},
     test_event,
     tx_broadcaster::TxBroadcaster,
@@ -184,7 +185,7 @@ pub struct UserNode {
     peer_manager: NodePeerManager,
     persister: Arc<NodePersister>,
     router: Arc<LexeRouter>,
-    scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    scorer: Arc<Mutex<LexeScorer>>,
 }
 
 /// Inputs to [`UserNode::sync`].

@@ -44,8 +44,9 @@ use lightning_invoice::{
 use tracing::{debug, info};
 
 use crate::{
-    alias::{NetworkGraphType, ProbabilisticScorerType},
+    alias::NetworkGraphType,
     logger::LexeTracingLogger,
+    scorer::LexeScorer,
     traits::{LexeChannelManager, LexePersister},
 };
 
@@ -54,9 +55,9 @@ type DefaultRouterType = DefaultRouter<
     Arc<NetworkGraphType>,
     LexeTracingLogger,
     SysRngDerefHack,
-    Arc<Mutex<ProbabilisticScorerType>>,
+    Arc<Mutex<LexeScorer>>,
     ProbabilisticScoringFeeParameters,
-    ProbabilisticScorerType,
+    LexeScorer,
 >;
 
 /// The Lexe payment [`Router`] impl for both the Lexe LSP and our user nodes.
@@ -79,7 +80,7 @@ impl LexeRouter {
     pub fn new_user_node(
         network_graph: Arc<NetworkGraphType>,
         logger: LexeTracingLogger,
-        scorer: Arc<Mutex<ProbabilisticScorerType>>,
+        scorer: Arc<Mutex<LexeScorer>>,
         lsp_info: LspInfo,
         intercept_scids: Vec<Scid>,
     ) -> Self {
@@ -101,7 +102,7 @@ impl LexeRouter {
     pub fn new_lsp(
         network_graph: Arc<NetworkGraphType>,
         logger: LexeTracingLogger,
-        scorer: Arc<Mutex<ProbabilisticScorerType>>,
+        scorer: Arc<Mutex<LexeScorer>>,
     ) -> Self {
         let default_router = DefaultRouter::new(
             network_graph,
@@ -117,7 +118,7 @@ impl LexeRouter {
     pub fn new_lsp_prober(
         network_graph: Arc<NetworkGraphType>,
         logger: LexeTracingLogger,
-        scorer: Arc<Mutex<ProbabilisticScorerType>>,
+        scorer: Arc<Mutex<LexeScorer>>,
     ) -> Self {
         let default_router = DefaultRouter::new(
             network_graph,

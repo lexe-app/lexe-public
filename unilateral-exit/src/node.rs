@@ -19,6 +19,7 @@ use lexe_ln::{
     logger::LexeTracingLogger,
     message_router::LexeMessageRouter,
     route::LexeRouter,
+    scorer::LexeScorer,
     sync::{self, BdkSyncRequest},
     tx_broadcaster::TxBroadcaster,
     usernode_config,
@@ -228,11 +229,12 @@ impl RecoveryNode {
         // LSP.
         let network_graph =
             Arc::new(NetworkGraph::new(network.to_bitcoin(), logger.clone()));
-        let scorer = Arc::new(Mutex::new(ProbabilisticScorer::new(
-            ProbabilisticScoringDecayParameters::default(),
-            network_graph.clone(),
-            logger.clone(),
-        )));
+        let scorer =
+            Arc::new(Mutex::new(LexeScorer::new(ProbabilisticScorer::new(
+                ProbabilisticScoringDecayParameters::default(),
+                network_graph.clone(),
+                logger.clone(),
+            ))));
         let lsp_info = LspInfo {
             node_pk: args
                 .close_mode

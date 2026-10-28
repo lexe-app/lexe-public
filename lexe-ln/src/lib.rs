@@ -51,6 +51,8 @@ pub mod payments;
 pub mod persister;
 /// Routing-related logic.
 pub mod route;
+/// Lexe's payment scorer.
+pub mod scorer;
 /// [`serde`] helpers.
 pub(crate) mod serde_helpers;
 /// Chain sync.

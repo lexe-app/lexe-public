@@ -17,6 +17,7 @@ use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::{self, FeeEstimates, LexeEsplora},
     logger::LexeTracingLogger,
+    scorer::LexeScorer,
 };
 use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
@@ -76,8 +77,8 @@ pub(crate) struct MegaContext {
     pub runner_api: Arc<RunnerClient>,
     /// Channel to send commands to the UserRunner.
     pub runner_tx: mpsc::Sender<UserRunnerCommand>,
-    /// The probabilistic scorer for pathfinding.
-    pub scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    /// The scorer for pathfinding.
+    pub scorer: Arc<Mutex<LexeScorer>>,
     /// Caches whether users exist.
     pub user_cache: Arc<UserCache>,
     /// BDK/LDK sync timeout for user nodes.
@@ -226,6 +227,7 @@ impl MegaContext {
                 (decay_params, network_graph.clone(), logger.clone());
             let mut reader = Cursor::new(&scorer_bytes);
             ProbabilisticScorerType::read(&mut reader, read_args)
+                .map(LexeScorer::new)
                 .map(Mutex::new)
                 .map(Arc::new)
                 .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
@@ -325,11 +327,12 @@ impl MegaContext {
 
         // Create empty scorer
         let decay_params = lexe_ln::constants::LEXE_SCORER_PARAMS;
-        let scorer = Arc::new(Mutex::new(ProbabilisticScorer::new(
-            decay_params,
-            network_graph.clone(),
-            logger.clone(),
-        )));
+        let scorer =
+            Arc::new(Mutex::new(LexeScorer::new(ProbabilisticScorer::new(
+                decay_params,
+                network_graph.clone(),
+                logger.clone(),
+            ))));
 
         // Create other required fields
         let config = channel_manager::get_config();
