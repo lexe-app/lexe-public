@@ -151,8 +151,18 @@ impl Amount {
 
     /// Construct an [`Amount`] from a millisatoshi [`u64`] value.
     #[inline]
-    pub fn from_msat(msats: u64) -> Self {
-        Self(Decimal::from(msats) / dec!(1000))
+    pub const fn from_msat(msats: u64) -> Self {
+        // `(Decimal::from(msats) / dec!(1000)).normalize()`, but `const`.
+        // Checked in test `from_msat_matches_division`.
+        let mut mantissa = msats;
+        let mut scale = 3;
+        while scale > 0 && mantissa.is_multiple_of(10) {
+            mantissa /= 10;
+            scale -= 1;
+        }
+        let lo = mantissa as u32;
+        let mid = (mantissa >> 32) as u32;
+        Self(Decimal::from_parts(lo, mid, 0, false, scale))
     }
 
     /// Construct an [`Amount`] from a satoshi [`u32`] value.
@@ -477,6 +487,30 @@ mod test {
             Amount::MAX_BITCOIN_SUPPLY.msat(),
             21_000_000 * 100_000_000 * 1000,
         );
+    }
+
+    /// Tests that the `const` [`Amount::from_msat`] matches normalized naive
+    /// division exactly, including the scale.
+    #[test]
+    fn from_msat_matches_division() {
+        let check = |msat: u64| {
+            let naive = (Decimal::from(msat) / dec!(1000)).normalize();
+            let amount = Amount::from_msat(msat);
+            // `==` ignores the scale, so also compare the raw parts and the
+            // `Display` and serde output, which expose it.
+            assert_eq!(amount.0, naive, "{msat}");
+            assert_eq!(amount.0.serialize(), naive.serialize(), "{msat}");
+            assert_eq!(amount.to_string(), naive.to_string(), "{msat}");
+            assert_eq!(
+                serde_json::to_string(&amount).unwrap(),
+                serde_json::to_string(&naive).unwrap(),
+                "{msat}",
+            );
+        };
+        for msat in [0, 1, 10, 100, 999, 1000, 1500, 10_000, u64::MAX] {
+            check(msat);
+        }
+        proptest!(|(msat in any::<u64>())| { check(msat) });
     }
 
     /// Tests that converting the [`u64`] msat provided by LDK into our
