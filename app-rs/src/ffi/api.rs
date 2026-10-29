@@ -234,7 +234,12 @@ impl TryFrom<UpdateUserSettingsRequest> for UpdateUserSettingsRequestRs {
             .map(IsoCurrencyCode::from_str)
             .transpose()
             .context("Invalid fiat currency code")?;
+        // TODO(nicole): Expose auto-withdrawal settings in the app.
+        let auto_withdraw_destination = None;
+        let auto_withdraw_threshold = None;
         Ok(Self {
+            auto_withdraw_destination,
+            auto_withdraw_threshold,
             preferred_fiat_currency,
         })
     }

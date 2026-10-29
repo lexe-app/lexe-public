@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use anyhow::{bail, ensure};
 use bitcoin::{NetworkKind, address::NetworkUnchecked, base58, bip32::Xpub};
 #[cfg(doc)]
 use lexe_common::api::fiat_rates::FiatRates;
@@ -17,6 +18,7 @@ use lexe_common::{
         balance::{LightningBalance, OnchainBalance},
         channel::{ChannelId, LxChannelDetails, UserChannelId},
         hashes::Txid,
+        network::Network,
         priority::ConfirmationPriority,
         route::LxRoute,
     },
@@ -24,7 +26,10 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_enclave::enclave::Measurement;
-use lexe_serde::hexstr_or_bytes;
+use lexe_serde::{
+    hexstr_or_bytes,
+    optopt::{self, none},
+};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -211,6 +216,13 @@ pub struct SetupGDrive {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct UserSettings {
+    /// Where auto-withdrawals are sent.
+    pub auto_withdraw_destination: Option<AutoWithdrawDestination>,
+    /// Withdraw all funds to [`Self::auto_withdraw_destination`] once the
+    /// total balance, on-chain and Lightning, exceeds this amount.
+    /// Requires an auto-withdraw destination. `None` if auto-withdrawal is
+    /// disabled.
+    pub auto_withdraw_threshold: Option<Amount>,
     /// The user-preferred fiat currency. `None` if the user never set one.
     pub preferred_fiat_currency: Option<IsoCurrencyCode>,
 }
@@ -222,20 +234,88 @@ impl UserSettings {
     /// The fiat currency used when no preferred fiat currency is set.
     pub const DEFAULT_FIAT_CURRENCY: IsoCurrencyCode = IsoCurrencyCode::USD;
 
+    /// The smallest allowed [`Self::auto_withdraw_threshold`], in sats.
+    // TODO(nicole): Lower to 10,000 once we charge channel fees.
+    pub const MIN_AUTO_WITHDRAW_THRESHOLD_SATS: u32 = 100_000;
+
     /// The user-preferred fiat currency, or [`Self::DEFAULT_FIAT_CURRENCY`]
     /// if the user never set one.
     pub fn fiat_currency(&self) -> IsoCurrencyCode {
         self.preferred_fiat_currency
             .unwrap_or(Self::DEFAULT_FIAT_CURRENCY)
     }
+
+    /// Checks that these settings are usable.
+    pub fn validate(&self, network: Network) -> anyhow::Result<()> {
+        match &self.auto_withdraw_destination {
+            Some(AutoWithdrawDestination::Address { address }) => ensure!(
+                address.is_valid_for_network(network.to_bitcoin()),
+                "Withdrawal address is for the wrong network"
+            ),
+            Some(AutoWithdrawDestination::Unknown) =>
+                bail!("Unsupported auto-withdraw destination"),
+            None => (),
+        }
+
+        if let Some(threshold) = self.auto_withdraw_threshold {
+            let min_threshold =
+                Amount::from_sats_u32(Self::MIN_AUTO_WITHDRAW_THRESHOLD_SATS);
+            ensure!(
+                threshold >= min_threshold,
+                "Auto-withdrawal threshold must be at least {min_threshold} sats"
+            );
+            ensure!(
+                self.auto_withdraw_destination.is_some(),
+                "Auto-withdrawal requires an auto-withdraw destination"
+            );
+        }
+
+        Ok(())
+    }
 }
 
 /// A partial update to the user's [`UserSettings`].
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct UpdateUserSettingsRequest {
+    /// The new auto-withdraw destination.
+    ///
+    /// `Some(None)` clears it.
+    ///
+    /// Setting a destination requires the `CloseChannel` and `PayOnchain`
+    /// permissions, and a client with no spending limit.
+    #[serde(default, skip_serializing_if = "none", with = "optopt")]
+    pub auto_withdraw_destination: Option<Option<AutoWithdrawDestination>>,
+    /// The new auto-withdrawal threshold.
+    ///
+    /// `Some(None)` disables auto-withdrawal.
+    ///
+    /// Setting a threshold requires the `CloseChannel` and `PayOnchain`
+    /// permissions, and a client with no spending limit.
+    #[serde(default, skip_serializing_if = "none", with = "optopt")]
+    pub auto_withdraw_threshold: Option<Option<Amount>>,
     /// The new preferred fiat currency.
     pub preferred_fiat_currency: Option<IsoCurrencyCode>,
+}
+
+/// Where auto-withdrawals are sent.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub enum AutoWithdrawDestination {
+    /// A fixed on-chain address, valid for the node's network. Every
+    /// withdrawal pays the same address.
+    Address {
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_mainnet_addr_unchecked()")
+        )]
+        address: bitcoin::Address<NetworkUnchecked>,
+    },
+    /// Any unrecognized destination; lets older clients deserialize settings
+    /// written by newer nodes.
+    #[serde(other)]
+    Unknown,
 }
 
 // --- Channel Management --- //

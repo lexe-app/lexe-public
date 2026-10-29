@@ -5,7 +5,7 @@ use axum::extract::State;
 use gdrive::gvfs::GvfsRootName;
 use lexe_api::{
     def::{FiatRatesBackendApi, NodeBackendApi},
-    error::NodeApiError,
+    error::{CommonApiError, CommonErrorKind, NodeApiError},
     models::{
         command::{
             BackupInfo, CancelPaymentRequest, CloseChannelPreflightRequest,
@@ -34,11 +34,14 @@ use lexe_api::{
             UpdateNwcClientResponse,
         },
     },
-    revocable_clients::models::{
-        CreateRevocableClientRequest, CreateRevocableClientResponse,
-        GetClientInfoResponse, ListRevocableClients,
-        ListRevocableClientsResponse, UpdateClientResponse,
-        UpdateClientWithBudgetRequest,
+    revocable_clients::{
+        models::{
+            CreateRevocableClientRequest, CreateRevocableClientResponse,
+            GetClientInfoResponse, ListRevocableClients,
+            ListRevocableClientsResponse, UpdateClientResponse,
+            UpdateClientWithBudgetRequest,
+        },
+        scopes::Permission,
     },
     server::{
         LxJson, client_authz::VerifiedClientAuthorization, extract::LxQuery,
@@ -141,12 +144,49 @@ pub(super) async fn get_user_settings(
 }
 
 pub(super) async fn update_user_settings(
+    auth: VerifiedClientAuthorization,
     State(state): State<Arc<RouterState>>,
     LxJson(req): LxJson<UpdateUserSettingsRequest>,
 ) -> Result<LxJson<UserSettings>, NodeApiError> {
     let UpdateUserSettingsRequest {
+        auto_withdraw_destination,
+        auto_withdraw_threshold,
         preferred_fiat_currency,
     } = req;
+
+    // The current implementation of auto-withdrawal closes channels, so
+    // require both `Permission::CloseChannel` and `Permission::PayOnchain` for
+    // enabling auto-withdrawals or setting the auto-withdraw destination.
+    // TODO(nicole): remove CloseChannel once we use ShutdownScript or splicing
+    let sets_destination = matches!(auto_withdraw_destination, Some(Some(_)));
+    let sets_threshold = matches!(auto_withdraw_threshold, Some(Some(_)));
+    if sets_destination || sets_threshold {
+        let require_for_auto_withdraw = |permission: Permission| {
+            auth.require(permission).map_err(|e| {
+                let msg = format!(
+                    "Setting an auto-withdraw destination or threshold \
+                     requires the {permission} permission"
+                );
+                CommonApiError::new(e.kind, msg)
+            })
+        };
+        require_for_auto_withdraw(Permission::CloseChannel)?;
+        require_for_auto_withdraw(Permission::PayOnchain)?;
+
+        // A client with a spending limit could escape its budget by
+        // pointing auto-withdrawals at an address it controls.
+        auth.require_unlimited_budget(&state.payments_manager)
+            .await
+            .map_err(|e| match e.kind {
+                CommonErrorKind::InsufficientScope => CommonApiError::new(
+                    e.kind,
+                    "Setting an auto-withdraw destination or threshold \
+                     requires a client with no spending limit"
+                        .to_owned(),
+                ),
+                _ => e,
+            })?;
+    }
 
     // Reject a currency we publish no BTC rate for upfront.
     // TODO(nicole): Hardcoded client-side supported currencies check/CLI flags,
@@ -167,10 +207,24 @@ pub(super) async fn update_user_settings(
     }
 
     let mut locked_settings = state.settings.write().await;
-    let updated = UserSettings {
-        preferred_fiat_currency: preferred_fiat_currency
-            .or(locked_settings.preferred_fiat_currency),
+    let updated = {
+        let auto_withdraw_destination = auto_withdraw_destination
+            .unwrap_or_else(|| {
+                locked_settings.auto_withdraw_destination.clone()
+            });
+        let auto_withdraw_threshold = auto_withdraw_threshold
+            .unwrap_or(locked_settings.auto_withdraw_threshold);
+        let preferred_fiat_currency =
+            preferred_fiat_currency.or(locked_settings.preferred_fiat_currency);
+        UserSettings {
+            auto_withdraw_destination,
+            auto_withdraw_threshold,
+            preferred_fiat_currency,
+        }
     };
+    updated
+        .validate(state.network)
+        .map_err(NodeApiError::command)?;
 
     let retries = Retries::from_count(1);
     state
