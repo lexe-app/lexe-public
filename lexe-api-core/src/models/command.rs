@@ -218,6 +218,16 @@ pub struct UserSettings {
 impl UserSettings {
     pub const VFS_FILE_ID: &'static VfsFileId =
         &VfsFileId::new_const(SINGLETON_DIRECTORY, "user_settings");
+
+    /// The fiat currency used when no preferred fiat currency is set.
+    pub const DEFAULT_FIAT_CURRENCY: IsoCurrencyCode = IsoCurrencyCode::USD;
+
+    /// The user-preferred fiat currency, or [`Self::DEFAULT_FIAT_CURRENCY`]
+    /// if the user never set one.
+    pub fn fiat_currency(&self) -> IsoCurrencyCode {
+        self.preferred_fiat_currency
+            .unwrap_or(Self::DEFAULT_FIAT_CURRENCY)
+    }
 }
 
 /// A partial update to the user's [`UserSettings`].
