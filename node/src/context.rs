@@ -10,14 +10,16 @@ use lexe_api::{
     def::NodeLspApi,
     types::{UserLeaseId, partners::PartnersInfo},
 };
-use lexe_common::{constants::timeout, env::DeployEnv, ln::network::Network};
+use lexe_common::{
+    api::user::NodePk, constants::timeout, env::DeployEnv, ln::network::Network,
+};
 use lexe_crypto::rng::Crng;
 use lexe_enclave::enclave;
 use lexe_ln::{
     alias::{NetworkGraphType, ProbabilisticScorerType},
     esplora::{self, FeeEstimates, LexeEsplora},
     logger::LexeTracingLogger,
-    scorer::LexeScorer,
+    scorer::{LexeScorer, LspLiquidity},
 };
 use lexe_tls_attest_server as tls_attest;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
@@ -28,6 +30,7 @@ use tracing::info;
 use crate::{
     channel_manager,
     client::{NodeBackendClient, NodeLspClient, RunnerClient},
+    lsp_liquidity::LspLiquidityUpdater,
     runner::UserRunnerCommand,
     user_cache::UserCache,
     vss_persister::VssProvider,
@@ -104,6 +107,7 @@ impl MegaContext {
         rng: &mut impl Crng,
         backend_url: String,
         lsp_url: String,
+        lsp_node_pk: NodePk,
         runner_url: String,
         gdrive_oauth_config: Option<OAuthConfig>,
         partners: PartnersInfo,
@@ -186,18 +190,23 @@ impl MegaContext {
 
         // Initialize esplora, network graph, and scorer concurrently
         #[rustfmt::skip] // Does not respect 80 char line width
-        let (try_esplora_init, try_network_graph_bytes, try_scorer_bytes) =
-            tokio::join!(
-                LexeEsplora::init_any(
-                    crate::client::USER_AGENT_EXTERNAL,
-                    rng,
-                    esplora_urls,
-                    untrusted_network,
-                    mega_shutdown.clone(),
-                ),
-                lsp_api.get_network_graph(),
-                lsp_api.get_prob_scorer(),
-            );
+        let (
+            try_esplora_init,
+            try_network_graph_bytes,
+            try_scorer_bytes,
+            try_external_channels,
+        ) = tokio::join!(
+            LexeEsplora::init_any(
+                crate::client::USER_AGENT_EXTERNAL,
+                rng,
+                esplora_urls,
+                untrusted_network,
+                mega_shutdown.clone(),
+            ),
+            lsp_api.get_network_graph(),
+            lsp_api.get_prob_scorer(),
+            lsp_api.get_external_channels(),
+        );
 
         // Handle esplora initialization result
         let (esplora, fee_estimates, refresh_fees_task, esplora_url) =
@@ -219,7 +228,7 @@ impl MegaContext {
         };
 
         // Initialize scorer
-        let scorer = {
+        let prob_scorer = {
             let scorer_bytes = try_scorer_bytes
                 .context("Could not fetch serialized scorer")?;
             let decay_params = lexe_ln::constants::LEXE_SCORER_PARAMS;
@@ -227,11 +236,19 @@ impl MegaContext {
                 (decay_params, network_graph.clone(), logger.clone());
             let mut reader = Cursor::new(&scorer_bytes);
             ProbabilisticScorerType::read(&mut reader, read_args)
-                .map(LexeScorer::new)
-                .map(Mutex::new)
-                .map(Arc::new)
                 .map_err(|e| anyhow!("Couldn't deser prob scorer: {e:#}"))?
         };
+        let external_channels = try_external_channels
+            .context("Could not fetch LSP external channels")?;
+        let scorer = Arc::new(Mutex::new(LexeScorer::new_user_node(
+            prob_scorer,
+            &lsp_node_pk,
+            LspLiquidity::from_external_channels(&external_channels.channels),
+        )));
+        let lsp_liquidity_updater =
+            LspLiquidityUpdater::new(lsp_api.clone(), scorer.clone());
+        static_tasks.push(lsp_liquidity_updater.spawn(mega_shutdown));
+
         let gdrive_oauth_config = gdrive_oauth_config.map(Arc::new);
         let usernode_sync_timeout = usernode_sync_timeout_secs
             .map(Duration::from_secs)
@@ -274,6 +291,7 @@ impl MegaContext {
     pub fn dummy() -> Self {
         use std::sync::Mutex;
 
+        use lexe_api::cli::LspInfo;
         use lexe_common::{env::DeployEnv, ln::network::Network};
         use lexe_crypto::rng::SysRng;
         use lexe_ln::{esplora::LexeEsplora, logger::LexeTracingLogger};
@@ -327,12 +345,16 @@ impl MegaContext {
 
         // Create empty scorer
         let decay_params = lexe_ln::constants::LEXE_SCORER_PARAMS;
-        let scorer =
-            Arc::new(Mutex::new(LexeScorer::new(ProbabilisticScorer::new(
-                decay_params,
-                network_graph.clone(),
-                logger.clone(),
-            ))));
+        let scorer = ProbabilisticScorer::new(
+            decay_params,
+            network_graph.clone(),
+            logger.clone(),
+        );
+        let scorer = Arc::new(Mutex::new(LexeScorer::new_user_node(
+            scorer,
+            &LspInfo::dummy().node_pk,
+            LspLiquidity::empty(),
+        )));
 
         // Create other required fields
         let config = channel_manager::get_config();

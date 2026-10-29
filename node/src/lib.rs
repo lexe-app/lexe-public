@@ -24,6 +24,8 @@ mod event_handler;
 mod gdrive_persister;
 /// GDrive-specific setup logic.
 mod gdrive_setup;
+/// Keeps the meganode's view of the LSP's liquidity fresh.
+mod lsp_liquidity;
 /// Meganode run body.
 mod mega;
 /// NWC specific logic.

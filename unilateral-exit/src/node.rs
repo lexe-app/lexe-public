@@ -19,7 +19,7 @@ use lexe_ln::{
     logger::LexeTracingLogger,
     message_router::LexeMessageRouter,
     route::LexeRouter,
-    scorer::LexeScorer,
+    scorer::{LexeScorer, LspLiquidity},
     sync::{self, BdkSyncRequest},
     tx_broadcaster::TxBroadcaster,
     usernode_config,
@@ -224,17 +224,11 @@ impl RecoveryNode {
             .context("Could not deserialize channel monitors")?;
 
         // Reading the channel manager requires routers, but the recovery node
-        // never routes payments. So the routers get an empty network graph and
-        // a placeholder `LspInfo`, which uses our own node_pk if there's no
-        // LSP.
+        // never routes payments. So the routers get an empty network graph, no
+        // LSP liquidity, and a placeholder `LspInfo`, which uses our own
+        // node_pk if there's no LSP.
         let network_graph =
             Arc::new(NetworkGraph::new(network.to_bitcoin(), logger.clone()));
-        let scorer =
-            Arc::new(Mutex::new(LexeScorer::new(ProbabilisticScorer::new(
-                ProbabilisticScoringDecayParameters::default(),
-                network_graph.clone(),
-                logger.clone(),
-            ))));
         let lsp_info = LspInfo {
             node_pk: args
                 .close_mode
@@ -253,6 +247,16 @@ impl RecoveryNode {
             htlc_minimum_msat: 0,
             htlc_maximum_msat: 0,
         };
+        let scorer = ProbabilisticScorer::new(
+            ProbabilisticScoringDecayParameters::default(),
+            network_graph.clone(),
+            logger.clone(),
+        );
+        let scorer = Arc::new(Mutex::new(LexeScorer::new_user_node(
+            scorer,
+            &lsp_info.node_pk,
+            LspLiquidity::empty(),
+        )));
         let intercept_scids = Vec::new();
         let router = Arc::new(LexeRouter::new_user_node(
             network_graph.clone(),
