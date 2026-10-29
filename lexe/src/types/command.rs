@@ -55,7 +55,7 @@ use crate::{
 mod reexports {
     pub use lexe_api::{
         budget::models::BudgetResetInterval,
-        models::command::PayerProofDisclosures,
+        models::command::{AutoWithdrawDestination, PayerProofDisclosures},
     };
 }
 pub use reexports::*;
@@ -2046,6 +2046,100 @@ impl TryFrom<Budget> for BudgetParams {
             reset_interval,
             interval_count,
             utc_offset_mins,
+        })
+    }
+}
+
+// --- User settings --- //
+
+/// The user's node settings.
+///
+/// ## Supported settings
+///
+/// ### Auto-withdraw
+///
+/// Set `auto_withdraw_threshold` and `auto_withdraw_destination` to run
+/// auto-withdrawals.
+///
+/// While online, the node periodically checks its total balance (on-chain and
+/// Lightning), and once the balance exceeds `auto_withdraw_threshold`, the node
+/// withdraws all funds to `auto_withdraw_destination`.
+///
+/// Auto-withdrawals will be paused while on-chain fees are high.
+///
+/// ### Preferred fiat currency
+///
+/// Set a `preferred_fiat_currency` for the node to default to when needed.
+/// Apps such as the Lexe app may also use it, e.g. to display fiat amounts.
+#[derive(Serialize, Deserialize)]
+pub struct UserSettings {
+    /// Where auto-withdrawals are sent. `None` if not set.
+    pub auto_withdraw_destination: Option<AutoWithdrawDestination>,
+    /// The total balance above which auto-withdrawal runs. At least 100,000
+    /// sats. `None` if not set.
+    pub auto_withdraw_threshold: Option<Amount>,
+    /// The preferred fiat currency, as an ISO 4217 code. `None` if never set.
+    pub preferred_fiat_currency: Option<String>,
+}
+
+impl From<command::UserSettings> for UserSettings {
+    fn from(settings: command::UserSettings) -> Self {
+        Self {
+            auto_withdraw_destination: settings.auto_withdraw_destination,
+            auto_withdraw_threshold: settings.auto_withdraw_threshold,
+            preferred_fiat_currency: settings
+                .preferred_fiat_currency
+                .map(|code| code.as_str().to_owned()),
+        }
+    }
+}
+
+/// A request to update the user's node settings. See [`UserSettings`] for the
+/// supported settings.
+pub struct UpdateUserSettingsRequest {
+    /// The updated auto-withdraw destination.
+    ///
+    /// - `None`: leave the destination unchanged.
+    /// - `Some(None)`: clear the destination.
+    /// - `Some(Some(destination))`: set the destination. Requires the
+    ///   `close_channel` and `pay_onchain` permissions, and a client with no
+    ///   spending limit.
+    pub new_auto_withdraw_destination: Option<Option<AutoWithdrawDestination>>,
+    /// The updated auto-withdraw threshold.
+    ///
+    /// - `None`: leave the threshold unchanged.
+    /// - `Some(None)`: clear the threshold.
+    /// - `Some(Some(threshold))`: set the threshold. Requires the
+    ///   `close_channel` and `pay_onchain` permissions, and a client with no
+    ///   spending limit.
+    ///
+    /// Must be at least 100,000 sats.
+    pub new_auto_withdraw_threshold: Option<Option<Amount>>,
+    /// The updated preferred fiat currency, as an ISO 4217 code, e.g. `"USD"`.
+    /// Must be uppercase. `None` leaves it unchanged.
+    pub new_preferred_fiat_currency: Option<String>,
+}
+
+// If this breaks, update the `UserSettings` and `UpdateUserSettingsRequest`
+// docs above.
+const_assert_usize_eq!(
+    command::UserSettings::MIN_AUTO_WITHDRAW_THRESHOLD_SATS as usize,
+    100_000
+);
+
+impl TryFrom<UpdateUserSettingsRequest> for command::UpdateUserSettingsRequest {
+    type Error = anyhow::Error;
+
+    fn try_from(req: UpdateUserSettingsRequest) -> anyhow::Result<Self> {
+        let preferred_fiat_currency = req
+            .new_preferred_fiat_currency
+            .map(|code| code.parse::<IsoCurrencyCode>())
+            .transpose()
+            .context("Invalid fiat currency code")?;
+        Ok(Self {
+            auto_withdraw_destination: req.new_auto_withdraw_destination,
+            auto_withdraw_threshold: req.new_auto_withdraw_threshold,
+            preferred_fiat_currency,
         })
     }
 }

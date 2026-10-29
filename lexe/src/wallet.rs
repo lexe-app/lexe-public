@@ -66,8 +66,9 @@ use crate::{
             PayOnchainPreflightResponse, PayOnchainRequest, PayRequest,
             PayableDetails, PaymentSyncSummary, RevokeClientRequest,
             UpdateClientRequest, UpdatePersonalNoteRequest,
-            WaitForNextPaymentRequest, WaitForNextPaymentResponse,
-            WaitForPaymentUpdateRequest, WithdrawLnurlRequest,
+            UpdateUserSettingsRequest, UserSettings, WaitForNextPaymentRequest,
+            WaitForNextPaymentResponse, WaitForPaymentUpdateRequest,
+            WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentFilter, PaymentUpdatedIndex},
     },
@@ -2434,6 +2435,33 @@ impl LexeWallet {
         Ok(ClientInfoResponse {
             client: ClientInfo::try_from(client)?,
         })
+    }
+
+    // --- User settings --- //
+
+    /// Get the node's [`UserSettings`].
+    #[instrument(skip_all, name = "(get-user-settings)")]
+    pub async fn get_user_settings(&self) -> anyhow::Result<UserSettings> {
+        self.node_client
+            .get_user_settings()
+            .await
+            .map(UserSettings::from)
+            .context("Failed to get user settings")
+    }
+
+    /// Update the node's [`UserSettings`], returning the updated settings.
+    /// Omitted fields are unchanged.
+    #[instrument(skip_all, name = "(update-user-settings)")]
+    pub async fn update_user_settings(
+        &self,
+        req: UpdateUserSettingsRequest,
+    ) -> anyhow::Result<UserSettings> {
+        let req = command::UpdateUserSettingsRequest::try_from(req)?;
+        self.node_client
+            .update_user_settings(req)
+            .await
+            .map(UserSettings::from)
+            .context("Failed to update user settings")
     }
 }
 

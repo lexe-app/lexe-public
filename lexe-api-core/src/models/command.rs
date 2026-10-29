@@ -293,6 +293,8 @@ pub struct UpdateUserSettingsRequest {
 }
 
 /// Where auto-withdrawals are sent.
+//
+// NOTE: This is exposed in the Rust SDK.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]

@@ -33,8 +33,9 @@ use crate::{
             PayLnurlRequest, PayOfferRequest, PayOnchainPreflightRequest,
             PayOnchainPreflightResponse, PayOnchainRequest, PayRequest,
             PaymentSyncSummary, RevokeClientRequest, UpdateClientRequest,
-            UpdatePersonalNoteRequest, WaitForNextPaymentRequest,
-            WaitForNextPaymentResponse, WithdrawLnurlRequest,
+            UpdatePersonalNoteRequest, UpdateUserSettingsRequest, UserSettings,
+            WaitForNextPaymentRequest, WaitForNextPaymentResponse,
+            WithdrawLnurlRequest,
         },
         payment::{Order, Payment, PaymentCreatedIndex, PaymentFilter},
     },
@@ -739,6 +740,22 @@ impl BlockingLexeWallet {
         req: RevokeClientRequest,
     ) -> anyhow::Result<ClientInfoResponse> {
         block_on(self.inner.revoke_client(req))
+    }
+
+    // --- User settings --- //
+
+    /// Get the node's [`UserSettings`].
+    pub fn get_user_settings(&self) -> anyhow::Result<UserSettings> {
+        block_on(self.inner.get_user_settings())
+    }
+
+    /// Update the node's [`UserSettings`], returning the updated settings.
+    /// Omitted fields are unchanged.
+    pub fn update_user_settings(
+        &self,
+        req: UpdateUserSettingsRequest,
+    ) -> anyhow::Result<UserSettings> {
+        block_on(self.inner.update_user_settings(req))
     }
 }
 
