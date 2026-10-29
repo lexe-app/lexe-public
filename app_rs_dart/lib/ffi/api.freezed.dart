@@ -2395,8 +2395,8 @@ String toString() {
 /// @nodoc
 
 
-class _UserSettings implements UserSettings {
-  const _UserSettings({this.preferredFiatCurrency});
+class _UserSettings extends UserSettings {
+  const _UserSettings({this.preferredFiatCurrency}): super._();
   
 
 @override final  String? preferredFiatCurrency;

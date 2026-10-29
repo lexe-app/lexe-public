@@ -80,7 +80,7 @@ class AppRs extends BaseEntrypoint<AppRsApi, AppRsApiImpl, AppRsWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -847161099;
+  int get rustContentHash => -487476690;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -464,6 +464,8 @@ abstract class AppRsApi extends BaseApi {
   Future<void> crateFfiDebugUnconditionalPanic();
 
   UserChannelId crateFfiTypesUserChannelIdGenNew();
+
+  String crateFfiApiUserSettingsDefaultFiatCurrency();
 
   Username crateFfiTypesUsernameParse({required String s});
 
@@ -3578,6 +3580,35 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       const TaskConstMeta(debugName: "user_channel_id_gen_new", argNames: []);
 
   @override
+  String crateFfiApiUserSettingsDefaultFiatCurrency() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 100,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateFfiApiUserSettingsDefaultFiatCurrencyConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateFfiApiUserSettingsDefaultFiatCurrencyConstMeta =>
+      const TaskConstMeta(
+        debugName: "user_settings_default_fiat_currency",
+        argNames: [],
+      );
+
+  @override
   Username crateFfiTypesUsernameParse({required String s}) {
     return handler.executeSync(
       SyncTask(
@@ -3587,7 +3618,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 100,
+            funcId: 101,
           )!;
         },
         codec: SseCodec(
@@ -3614,7 +3645,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 101,
+            funcId: 102,
           )!;
         },
         codec: SseCodec(

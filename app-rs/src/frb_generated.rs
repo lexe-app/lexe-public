@@ -49,7 +49,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -847161099;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -487476690;
 
 // Section: executor
 
@@ -1502,6 +1502,19 @@ fn wire__crate__ffi__types__user_channel_id_gen_new_impl(
             deserializer.end();
                 transform_result_sse::<_, ()>((move || {
                      let output_ok = Ok::<_, ()>(crate::ffi::types::UserChannelId::gen_new())?;   std::result::Result::Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__api__user_settings_default_fiat_currency_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "user_settings_default_fiat_currency", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Ok::<_, ()>(crate::ffi::api::UserSettings::default_fiat_currency())?;   std::result::Result::Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__types__username_parse_impl(
@@ -4043,8 +4056,9 @@ fn pde_ffi_dispatcher_sync_impl(
 95 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
 96 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
 99 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-100 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-101 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+100 => wire__crate__ffi__api__user_settings_default_fiat_currency_impl(ptr, rust_vec_len, data_len),
+101 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+102 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

@@ -1,6 +1,7 @@
 import 'dart:async' show Timer, unawaited;
 
-import 'package:app_rs_dart/ffi/api.dart' show FiatRate, FiatRates;
+import 'package:app_rs_dart/ffi/api.dart'
+    show FiatRate, FiatRates, UserSettings;
 import 'package:app_rs_dart/ffi/api.ext.dart' show FiatRatesExt;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
@@ -63,7 +64,9 @@ class FiatRateService {
 
   void updateFiatRate() {
     final fiatCurrency = this._appData.preferredFiatCurrency.value;
-    final fiatRate = this.fiatRates.value?.findByFiat(fiatCurrency ?? "USD");
+    final fiatRate = this.fiatRates.value?.findByFiat(
+      fiatCurrency ?? UserSettings.defaultFiatCurrency(),
+    );
     info("fiat-rate: $fiatRate");
     this.fiatRate.value = fiatRate;
   }

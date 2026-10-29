@@ -144,6 +144,15 @@ pub struct UserSettings {
     pub preferred_fiat_currency: Option<String>,
 }
 
+impl UserSettings {
+    /// See [`UserSettingsRs::DEFAULT_FIAT_CURRENCY`].
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn default_fiat_currency() -> String {
+        UserSettingsRs::DEFAULT_FIAT_CURRENCY.as_str().to_owned()
+    }
+}
+
 impl From<UserSettingsRs> for UserSettings {
     fn from(settings: UserSettingsRs) -> Self {
         let preferred_fiat_currency = settings

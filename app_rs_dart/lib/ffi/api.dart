@@ -421,7 +421,14 @@ sealed class UpdateUserSettingsRequest with _$UpdateUserSettingsRequest {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class UserSettings with _$UserSettings {
+  const UserSettings._();
   const factory UserSettings({String? preferredFiatCurrency}) = _UserSettings;
+
+  /// See [`UserSettingsRs::DEFAULT_FIAT_CURRENCY`].
+  ///
+  /// flutter_rust_bridge:sync
+  static String defaultFiatCurrency() =>
+      AppRs.instance.api.crateFfiApiUserSettingsDefaultFiatCurrency();
 }
 
 /// See [`WithdrawLnurlRequestRs`].
