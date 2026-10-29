@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         ConfirmationPriority,
         LnurlPayRequest,
         Offer,
+        PaymentKind_AutoWithdrawOnchain,
         PaymentKind_BuyCashApp,
         PaymentKind_HumanBitcoinAddress,
         PaymentKind_Invoice,
@@ -731,6 +732,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       PaymentKind_WaivedLiquidityFee() ||
       PaymentKind_BuyCashApp() ||
       PaymentKind_PartnerFeePayout() ||
+      PaymentKind_AutoWithdrawOnchain() ||
       PaymentKind_Unknown() => "(invalid)",
     };
 

@@ -123,6 +123,7 @@ impl OnchainSendV2 {
     // Event sources:
     // - `pay_onchain` API
     // - `wallet::legacy_sweep`
+    // - Node auto-withdrawals
     pub fn new(
         tx: Transaction,
         req: PayOnchainRequest,

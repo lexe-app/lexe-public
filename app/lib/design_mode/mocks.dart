@@ -80,6 +80,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Payment,
         PaymentCreatedIndex,
         PaymentDirection,
+        PaymentKind_AutoWithdrawOnchain,
         PaymentKind_BuyCashApp,
         PaymentKind_HumanBitcoinAddress,
         PaymentKind_Invoice,
@@ -1469,6 +1470,26 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
   finalizedAt: 1687385380000,
 );
 
+const Payment dummyAutoWithdrawOnchainOutboundCompleted01 = Payment(
+  index: PaymentCreatedIndex(
+    field0:
+        "0000001687485080000-os_5c1f04a7e2b98d3361f0a4c8b27e9d15f3a6c0b8e41d7f92a53c86b0e1f4d279",
+  ),
+  kind: PaymentKind_AutoWithdrawOnchain(),
+  direction: PaymentDirection.outbound,
+  txid: "7d2e91b4c08f35a6e1d4b7c92f05a83e6b1c4d07f92e8a35b6c10d4e7f29a3b1",
+  amountSats: 412000,
+  feesSats: 1530,
+  amountMsats: 412000 * 1000,
+  feesMsats: 1530 * 1000,
+  status: PaymentStatus.completed,
+  statusStr: "fully confirmed (6+ confirmations)",
+  personalNote: "Auto-withdrawal",
+  createdAt: 1687485080000,
+  updatedAt: 1687485380000,
+  finalizedAt: 1687485380000,
+);
+
 const Payment dummyOnchainOutboundFailed01 = Payment(
   index: PaymentCreatedIndex(
     field0:
@@ -1974,6 +1995,7 @@ List<Payment> defaultDummyPayments = [
   dummyInvoiceInboundCompleted01,
   dummyInvoiceInboundFailed01,
   dummyOnchainOutboundCompleted01,
+  dummyAutoWithdrawOnchainOutboundCompleted01,
   dummyOfferOutboundPayment01,
   dummyOfferInboundPayment01,
   dummyBuyCashAppInbound01,

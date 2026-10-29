@@ -10,6 +10,8 @@ mod alias;
 mod anonymize_path;
 /// Version approval and revocation.
 mod approved_versions;
+/// Automatic withdrawals of Lightning funds on-chain.
+mod auto_withdraw;
 /// Asynchronous backup worker.
 mod backup_persister;
 /// `NodeChannelManager` and related configs.

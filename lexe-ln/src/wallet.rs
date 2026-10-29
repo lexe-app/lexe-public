@@ -1130,6 +1130,11 @@ impl OnchainWallet {
         })
     }
 
+    /// Whether the BDK wallet's `TxGraph` contains a tx spending `outpoint`.
+    pub fn has_seen_spend_of(&self, outpoint: bitcoin::OutPoint) -> bool {
+        !self.read().tx_graph().outspends(outpoint).is_empty()
+    }
+
     /// Get a [`TxDetails`] for given [`Txid`] inside of the wallet.
     /// If not found, returns `None`.
     pub fn get_tx_details(&self, txid: Txid) -> Option<TxDetails> {

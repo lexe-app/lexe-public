@@ -2850,6 +2850,7 @@ Application-level kind for a payment.
   Address.
 - **PARTNER_FEE_PAYOUT** -- Revenue share paid out to a partner for the
   partner fees they charged.
+- **AUTO_WITHDRAW_ONCHAIN** -- An auto-withdrawal sent as an on-chain sweep.
 - **UNKNOWN** -- Unknown kind from a newer node version.
 """
 

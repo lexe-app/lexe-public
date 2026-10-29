@@ -94,6 +94,7 @@ use tracing::{debug, error, info, info_span, trace, warn};
 
 use crate::{
     alias::{ChainMonitorType, OnionMessengerType, PaymentsManagerType},
+    auto_withdraw::{self, AutoWithdrawCtx},
     backup_persister::{BackupPersister, BackupStore},
     channel_manager::NodeChannelManager,
     client::{NodeBackendClient, RunnerClient},
@@ -197,6 +198,7 @@ pub struct SyncContext {
     onchain_recv_tx: notify::Sender,
     bdk_resync_rx: mpsc::Receiver<BdkSyncRequest>,
     ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
+    lsp_connected: NotifyOnce,
 }
 
 /// Inputs to [`UserNode::run`].
@@ -823,6 +825,26 @@ impl UserNode {
             static_tasks.push(worker.spawn());
         }
 
+        // Spawn the auto-withdrawal task.
+        let lsp_connected = NotifyOnce::new();
+        let auto_withdraw_ctx = AutoWithdrawCtx {
+            chain_monitor: chain_monitor.clone(),
+            channel_events_bus: channel_events_bus.clone(),
+            channel_manager: channel_manager.clone(),
+            fee_estimates: fee_estimates.clone(),
+            network,
+            payments_manager: payments_manager.clone(),
+            settings: settings.clone(),
+            tx_broadcaster: tx_broadcaster.clone(),
+            wallet: wallet.clone(),
+        };
+        let auto_withdraw_task = auto_withdraw::spawn_auto_withdraw_task(
+            auto_withdraw_ctx,
+            lsp_connected.clone(),
+            shutdown.clone(),
+        );
+        static_tasks.push(auto_withdraw_task);
+
         // Start the user API server.
         let lsp_info = args.lsp.clone();
         let eph_ca_cert = EphemeralIssuingCaCert::from_root_seed(&root_seed);
@@ -1157,6 +1179,7 @@ impl UserNode {
             onchain_recv_tx,
             bdk_resync_rx,
             ldk_resync_rx,
+            lsp_connected,
         };
         let run_ctx = RunContext { eph_tasks_rx };
         Ok((node, sync_ctx, run_ctx))
@@ -1231,6 +1254,7 @@ impl UserNode {
         .await
         .context("connect_to_lsp_then_spawn_connector_task failed")?;
         self.static_tasks.push(connector_task);
+        sync_ctx.lsp_connected.send();
 
         let total_elapsed = sync_ctx.init_start.elapsed().as_millis();
         info!("Sync complete. Total init + sync time: <{total_elapsed}ms>");

@@ -340,6 +340,7 @@ pub enum PaymentKind {
     LightningAddress,
     HumanBitcoinAddress,
     PartnerFeePayout,
+    AutoWithdrawOnchain,
     Unknown(String),
 }
 
@@ -356,6 +357,7 @@ impl From<PaymentKindRs> for PaymentKind {
             PaymentKindRs::LightningAddress => Self::LightningAddress,
             PaymentKindRs::HumanBitcoinAddress => Self::HumanBitcoinAddress,
             PaymentKindRs::PartnerFeePayout => Self::PartnerFeePayout,
+            PaymentKindRs::AutoWithdrawOnchain => Self::AutoWithdrawOnchain,
             PaymentKindRs::Unknown(s) => Self::Unknown(String::from(s)),
         }
     }
@@ -374,6 +376,7 @@ impl From<PaymentKind> for PaymentKindRs {
             PaymentKind::LightningAddress => Self::LightningAddress,
             PaymentKind::HumanBitcoinAddress => Self::HumanBitcoinAddress,
             PaymentKind::PartnerFeePayout => Self::PartnerFeePayout,
+            PaymentKind::AutoWithdrawOnchain => Self::AutoWithdrawOnchain,
             PaymentKind::Unknown(s) => Self::Unknown(Box::from(s)),
         }
     }

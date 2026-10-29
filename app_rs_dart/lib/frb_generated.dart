@@ -5481,6 +5481,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case 9:
         return PaymentKind_PartnerFeePayout();
       case 10:
+        return PaymentKind_AutoWithdrawOnchain();
+      case 11:
         return PaymentKind_Unknown(dco_decode_String(raw[1]));
       default:
         throw Exception("unreachable");
@@ -7837,6 +7839,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       case 9:
         return PaymentKind_PartnerFeePayout();
       case 10:
+        return PaymentKind_AutoWithdrawOnchain();
+      case 11:
         var var_field0 = sse_decode_String(deserializer);
         return PaymentKind_Unknown(var_field0);
       default:
@@ -10038,8 +10042,10 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
         sse_encode_i_32(8, serializer);
       case PaymentKind_PartnerFeePayout():
         sse_encode_i_32(9, serializer);
-      case PaymentKind_Unknown(field0: final field0):
+      case PaymentKind_AutoWithdrawOnchain():
         sse_encode_i_32(10, serializer);
+      case PaymentKind_Unknown(field0: final field0):
+        sse_encode_i_32(11, serializer);
         sse_encode_String(field0, serializer);
     }
   }

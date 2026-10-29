@@ -3533,6 +3533,8 @@ pub enum PaymentKind {
     HumanBitcoinAddress,
     /// Revenue share paid out to a partner for the partner fees they charged.
     PartnerFeePayout,
+    /// An auto-withdrawal sent as an on-chain sweep.
+    AutoWithdrawOnchain,
     /// Unknown kind from a newer version of node.
     Unknown { inner: String },
 }
@@ -3550,6 +3552,7 @@ impl From<SdkPaymentKind> for PaymentKind {
             SdkPaymentKind::LightningAddress => Self::LightningAddress,
             SdkPaymentKind::HumanBitcoinAddress => Self::HumanBitcoinAddress,
             SdkPaymentKind::PartnerFeePayout => Self::PartnerFeePayout,
+            SdkPaymentKind::AutoWithdrawOnchain => Self::AutoWithdrawOnchain,
             SdkPaymentKind::Unknown(s) => Self::Unknown {
                 inner: String::from(s),
             },

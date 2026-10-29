@@ -17,6 +17,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         Payment,
         PaymentCreatedIndex,
         PaymentDirection,
+        PaymentKind_AutoWithdrawOnchain,
         PaymentKind_BuyCashApp,
         PaymentKind_HumanBitcoinAddress,
         PaymentKind_Invoice,
@@ -2568,6 +2569,7 @@ class PaymentsListEntry extends StatelessWidget {
         PaymentKind_LightningAddress() ||
         PaymentKind_HumanBitcoinAddress() ||
         PaymentKind_PartnerFeePayout() ||
+        PaymentKind_AutoWithdrawOnchain() ||
         PaymentKind_Unknown() => "(invalid)",
       },
     };
