@@ -821,6 +821,10 @@ Args:
         paid on top of the routing fees.
     partner_base_fee_sats: Partner base fee in satoshis, paid on top of the
         routing fees.
+    lud12_comment: A LUD-12 comment the caller already sent when requesting
+        this invoice over LNURL-pay. Stored with the payment as its
+        ``message``; nothing is sent to the recipient. If provided, it must
+        be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal
@@ -1871,6 +1875,10 @@ Args:
         paid on top of the routing fees.
     partner_base_fee_sats: Partner base fee in satoshis, paid on top of the
         routing fees.
+    lud12_comment: A LUD-12 comment the caller already sent when requesting
+        this invoice over LNURL-pay. Stored with the payment as its
+        ``message``; nothing is sent to the recipient. If provided, it must
+        be non-empty and <= 200 chars / 512 UTF-8 bytes.
 
 Returns:
     The resulting :class:`Payment`, returned once it reaches a terminal

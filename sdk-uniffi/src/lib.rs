@@ -1057,6 +1057,10 @@ impl AsyncLexeWallet {
     /// `partner_base_fee_sats` is the partner base fee in satoshis.
     /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
     /// (500,000 ppm) of the payment amount.
+    /// `lud12_comment` is a LUD-12 comment the caller already sent when
+    /// requesting this invoice over LNURL-pay. It is stored with the payment
+    /// as its `message`; nothing is sent to the recipient. If provided, it
+    /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
@@ -1069,6 +1073,7 @@ impl AsyncLexeWallet {
         partner_pk = None,
         partner_prop_fee_ppm = None,
         partner_base_fee_sats = None,
+        lud12_comment = None,
     ))]
     pub async fn pay_invoice(
         &self,
@@ -1078,6 +1083,7 @@ impl AsyncLexeWallet {
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
         partner_base_fee_sats: Option<u64>,
+        lud12_comment: Option<String>,
     ) -> Result<Payment, FfiError> {
         let invoice =
             SdkInvoice::from_str(&invoice).context("Invalid invoice")?;
@@ -1102,7 +1108,7 @@ impl AsyncLexeWallet {
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
-            lud12_comment: None,
+            lud12_comment,
             personal_note,
             partner_pk,
             partner_prop_fee,
@@ -2229,6 +2235,10 @@ impl BlockingLexeWallet {
     /// `partner_base_fee_sats` is the partner base fee in satoshis.
     /// The total partner fee must be at least 0.5% (5000 ppm) and less than 50%
     /// (500,000 ppm) of the payment amount.
+    /// `lud12_comment` is a LUD-12 comment the caller already sent when
+    /// requesting this invoice over LNURL-pay. It is stored with the payment
+    /// as its `message`; nothing is sent to the recipient. If provided, it
+    /// must be non-empty and at most 200 chars / 512 UTF-8 bytes.
     ///
     /// Returns the resulting `Payment` once it reaches a terminal state
     /// (completed or failed).
@@ -2241,6 +2251,7 @@ impl BlockingLexeWallet {
         partner_pk = None,
         partner_prop_fee_ppm = None,
         partner_base_fee_sats = None,
+        lud12_comment = None,
     ))]
     pub fn pay_invoice(
         &self,
@@ -2250,6 +2261,7 @@ impl BlockingLexeWallet {
         partner_pk: Option<String>,
         partner_prop_fee_ppm: Option<i32>,
         partner_base_fee_sats: Option<u64>,
+        lud12_comment: Option<String>,
     ) -> Result<Payment, FfiError> {
         let invoice =
             SdkInvoice::from_str(&invoice).context("Invalid invoice")?;
@@ -2274,7 +2286,7 @@ impl BlockingLexeWallet {
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
-            lud12_comment: None,
+            lud12_comment,
             personal_note,
             partner_pk,
             partner_prop_fee,

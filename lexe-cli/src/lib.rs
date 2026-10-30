@@ -1135,6 +1135,15 @@ pub struct PayInvoiceArgs {
 
     #[arg(
         long,
+        help = "LUD-12 comment already sent when requesting this invoice\n\
+        over LNURL-pay. Stored with the payment as its message;\n\
+        nothing is sent to the recipient.\n\
+        Maximum length: 200 chars / 512 UTF-8 bytes."
+    )]
+    lud12_comment: Option<String>,
+
+    #[arg(
+        long,
         help = "Personal note stored locally, not visible to receiver.\n\
         Maximum length: 200 chars / 512 UTF-8 bytes."
     )]
@@ -1170,7 +1179,7 @@ impl PayInvoiceArgs {
         let req = PayInvoiceRequest {
             invoice,
             fallback_amount: self.fallback_amount_sats,
-            lud12_comment: None,
+            lud12_comment: self.lud12_comment,
             personal_note: self.personal_note,
             partner_pk: self.partner_pk,
             partner_prop_fee: self.partner_prop_fee,
