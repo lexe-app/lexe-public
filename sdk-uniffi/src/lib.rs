@@ -3607,7 +3607,10 @@ impl From<SdkPaymentMethod> for PaymentMethod {
                 label,
                 message,
             },
-            SdkPaymentMethod::Invoice { invoice } => Self::Invoice {
+            SdkPaymentMethod::Invoice {
+                invoice,
+                lud12_comment: _,
+            } => Self::Invoice {
                 invoice: Invoice::from(&invoice),
             },
             SdkPaymentMethod::Offer {

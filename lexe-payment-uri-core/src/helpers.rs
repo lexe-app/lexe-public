@@ -28,7 +28,10 @@ pub fn flatten_invoice(invoice: Invoice) -> Vec<PaymentMethod> {
         }
     }
 
-    methods.push(PaymentMethod::Invoice { invoice });
+    methods.push(PaymentMethod::Invoice {
+        invoice,
+        lud12_comment: None,
+    });
 
     methods
 }

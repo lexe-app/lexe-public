@@ -8,7 +8,9 @@
 use std::{borrow::Cow, fmt, str::FromStr};
 
 use bitcoin::address::NetworkUnchecked;
-use lexe_api_core::types::{invoice::Invoice, offer::Offer};
+use lexe_api_core::types::{
+    bounded_string::BoundedString, invoice::Invoice, offer::Offer,
+};
 use lexe_common::ln::{amount::Amount, network::Network};
 use lexe_uri::Uri;
 use rust_decimal::Decimal;
@@ -84,6 +86,13 @@ pub struct Bip321Uri {
 
     /// On-chain message / payment note
     pub message: Option<String>,
+
+    /// A Lexe-specific `?lud12-comment=` param, not part of BIP 321: the
+    /// LUD-12 comment the payer already sent in the LNURL-pay callback that
+    /// produced `invoice`. Lexe's embeddable payment widget adds it so that a
+    /// Lexe payer sees their message on the payment. Parsed only alongside an
+    /// invoice.
+    pub lud12_comment: Option<String>,
     //
     // TODO(phlip9): "pop" (proof-of-payment) callback param
 }
@@ -187,6 +196,10 @@ impl Bip321Uri {
                 if out.message.is_none() {
                     out.message = Some(param.value.into_owned());
                 }
+            } else if key.is("lud12-comment") {
+                if out.lud12_comment.is_none() {
+                    out.lud12_comment = Some(param.value.into_owned());
+                }
             } else if key.is_req {
                 // We'll respect required && unrecognized bip21 params by
                 // throwing out all onchain methods.
@@ -203,6 +216,11 @@ impl Bip321Uri {
             out.amount = None;
             out.label = None;
             out.message = None;
+        }
+
+        // A LUD-12 comment only applies to an invoice.
+        if out.invoice.is_none() {
+            out.lud12_comment = None;
         }
 
         out
@@ -295,6 +313,11 @@ impl Bip321Uri {
             out.push_param("lno", offer.to_string());
         }
 
+        // LUD-12 comment param
+        if let Some(lud12_comment) = &self.lud12_comment {
+            out.push_param("lud12-comment", lud12_comment);
+        }
+
         out
     }
 
@@ -326,7 +349,15 @@ impl Bip321Uri {
         }
 
         if let Some(invoice) = self.invoice {
-            methods.push(PaymentMethod::Invoice { invoice });
+            // Fit the untrusted comment to Lexe's payment message limits.
+            let lud12_comment = self
+                .lud12_comment
+                .and_then(BoundedString::truncate)
+                .map(BoundedString::into_inner);
+            methods.push(PaymentMethod::Invoice {
+                invoice,
+                lud12_comment,
+            });
         }
 
         if let Some(offer) = self.offer {
@@ -356,6 +387,7 @@ impl Bip321Uri {
             amount: _,
             label: _,
             message: _,
+            lud12_comment: _,
         } = self;
         !onchain.is_empty()
             || invoice.is_some()
@@ -395,6 +427,7 @@ mod arbitrary_impl {
                 amount::arb::sats_amount().prop_map(Some),
                 any::<Option<String>>(),
                 any::<Option<String>>(),
+                any::<Option<String>>(),
             )
                 .prop_map(
                     |(
@@ -405,6 +438,7 @@ mod arbitrary_impl {
                         amount,
                         label,
                         message,
+                        lud12_comment,
                     )| {
                         let mut out = Self {
                             onchain,
@@ -414,6 +448,7 @@ mod arbitrary_impl {
                             amount,
                             label,
                             message,
+                            lud12_comment,
                         };
 
                         // The URI body holds either an onchain address or an
@@ -421,6 +456,11 @@ mod arbitrary_impl {
                         // when onchain is non-empty.
                         if !out.onchain.is_empty() {
                             out.email_like = None;
+                        }
+
+                        // Parsing drops a LUD-12 comment without an invoice.
+                        if out.invoice.is_none() {
+                            out.lud12_comment = None;
                         }
 
                         out
@@ -475,6 +515,12 @@ mod test {
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
+
+    const INVOICE: &str = "lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap\
+        4rlugvywlm4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es\
+        9qyysgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85lfl\
+        5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsfh36ks9je\
+        z7aamsn7hpkxqpw2xyek";
 
     #[test]
     fn test_bip321_uri_manual() {
@@ -635,6 +681,66 @@ mod test {
             ..Bip321Uri::default()
         };
         assert_eq!(uri.to_string(), "bitcoin:foo@example.com");
+    }
+
+    #[test]
+    fn test_bip321_uri_lud12_comment() {
+        // With an invoice
+        let s = format!(
+            "bitcoin:?lightning={INVOICE}&lud12-comment=thanks%20for%20lunch"
+        );
+        let parsed = Bip321Uri::parse(&s).unwrap();
+        assert!(parsed.invoice.is_some());
+        assert_eq!(parsed.lud12_comment.as_deref(), Some("thanks for lunch"));
+        assert_eq!(parsed.to_string(), s);
+
+        // The key is case-insensitive, and the first duplicate wins
+        let parsed = Bip321Uri::parse(&format!(
+            "bitcoin:?lightning={INVOICE}&LUD12-COMMENT=first&lud12-comment=second"
+        ))
+        .unwrap();
+        assert_eq!(parsed.lud12_comment.as_deref(), Some("first"));
+
+        // Ignored without an invoice
+        let address = "bc1qfjeyfl9phsdanz5yaylas3p393mu9z99ya9mnh";
+        let offer =
+            "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
+        for s in [
+            format!("bitcoin:{address}?lud12-comment=hi"),
+            format!("bitcoin:?lno={offer}&lud12-comment=hi"),
+            "bitcoin:nicole@lexe.app?lud12-comment=hi".to_owned(),
+        ] {
+            let parsed = Bip321Uri::parse(&s).unwrap();
+            assert!(parsed.any_usable());
+            assert_eq!(parsed.lud12_comment, None);
+        }
+    }
+
+    #[test]
+    fn test_bip321_uri_flatten_lud12_comment() {
+        /// Flatten into the invoice's comment.
+        fn flatten_comment(lud12_comment: &str) -> Option<String> {
+            let s = format!(
+                "bitcoin:?lightning={INVOICE}&lud12-comment={lud12_comment}"
+            );
+            let (methods, _) =
+                Bip321Uri::parse(&s).unwrap().flatten(Network::Mainnet);
+            let [PaymentMethod::Invoice { lud12_comment, .. }] = &*methods
+            else {
+                panic!("Expected one invoice");
+            };
+            lud12_comment.clone()
+        }
+
+        assert_eq!(flatten_comment("hi").as_deref(), Some("hi"));
+
+        // An empty comment is dropped
+        assert_eq!(flatten_comment(""), None);
+
+        // An overlong comment is truncated to Lexe's message limits
+        let long = "a".repeat(BoundedString::MAX_CHARS + 1);
+        let truncated = Some("a".repeat(BoundedString::MAX_CHARS));
+        assert_eq!(flatten_comment(&long), truncated);
     }
 
     // roundtrip: Bip321Uri -> String -> Bip321Uri

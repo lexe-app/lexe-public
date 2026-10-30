@@ -664,8 +664,10 @@ impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
                 label,
                 message,
             }),
-            lexe_payment_uri::PaymentMethod::Invoice { invoice } =>
-                Self::Invoice(Invoice::from(invoice)),
+            lexe_payment_uri::PaymentMethod::Invoice {
+                invoice,
+                lud12_comment: _,
+            } => Self::Invoice(Invoice::from(invoice)),
             lexe_payment_uri::PaymentMethod::Offer {
                 offer,
                 bip321_amount,

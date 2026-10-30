@@ -301,7 +301,7 @@ mod node {
                 let mut lnurl = None;
                 let mut onchain = None;
                 match method {
-                    PaymentMethod::Invoice { invoice: inv } =>
+                    PaymentMethod::Invoice { invoice: inv, .. } =>
                         invoice = Some(inv.to_string()),
                     PaymentMethod::Offer { offer: off, .. } =>
                         offer = Some(off.to_string()),

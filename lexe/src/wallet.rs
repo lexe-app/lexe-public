@@ -792,7 +792,10 @@ impl LexeWallet {
                         expires_at,
                     }
                 }
-                PaymentMethod::Invoice { invoice } => {
+                PaymentMethod::Invoice {
+                    invoice,
+                    lud12_comment: _,
+                } => {
                     let payable = invoice.to_string();
                     let description =
                         invoice.description_str().map(str::to_owned);
@@ -1008,7 +1011,10 @@ impl LexeWallet {
         personal_note: Option<BoundedString>,
     ) -> anyhow::Result<Payment> {
         match best_method {
-            PaymentMethod::Invoice { invoice } => {
+            PaymentMethod::Invoice {
+                invoice,
+                lud12_comment: _,
+            } => {
                 let fallback_amount = match (invoice.amount(), amount) {
                     (Some(amt), Some(given)) if amt != given =>
                         return Err(anyhow!(

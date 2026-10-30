@@ -62,6 +62,11 @@ pub enum PaymentMethod {
     Invoice {
         /// A BOLT11 invoice.
         invoice: Invoice,
+
+        /// The LUD-12 comment the payer already sent in the LNURL-pay
+        /// callback that produced this invoice, to record as the payment's
+        /// message. Parsed from a BIP321 URI containing the invoice.
+        lud12_comment: Option<String>,
     },
     Offer {
         /// A BOLT12 offer.
@@ -197,7 +202,7 @@ impl PaymentUriMethod for PaymentMethod {
             Self::Onchain { address, .. } => address
                 .as_unchecked()
                 .is_valid_for_network(network.to_bitcoin()),
-            Self::Invoice { invoice } => invoice.supports_network(network),
+            Self::Invoice { invoice, .. } => invoice.supports_network(network),
             Self::Offer { offer, .. } => offer.supports_network(network),
             Self::LnurlPay { .. } => true,
         }
