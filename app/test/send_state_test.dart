@@ -303,6 +303,45 @@ void main() {
       expect(result.ok, isA<SendState_Preflighted>());
     });
 
+    test('preflight records an invoice\'s LUD-12 comment', () async {
+      const invoice = Invoice(
+        string: testInvoice,
+        amountSats: 1000,
+        createdAt: 1700000000000,
+        expiresAt: 1700003600000,
+        payeePubkey: 'abc123',
+        lud12Comment: 'thanks for lunch',
+      );
+      mockApp.mock(
+        payInvoicePreflight,
+        (_) async => PayInvoicePreflightResponse(
+          amountSats: 1000,
+          feesSats: 10,
+          ldkRoute: Uint8List(0),
+        ),
+      );
+      mockApp.mock(payInvoice, (req) async {
+        expect(req.lud12Comment, 'thanks for lunch');
+        return PayInvoiceResponse(
+          index: PaymentCreatedIndex(field0: 'test-index'),
+        );
+      });
+
+      final state = SendState_NeedAmount(
+        app: mockApp,
+        configNetwork: Network.mainnet,
+        balance: testBalance(),
+        clientPaymentId: testClientPaymentId(),
+        fiatRate: fiatRate,
+        paymentMethod: const PaymentMethod.invoice(invoice),
+      );
+
+      final preflighted = (await state.preflight(1000)).ok!;
+      final result = await preflighted.pay(null, null);
+
+      expect(result.isOk, true);
+    });
+
     test('preflight succeeds for offer payment', () async {
       const offer = Offer(string: testOffer);
       mockApp.mock(

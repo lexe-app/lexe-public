@@ -159,6 +159,8 @@ class SendState_NeedAmount implements SendState {
               invoice: invoice,
               amountSats: amountSats,
               preflight: ok,
+              // The recipient already received the URI's comment.
+              message: invoice.lud12Comment,
             );
           case Err(:final err):
             return Err(err);
@@ -357,6 +359,7 @@ class SendState_Preflighted implements SendState {
       fallbackAmountSats: (preflighted.invoice.amountSats == null)
           ? preflighted.amountSats
           : null,
+      lud12Comment: preflighted.message,
       personalNote: personalNote,
       kind: kind,
       ldkRoute: preflighted.preflight.ldkRoute,

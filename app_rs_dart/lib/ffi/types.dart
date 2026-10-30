@@ -273,6 +273,7 @@ sealed class Invoice with _$Invoice {
     required int expiresAt,
     int? amountSats,
     required String payeePubkey,
+    String? lud12Comment,
   }) = _Invoice;
 }
 

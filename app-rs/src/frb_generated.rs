@@ -2254,6 +2254,7 @@ impl SseDecode for crate::ffi::types::Invoice {
         let mut var_expiresAt = <i64>::sse_decode(deserializer);
         let mut var_amountSats = <Option<u64>>::sse_decode(deserializer);
         let mut var_payeePubkey = <String>::sse_decode(deserializer);
+        let mut var_lud12Comment = <Option<String>>::sse_decode(deserializer);
         return crate::ffi::types::Invoice {
             string: var_string,
             description: var_description,
@@ -2261,6 +2262,7 @@ impl SseDecode for crate::ffi::types::Invoice {
             expires_at: var_expiresAt,
             amount_sats: var_amountSats,
             payee_pubkey: var_payeePubkey,
+            lud12_comment: var_lud12Comment,
         };
     }
 }
@@ -4795,6 +4797,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::Invoice {
             self.expires_at.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
             self.payee_pubkey.into_into_dart().into_dart(),
+            self.lud12_comment.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6808,6 +6811,7 @@ impl SseEncode for crate::ffi::types::Invoice {
         <i64>::sse_encode(self.expires_at, serializer);
         <Option<u64>>::sse_encode(self.amount_sats, serializer);
         <String>::sse_encode(self.payee_pubkey, serializer);
+        <Option<String>>::sse_encode(self.lud12_comment, serializer);
     }
 }
 

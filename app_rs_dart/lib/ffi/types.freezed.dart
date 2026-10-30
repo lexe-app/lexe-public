@@ -575,22 +575,22 @@ String toString() {
 /// @nodoc
 mixin _$Invoice {
 
- String get string; String? get description; int get createdAt; int get expiresAt; int? get amountSats; String get payeePubkey;
+ String get string; String? get description; int get createdAt; int get expiresAt; int? get amountSats; String get payeePubkey; String? get lud12Comment;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Invoice&&(identical(other.string, string) || other.string == string)&&(identical(other.description, description) || other.description == description)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.payeePubkey, payeePubkey) || other.payeePubkey == payeePubkey));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Invoice&&(identical(other.string, string) || other.string == string)&&(identical(other.description, description) || other.description == description)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.payeePubkey, payeePubkey) || other.payeePubkey == payeePubkey)&&(identical(other.lud12Comment, lud12Comment) || other.lud12Comment == lud12Comment));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,string,description,createdAt,expiresAt,amountSats,payeePubkey);
+int get hashCode => Object.hash(runtimeType,string,description,createdAt,expiresAt,amountSats,payeePubkey,lud12Comment);
 
 @override
 String toString() {
-  return 'Invoice(string: $string, description: $description, createdAt: $createdAt, expiresAt: $expiresAt, amountSats: $amountSats, payeePubkey: $payeePubkey)';
+  return 'Invoice(string: $string, description: $description, createdAt: $createdAt, expiresAt: $expiresAt, amountSats: $amountSats, payeePubkey: $payeePubkey, lud12Comment: $lud12Comment)';
 }
 
 
@@ -604,7 +604,7 @@ String toString() {
 
 
 class _Invoice implements Invoice {
-  const _Invoice({required this.string, this.description, required this.createdAt, required this.expiresAt, this.amountSats, required this.payeePubkey});
+  const _Invoice({required this.string, this.description, required this.createdAt, required this.expiresAt, this.amountSats, required this.payeePubkey, this.lud12Comment});
   
 
 @override final  String string;
@@ -613,22 +613,23 @@ class _Invoice implements Invoice {
 @override final  int expiresAt;
 @override final  int? amountSats;
 @override final  String payeePubkey;
+@override final  String? lud12Comment;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Invoice&&(identical(other.string, string) || other.string == string)&&(identical(other.description, description) || other.description == description)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.payeePubkey, payeePubkey) || other.payeePubkey == payeePubkey));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Invoice&&(identical(other.string, string) || other.string == string)&&(identical(other.description, description) || other.description == description)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.payeePubkey, payeePubkey) || other.payeePubkey == payeePubkey)&&(identical(other.lud12Comment, lud12Comment) || other.lud12Comment == lud12Comment));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,string,description,createdAt,expiresAt,amountSats,payeePubkey);
+int get hashCode => Object.hash(runtimeType,string,description,createdAt,expiresAt,amountSats,payeePubkey,lud12Comment);
 
 @override
 String toString() {
-  return 'Invoice(string: $string, description: $description, createdAt: $createdAt, expiresAt: $expiresAt, amountSats: $amountSats, payeePubkey: $payeePubkey)';
+  return 'Invoice(string: $string, description: $description, createdAt: $createdAt, expiresAt: $expiresAt, amountSats: $amountSats, payeePubkey: $payeePubkey, lud12Comment: $lud12Comment)';
 }
 
 

@@ -666,8 +666,11 @@ impl From<lexe_payment_uri::PaymentMethod> for PaymentMethod {
             }),
             lexe_payment_uri::PaymentMethod::Invoice {
                 invoice,
-                lud12_comment: _,
-            } => Self::Invoice(Invoice::from(invoice)),
+                lud12_comment,
+            } => Self::Invoice(Invoice {
+                lud12_comment,
+                ..Invoice::from(invoice)
+            }),
             lexe_payment_uri::PaymentMethod::Offer {
                 offer,
                 bip321_amount,
@@ -917,6 +920,10 @@ pub struct Invoice {
     pub amount_sats: Option<u64>,
 
     pub payee_pubkey: String,
+
+    /// The LUD-12 comment the payer already sent in the LNURL-pay callback
+    /// that produced this invoice, from the BIP321 URI containing it.
+    pub lud12_comment: Option<String>,
 }
 
 impl From<&InvoiceRs> for Invoice {
@@ -932,6 +939,8 @@ impl From<&InvoiceRs> for Invoice {
             amount_sats: invoice.amount_sats(),
 
             payee_pubkey: invoice.payee_node_pk().to_string(),
+
+            lud12_comment: None,
         }
     }
 }

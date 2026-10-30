@@ -4628,8 +4628,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   Invoice dco_decode_invoice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return Invoice(
       string: dco_decode_String(arr[0]),
       description: dco_decode_opt_String(arr[1]),
@@ -4637,6 +4637,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       expiresAt: dco_decode_CastedPrimitive_i_64(arr[3]),
       amountSats: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
       payeePubkey: dco_decode_String(arr[5]),
+      lud12Comment: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -6708,6 +6709,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_expiresAt = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_amountSats = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_payeePubkey = sse_decode_String(deserializer);
+    var var_lud12Comment = sse_decode_opt_String(deserializer);
     return Invoice(
       string: var_string,
       description: var_description,
@@ -6715,6 +6717,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       expiresAt: var_expiresAt,
       amountSats: var_amountSats,
       payeePubkey: var_payeePubkey,
+      lud12Comment: var_lud12Comment,
     );
   }
 
@@ -9037,6 +9040,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.amountSats, serializer);
     sse_encode_String(self.payeePubkey, serializer);
+    sse_encode_opt_String(self.lud12Comment, serializer);
   }
 
   @protected
