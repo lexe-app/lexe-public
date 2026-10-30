@@ -1048,33 +1048,19 @@ impl LexeWallet {
                     );
                 }
 
-                let id = invoice.payment_id();
-                let pay_req = command::PayInvoiceRequest {
+                // TODO(nicole): Consider reusing the preflighted route by
+                // having `analyze` return a `state` field for the caller to
+                // pass back into `pay`.
+                let req = PayInvoiceRequest {
                     invoice,
                     fallback_amount,
-                    lud12_comment: lud12_comment
-                        .and_then(BoundedString::truncate),
-                    personal_note,
-                    kind: PaymentKind::Invoice,
-                    // TODO(nicole): Consider reusing the preflighted route by
-                    // having `analyze` return a `state` field for the caller to
-                    // pass back into `pay`.
-                    ldk_route: None,
+                    lud12_comment,
+                    personal_note: personal_note.map(BoundedString::into_inner),
                     partner_pk: None,
                     partner_prop_fee: None,
                     partner_base_fee: None,
                 };
-                let resp = self
-                    .node_client
-                    .pay_invoice(pay_req)
-                    .await
-                    .context("Failed to pay invoice")?;
-
-                let index = PaymentCreatedIndex {
-                    created_at: resp.created_at,
-                    id,
-                };
-                self.wait_for_payment(index, None).await
+                self.pay_invoice(req).await
             }
             PaymentMethod::LnurlPay {
                 pay_request,

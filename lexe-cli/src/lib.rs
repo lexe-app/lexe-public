@@ -1170,6 +1170,7 @@ impl PayInvoiceArgs {
         let req = PayInvoiceRequest {
             invoice,
             fallback_amount: self.fallback_amount_sats,
+            lud12_comment: None,
             personal_note: self.personal_note,
             partner_pk: self.partner_pk,
             partner_prop_fee: self.partner_prop_fee,

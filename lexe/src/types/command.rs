@@ -400,6 +400,12 @@ pub struct PayInvoiceRequest {
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be set if the invoice is amountless.
     pub fallback_amount: Option<Amount>,
+    /// A LUD-12 comment the caller already sent when requesting this invoice
+    /// over LNURL-pay. Stored with the payment as its `message`; nothing is
+    /// sent to the recipient.
+    /// If provided, it must be non-empty and no longer than 200 chars /
+    /// 512 UTF-8 bytes.
+    pub lud12_comment: Option<String>,
     /// An optional personal note for this payment.
     /// The receiver will not see this note.
     /// If provided, it must be non-empty and no longer than 200 chars /
@@ -433,7 +439,11 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
         Ok(Self {
             invoice: req.invoice,
             fallback_amount: req.fallback_amount,
-            lud12_comment: None,
+            lud12_comment: req
+                .lud12_comment
+                .map(BoundedString::new)
+                .transpose()
+                .context("Invalid LUD-12 comment")?,
             personal_note: req
                 .personal_note
                 .map(BoundedString::new)
@@ -1590,5 +1600,37 @@ mod test {
             revocable_clients::models::UpdateClientRequest::try_from(req)
                 .is_err()
         );
+    }
+
+    /// `pay_invoice` validates its `lud12_comment` like the other notes.
+    #[test]
+    fn pay_invoice_req_lud12_comment() {
+        let invoice = Invoice::from_str(
+            "lnbc1gcssw9pdqqpp54dkfmzgm5cqz4hzz24mpl7xtgz55dsuh430ap4rlugvywlm\
+             4syhqsp5qqtk8n0x2wa6ajl32mp6hj8u9vs55s5lst4s2rws3he4622w08es9qyy\
+             sgqcqypt3ffpp36sw424yacusmj3hy32df9g97nlwm0a3e0yxw4nd8uau2zdw85l\
+             fl5w0h3mggd5g3qswxr9lje0el8g98vul9yec59gf0zxu3eg9rhda09ducxpupsf\
+             h36ks9jez7aamsn7hpkxqpw2xyek",
+        )
+        .unwrap();
+        let build = |lud12_comment: Option<&str>| PayInvoiceRequest {
+            invoice: invoice.clone(),
+            fallback_amount: Some(Amount::from_sats_u32(1000)),
+            lud12_comment: lud12_comment.map(str::to_owned),
+            personal_note: None,
+            partner_pk: None,
+            partner_prop_fee: None,
+            partner_base_fee: None,
+        };
+        let convert = |req| command::PayInvoiceRequest::try_from(req);
+
+        let req = convert(build(Some("hi"))).unwrap();
+        assert_eq!(req.lud12_comment.as_deref(), Some("hi"));
+
+        let req = convert(build(None)).unwrap();
+        assert_eq!(req.lud12_comment, None);
+
+        // Like other notes, an empty comment is rejected.
+        assert!(convert(build(Some(""))).is_err());
     }
 }

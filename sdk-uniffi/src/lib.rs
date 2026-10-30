@@ -1102,6 +1102,7 @@ impl AsyncLexeWallet {
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
+            lud12_comment: None,
             personal_note,
             partner_pk,
             partner_prop_fee,
@@ -2273,6 +2274,7 @@ impl BlockingLexeWallet {
         let req = SdkPayInvoiceRequest {
             invoice,
             fallback_amount,
+            lud12_comment: None,
             personal_note,
             partner_pk,
             partner_prop_fee,
