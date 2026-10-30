@@ -2933,6 +2933,9 @@ Variants:
 - **INVOICE** -- A BOLT11 Lightning invoice payment. Attributes:
 
   - ``invoice``: The parsed :class:`Invoice`.
+  - ``lud12_comment``: The LUD-12 comment the payer already sent in the
+    LNURL-pay callback that produced this invoice, to record as the
+    payment's message. Parsed from a BIP321 URI containing the invoice.
 
 - **OFFER** -- A BOLT12 offer payment. Attributes:
 

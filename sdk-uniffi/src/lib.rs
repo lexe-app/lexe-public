@@ -3569,6 +3569,10 @@ pub enum PaymentMethod {
     Invoice {
         /// The BOLT 11 invoice.
         invoice: Invoice,
+        /// The LUD-12 comment the payer already sent in the LNURL-pay
+        /// callback that produced this invoice, to record as the payment's
+        /// message. Parsed from a BIP321 URI containing the invoice.
+        lud12_comment: Option<String>,
     },
     /// A BOLT12 offer payment.
     Offer {
@@ -3609,9 +3613,10 @@ impl From<SdkPaymentMethod> for PaymentMethod {
             },
             SdkPaymentMethod::Invoice {
                 invoice,
-                lud12_comment: _,
+                lud12_comment,
             } => Self::Invoice {
                 invoice: Invoice::from(&invoice),
+                lud12_comment,
             },
             SdkPaymentMethod::Offer {
                 offer,

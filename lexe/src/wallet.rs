@@ -794,9 +794,20 @@ impl LexeWallet {
                 }
                 PaymentMethod::Invoice {
                     invoice,
-                    lud12_comment: _,
+                    lud12_comment,
                 } => {
-                    let payable = invoice.to_string();
+                    // Keep the LUD-12 comment so `pay` records it
+                    let payable = match lud12_comment {
+                        None => invoice.to_string(),
+                        Some(_) => {
+                            let bip_321_uri = Bip321Uri {
+                                invoice: Some(invoice.clone()),
+                                lud12_comment: lud12_comment.clone(),
+                                ..Default::default()
+                            };
+                            bip_321_uri.to_string()
+                        }
+                    };
                     let description =
                         invoice.description_str().map(str::to_owned);
                     let amount = invoice.amount();
@@ -1013,7 +1024,7 @@ impl LexeWallet {
         match best_method {
             PaymentMethod::Invoice {
                 invoice,
-                lud12_comment: _,
+                lud12_comment,
             } => {
                 let fallback_amount = match (invoice.amount(), amount) {
                     (Some(amt), Some(given)) if amt != given =>
@@ -1041,7 +1052,8 @@ impl LexeWallet {
                 let pay_req = command::PayInvoiceRequest {
                     invoice,
                     fallback_amount,
-                    lud12_comment: None,
+                    lud12_comment: lud12_comment
+                        .and_then(BoundedString::truncate),
                     personal_note,
                     kind: PaymentKind::Invoice,
                     // TODO(nicole): Consider reusing the preflighted route by
