@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::username::USERNAME_MAX_LENGTH;
 
-/// A length-bounded string (max 200 chars / 512 bytes).
+/// A non-empty, length-bounded string (max 200 chars / 512 bytes).
 ///
 /// Used for `message` (payer-provided) and `personal_note` fields on
 /// payments. Construction validates that the string is within limits;

@@ -26,7 +26,8 @@ pub struct LnurlPayRequest {
     pub max_sendable: Amount,
     /// Parsed metadata with description and description hash.
     pub metadata: LnurlPayRequestMetadata,
-    /// LUD-12: Max comment length in characters, if comments are supported.
+    /// LUD-12: Max comment length in characters.
+    /// `None` if comments are unsupported (absent or 0 on the wire).
     pub comment_allowed: Option<u16>,
 }
 

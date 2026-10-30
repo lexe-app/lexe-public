@@ -323,6 +323,8 @@ impl LnurlClient {
 
         let min_sendable = Amount::from_msat(min_sendable_msat);
         let max_sendable = Amount::from_msat(max_sendable_msat);
+        // LUD-12: `commentAllowed: 0` means comments are unsupported.
+        let comment_allowed = comment_allowed.filter(|&n| n > 0);
 
         // `minSendable` is technically not allowed to be 0, but if they set it
         // to 0, it's pretty clear the receiver intends to allow anything, so
@@ -714,6 +716,17 @@ impl LnurlClient {
     }
 }
 
+/// LUD-12: Truncate `comment` to the recipient's `comment_allowed` chars, or
+/// return `None` if they don't accept comments.
+pub fn fit_comment(
+    mut comment: String,
+    comment_allowed: Option<u16>,
+) -> Option<String> {
+    let max_len = comment_allowed?;
+    lexe_std::string::truncate_chars(&mut comment, usize::from(max_len));
+    (!comment.is_empty()).then_some(comment)
+}
+
 #[cfg(test)]
 mod test {
     use std::time::Duration;
@@ -724,6 +737,20 @@ mod test {
     use tracing::info;
 
     use super::*;
+
+    #[test]
+    fn test_fit_comment() {
+        let fit = |comment: &str, comment_allowed| {
+            fit_comment(comment.to_owned(), comment_allowed)
+        };
+        assert_eq!(fit("hi", Some(140)).as_deref(), Some("hi"));
+        assert_eq!(fit("thanks", Some(5)).as_deref(), Some("thank"));
+        // Truncates by chars, not bytes
+        assert_eq!(fit("₿₿₿", Some(2)).as_deref(), Some("₿₿"));
+        // Dropped if the recipient doesn't accept comments
+        assert_eq!(fit("hi", None), None);
+        assert_eq!(fit("hi", Some(0)), None);
+    }
 
     /// Live test that resolves D++'s Lightning Address me@dplus.plus.
     ///

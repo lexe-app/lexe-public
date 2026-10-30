@@ -1376,40 +1376,33 @@ impl LexeWallet {
         };
 
         // Truncate/remove the message based on `comment_allowed`
-        let truncated_comment = match (
-            message.map(BoundedString::into_inner),
-            pay_request.comment_allowed,
-        ) {
-            (None, _) => None,
-            (Some(_), None) => {
+        let comment_allowed = pay_request.comment_allowed;
+        let truncated_comment = message.and_then(|message| {
+            let message_len = message.len();
+            let Some(comment) = lexe_payment_uri::lnurl::fit_comment(
+                message.into_inner(),
+                comment_allowed,
+            ) else {
                 warn!(
                     "Recipient doesn't support LUD-12 comments; the recipient \
                      will not see your message."
                 );
-                None
-            }
-            (Some(mut comment), Some(max_len)) => {
-                let original_len = comment.chars().count();
-                let receiver_limit = usize::from(max_len);
+                return None;
+            };
 
-                lexe_std::string::truncate_chars(&mut comment, receiver_limit);
-
-                let truncated = BoundedString::new(comment).expect(
-                    "comment was checked above and truncation can \
-                     only make it shorter, so the truncated string is \
-                     still within bounds.",
+            if comment.len() < message_len {
+                let receiver_limit = comment_allowed.unwrap_or_default();
+                warn!(
+                    "Message truncated to {receiver_limit} character limit \
+                     specified by recipient: \"{comment}\""
                 );
-
-                if original_len > receiver_limit {
-                    warn!(
-                        "Message truncated to {receiver_limit} character limit \
-                         specified by recipient: \"{truncated}\""
-                    );
-                }
-
-                Some(truncated)
             }
-        };
+
+            Some(BoundedString::new(comment).expect(
+                "message was checked above and `fit_comment` only shortens \
+                 it to a non-empty string, so it's still within bounds.",
+            ))
+        });
 
         // Make the LNURL callback to get the invoice
         let invoice = self
