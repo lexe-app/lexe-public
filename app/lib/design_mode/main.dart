@@ -270,7 +270,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   }
 
   /// Build the list of design mode components.
-  /// Exposed to allow integration tests to directly access components by name.
+  /// Public for `integration_test/design_screenshots_test.dart`.
   List<Component> buildComponentsList(BuildContext context) {
     final mockApp = mocks.MockAppHandle(
       balance: mocks.balanceDefault,
@@ -2022,9 +2022,8 @@ class Component extends StatelessWidget {
   final String title;
   final WidgetBuilder builder;
 
-  /// (Screenshot automation only) Path where screenshot should be saved,
-  /// relative to repository root.
-  /// Example: "www/docs.lexe.app/src/images/landing/01-home.png"
+  /// Where `just docs-update-screenshots` saves this page, relative to the
+  /// repo root.
   final String? screenshot;
   final String? subtitle;
 
