@@ -1,0 +1,3 @@
+- Log in to websites and services with your Lexe wallet using LNURL-auth
+- URLs and addresses are now displayed without ambiguous font glyphs, making them easier to verify.
+- LexeConnect now flags lookalike domains (e.g. Unicode look-alike characters) as unverified apps.
