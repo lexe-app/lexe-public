@@ -640,11 +640,12 @@ pub trait PaymentsPersisterMethods: LightningPersisterMethods {
     /// 4. For any payment in the filtered list, ensure we have its metadata.
     /// 5. For any metadata in the filtered list, ensure we have its payment.
     /// 6. Merge, dedupe by ID (taking latest versions), sort by pwm_updated_at:
-    ///    `pwm_updated_at = max(payment.updated_at, metadata.updated_at)`.
+    ///    `pwm_updated_at = max(payment.updated_at, metadata.updated_at)`,
+    ///    counting only rows from step 3.
     ///
-    /// The client uses END as the next query's start_index. This ensures no
-    /// updates are missed: any item past END in the "shorter" list will be
-    /// included in subsequent queries.
+    /// Every returned index is at most END, so any item past END in the
+    /// "shorter" list will be included in subsequent queries and no updates
+    /// are missed.
     ///
     /// **Edge case**: If one list is empty, there are no updates in that table
     /// past start_index. We can safely use the non-empty list's end as END,
@@ -845,19 +846,30 @@ pub trait PaymentsPersisterMethods: LightningPersisterMethods {
 
         // Collect unique IDs with their pwm_updated_at index for sorting.
         // pwm_updated_at = max(payment_updated_at, metadata_updated_at)
-        // since either can change independently.
-        let mut entries: Vec<(String, i64)> = payments_map
+        // over rows <= END, since rows fetched by ID may be past END.
+        let end_updated_at = end_index.updated_at.to_i64();
+        let end_id = end_index.id.to_string();
+        let mut entries = payments_map
             .keys()
             .map(|id| {
                 let payment_updated =
-                    payments_map.get(id).map(|p| p.updated_at).unwrap_or(0);
+                    payments_map.get(id).map(|p| p.updated_at);
                 let metadata_updated =
-                    metadatas_map.get(id).map(|m| m.updated_at).unwrap_or(0);
-                let pwm_updated_at =
-                    cmp::max(payment_updated, metadata_updated);
-                (id.clone(), pwm_updated_at)
+                    metadatas_map.get(id).map(|m| m.updated_at);
+                let pwm_updated_at = [payment_updated, metadata_updated]
+                    .into_iter()
+                    .flatten()
+                    .filter(|&updated_at| {
+                        // Compare indices as the DB would: by `updated_at`,
+                        // then by `id` string.
+                        (updated_at, id.as_str())
+                            <= (end_updated_at, end_id.as_str())
+                    })
+                    .max()
+                    .context("unreachable: No row <= END")?;
+                anyhow::Ok((id.clone(), pwm_updated_at))
             })
-            .collect();
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         // Sort by pwm_updated_at, then by id for stability
         entries.sort_unstable_by(|(id_a, updated_a), (id_b, updated_b)| {
