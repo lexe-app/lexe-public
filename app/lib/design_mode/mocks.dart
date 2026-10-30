@@ -1039,8 +1039,10 @@ class MockAppHandleScreenshots extends MockAppHandle {
 }
 
 class MockSettingsDb extends SettingsDb {
-  MockSettingsDb({this.walletFundingState}) : super(inner: MockSettingsDbRs());
+  MockSettingsDb({this.showSplitBalances, this.walletFundingState})
+    : super(inner: MockSettingsDbRs());
 
+  final bool? showSplitBalances;
   final WalletFundingState? walletFundingState;
 
   @override
@@ -1048,6 +1050,7 @@ class MockSettingsDb extends SettingsDb {
     onboardingStatus: this.walletFundingState != null
         ? OnboardingStatus(walletFundingState: this.walletFundingState!)
         : null,
+    showSplitBalances: this.showSplitBalances,
   );
 
   @override

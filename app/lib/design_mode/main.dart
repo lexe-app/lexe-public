@@ -1521,7 +1521,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (_) => WalletPage(
           config: this.widget.config,
           app: mocks.MockAppHandleScreenshots(),
-          settings: LxSettings(mockApp.settingsDb()),
+          settings: LxSettings(mocks.MockSettingsDb(showSplitBalances: true)),
           appData: LxAppData(mockApp.appDataDb()),
           featureFlags: const FeatureFlags.all(),
           uriEvents: this.widget.uriEvents,
