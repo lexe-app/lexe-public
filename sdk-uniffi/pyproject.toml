@@ -52,6 +52,9 @@ dev = [
     "furo", # docs theme
 ]
 
+[tool.uv.dependency-groups]
+dev = { requires-python = ">=3.12" }
+
 [build-system]
 requires = ["maturin>=1.10,<2.0"] # keep in sync with above
 build-backend = "maturin"
