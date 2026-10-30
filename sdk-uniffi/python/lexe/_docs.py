@@ -691,6 +691,7 @@ Supported encodings:
 - Human Bitcoin Address: ``₿username@lexe.app``
 - Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+- Lexe link: ``https://lexe.app/pay?to=...`` or ``lexe:...``
 
 Within the encodings, the following payment methods are supported:
 
@@ -742,6 +743,7 @@ Supported encodings:
 - Human Bitcoin Address: ``₿username@lexe.app``
 - Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+- Lexe link: ``https://lexe.app/pay?to=...`` or ``lexe:...``
 
 Args:
     payable: The string to pay.
@@ -1739,6 +1741,7 @@ Supported encodings:
 - Human Bitcoin Address: ``₿username@lexe.app``
 - Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+- Lexe link: ``https://lexe.app/pay?to=...`` or ``lexe:...``
 
 Within the encodings, the following payment methods are supported:
 
@@ -1790,6 +1793,7 @@ Supported encodings:
 - Human Bitcoin Address: ``₿username@lexe.app``
 - Lightning Address: ``username@lexe.app``
 - LNURL: ``lnurl1...`` or ``lnurlp://domain.com/path``
+- Lexe link: ``https://lexe.app/pay?to=...`` or ``lexe:...``
 
 Args:
     payable: The string to pay.

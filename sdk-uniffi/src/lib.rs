@@ -903,6 +903,7 @@ impl AsyncLexeWallet {
     /// - Human Bitcoin Address: `₿username@lexe.app`
     /// - Lightning Address: `username@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    /// - Lexe link: `https://lexe.app/pay?to=...` or `lexe:...`
     ///
     /// Within the encodings, the following payment methods are supported:
     /// - BOLT 11 invoice
@@ -939,6 +940,7 @@ impl AsyncLexeWallet {
     /// - Human Bitcoin Address: `₿username@lexe.app`
     /// - Lightning Address: `username@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    /// - Lexe link: `https://lexe.app/pay?to=...` or `lexe:...`
     ///
     /// `payable` is the string to pay.
     /// `amount_sats` is required when the payable has no encoded amount. If
@@ -2072,6 +2074,7 @@ impl BlockingLexeWallet {
     /// - Human Bitcoin Address: `₿username@lexe.app`
     /// - Lightning Address: `username@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    /// - Lexe link: `https://lexe.app/pay?to=...` or `lexe:...`
     ///
     /// Within the encodings, the following payment methods are supported:
     /// - BOLT 11 invoice
@@ -2108,6 +2111,7 @@ impl BlockingLexeWallet {
     /// - Human Bitcoin Address: `₿username@lexe.app`
     /// - Lightning Address: `username@lexe.app`
     /// - LNURL: `lnurl1...` or `lnurlp://domain.com/path`
+    /// - Lexe link: `https://lexe.app/pay?to=...` or `lexe:...`
     ///
     /// `payable` is the string to pay.
     /// `amount_sats` is required when the payable has no encoded amount. If
