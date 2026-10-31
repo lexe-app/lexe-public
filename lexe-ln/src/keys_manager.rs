@@ -329,14 +329,16 @@ mod test {
             // Create users 1 and 2
             let master_xprv1 = root_seed1.derive_bip32_master_xprv(network);
             let changeset = None;
-            let wallet1 = OnchainWallet::dummy(master_xprv1, changeset);
+            let (wallet1, _ack_rx1) =
+                OnchainWallet::dummy(master_xprv1, changeset);
             let keys_manager1 =
                 LexeKeysManager::new(&mut rng, &root_seed1, wallet1).unwrap();
             let node_pk1 = keys_manager1.node_pk();
 
             let master_xprv2 = root_seed2.derive_bip32_master_xprv(network);
             let changeset = None;
-            let wallet2 = OnchainWallet::dummy(master_xprv2, changeset);
+            let (wallet2, _ack_rx2) =
+                OnchainWallet::dummy(master_xprv2, changeset);
             let keys_manager2 =
                 LexeKeysManager::new(&mut rng, &root_seed2, wallet2).unwrap();
 

@@ -484,7 +484,6 @@ impl UserNode {
         ));
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
-        let (wallet_persister_tx, wallet_persister_rx) = notify::channel();
         let coin_selector = LexeCoinSelector::default();
         let bip39_master_xprv = root_seed.derive_bip32_master_xprv(network);
 
@@ -499,7 +498,7 @@ impl UserNode {
                 None
             };
 
-        let wallet = OnchainWallet::init(
+        let (wallet, wallet_persister_rx) = OnchainWallet::init(
             bip39_master_xprv,
             network,
             &esplora,
@@ -507,7 +506,6 @@ impl UserNode {
             coin_selector,
             maybe_changeset,
             AddressScanParams::default(),
-            wallet_persister_tx,
         )
         .await
         .context("Could not init BDK wallet")?;

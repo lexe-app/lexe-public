@@ -26,7 +26,7 @@ use lexe_api::{
 use lexe_common::ln::{
     amount::Amount, network::Network, priority::ConfirmationPriority,
 };
-use lexe_tokio::{notify, task::LxTask};
+use lexe_tokio::task::LxTask;
 use tracing::{debug, error, instrument};
 
 use crate::{
@@ -89,7 +89,6 @@ async fn do_legacy_sweep<
 
     // Initialize the legacy wallet. If no changeset exists, init will
     // full_sync to discover any funds.
-    let (wallet_persister_tx, mut wallet_persister_rx) = notify::channel();
     let legacy_wallet_res = OnchainWallet::init_legacy(
         ctx.legacy_master_xprv,
         ctx.network,
@@ -98,7 +97,6 @@ async fn do_legacy_sweep<
         ctx.coin_selector,
         maybe_legacy_changeset,
         AddressScanParams::default(),
-        wallet_persister_tx,
     )
     .await
     .context("Failed to init legacy wallet");
@@ -116,13 +114,9 @@ async fn do_legacy_sweep<
         error!("Legacy wallet sweep failed: {err:#}");
     }
 
-    // See if we need to persist the legacy wallet changeset
-    if !wallet_persister_rx.try_recv() {
-        return;
-    }
-
-    // Persist the legacy wallet changeset
-    legacy_wallet.persist(&ctx.persister).await;
+    // Persist the legacy wallet changeset, if anything changed
+    let force = false;
+    let _ = legacy_wallet.persist(&ctx.persister, force).await;
 }
 
 /// Attempts to sync and then sweep the legacy wallet.

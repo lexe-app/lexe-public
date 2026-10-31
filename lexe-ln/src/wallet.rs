@@ -40,7 +40,7 @@ use std::{
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use anyhow::{Context, ensure};
+use anyhow::{Context, anyhow, ensure};
 use bdk_chain::{
     CanonicalizationParams, Merge, TxUpdate,
     spk_client::{
@@ -85,8 +85,9 @@ use lexe_common::{
     time::TimestampMs,
 };
 use lexe_crypto::{ed25519, rng::RngCore};
-use lexe_tokio::{notify, notify_once::NotifyOnce, task::LxTask};
+use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::util::wallet_utils;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::{
@@ -113,8 +114,12 @@ pub struct OnchainWallet {
     scan_params: AddressScanParams,
     fee_estimates: Arc<FeeEstimates>,
     coin_selector: LexeCoinSelector,
-    wallet_persister_tx: notify::Sender,
+    wallet_persister_tx: mpsc::Sender<WalletPersistRequest>,
 }
+
+/// A request to the wallet persister task. `Some(ack_tx)` asks for the
+/// persist result back once the persist completes.
+pub type WalletPersistRequest = Option<oneshot::Sender<anyhow::Result<()>>>;
 
 /// How many script pubkeys BDK derives and scans beyond those known to be used.
 #[derive(Copy, Clone)]
@@ -195,6 +200,11 @@ impl OnchainWallet {
     /// (script pubkey) because it has no more pending spends.
     const CONFS_TO_FINALIZE: u32 = 6;
 
+    /// Size of the wallet persister channel. When full,
+    /// [`Self::trigger_persist`] drops its request, which the queued requests
+    /// already cover, while [`Self::persist_and_wait`] waits for a free slot.
+    const PERSISTER_CHANNEL_SIZE: usize = 16;
+
     /// Init a [`OnchainWallet`] from a master extended private key and
     /// [`ChangeSet`]. Wallet addresses are generated according to the
     /// [BIP 84] standard. See also [BIP 44].
@@ -212,8 +222,7 @@ impl OnchainWallet {
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
         scan_params: AddressScanParams,
-        wallet_persister_tx: notify::Sender,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<(Self, mpsc::Receiver<WalletPersistRequest>)> {
         let is_legacy = false;
         Self::init_inner(
             master_xprv,
@@ -223,14 +232,14 @@ impl OnchainWallet {
             coin_selector,
             maybe_changeset,
             scan_params,
-            wallet_persister_tx,
             is_legacy,
         )
         .await
     }
 
     /// Init the legacy (<= node-v0.9.1) on-chain wallet for [`legacy_sweep`].
-    /// Persists to the legacy changeset file.
+    /// Persists to the legacy changeset file. Has no persister task:
+    /// [`legacy_sweep`] persists it directly.
     pub async fn init_legacy(
         legacy_master_xprv: bitcoin::bip32::Xpriv,
         network: Network,
@@ -239,10 +248,9 @@ impl OnchainWallet {
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
         scan_params: AddressScanParams,
-        wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<Self> {
         let is_legacy = true;
-        Self::init_inner(
+        let (wallet, _wallet_persister_rx) = Self::init_inner(
             legacy_master_xprv,
             network,
             esplora,
@@ -250,10 +258,10 @@ impl OnchainWallet {
             coin_selector,
             maybe_changeset,
             scan_params,
-            wallet_persister_tx,
             is_legacy,
         )
-        .await
+        .await?;
+        Ok(wallet)
     }
 
     #[instrument(skip_all, name = "(wallet-init)")]
@@ -265,9 +273,10 @@ impl OnchainWallet {
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
         scan_params: AddressScanParams,
-        wallet_persister_tx: notify::Sender,
         is_legacy: bool,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<(Self, mpsc::Receiver<WalletPersistRequest>)> {
+        let (wallet_persister_tx, wallet_persister_rx) =
+            mpsc::channel(Self::PERSISTER_CHANNEL_SIZE);
         let (lexe_wallet, wallet_created) = Self::new(
             master_xprv,
             network,
@@ -286,7 +295,7 @@ impl OnchainWallet {
                 .context("Failed to conduct initial full sync")?;
         }
 
-        Ok(lexe_wallet)
+        Ok((lexe_wallet, wallet_persister_rx))
     }
 
     fn new(
@@ -296,7 +305,7 @@ impl OnchainWallet {
         coin_selector: LexeCoinSelector,
         maybe_changeset: Option<ChangeSet>,
         scan_params: AddressScanParams,
-        wallet_persister_tx: notify::Sender,
+        wallet_persister_tx: mpsc::Sender<WalletPersistRequest>,
         is_legacy: bool,
     ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
@@ -413,16 +422,19 @@ impl OnchainWallet {
         ))
     }
 
-    /// Constructs a dummy [`OnchainWallet`] useful for tests.
+    /// Constructs a dummy [`OnchainWallet`] useful for tests. Also returns the
+    /// receiving end of the acked persist channel, whose requests must be
+    /// acked for single-use reveals to complete.
     #[cfg(test)]
     pub(crate) fn dummy(
         master_xprv: bitcoin::bip32::Xpriv,
         maybe_changeset: Option<ChangeSet>,
-    ) -> Self {
+    ) -> (Self, mpsc::Receiver<WalletPersistRequest>) {
         let fee_estimates = FeeEstimates::dummy();
         let coin_selector = LexeCoinSelector::default();
         let network = Network::Regtest;
-        let (persist_tx, _persist_rx) = notify::channel();
+        let (wallet_persister_tx, wallet_persister_rx) =
+            mpsc::channel(Self::PERSISTER_CHANNEL_SIZE);
         let is_legacy = false;
         let (wallet, _wallet_created) = OnchainWallet::new(
             master_xprv,
@@ -431,12 +443,12 @@ impl OnchainWallet {
             coin_selector,
             maybe_changeset,
             AddressScanParams::default(),
-            persist_tx,
+            wallet_persister_tx,
             is_legacy,
         )
         .unwrap();
 
-        wallet
+        (wallet, wallet_persister_rx)
     }
 
     /// Returns a read lock on the inner [`Wallet`].
@@ -455,42 +467,54 @@ impl OnchainWallet {
 
     /// Notifies the wallet persister task to persist any changes to the wallet.
     pub fn trigger_persist(&self) {
-        self.wallet_persister_tx.send()
+        let _ = self.wallet_persister_tx.try_send(None);
     }
 
-    /// Persist the current BDK wallet state if there are any outstanding
-    /// changes.
-    async fn persist<PS: LexePersister>(&self, persister: &PS) {
-        // Take any staged changes from the wallet and merge them
-        // into the combined changeset (i.e. our write-back cache),
-        // then serialize + encrypt these to a VFS file.
+    /// Persists any changes to the wallet via the wallet persister task,
+    /// returning once they are on disk.
+    pub async fn persist_and_wait(&self) -> anyhow::Result<()> {
+        let (ack_tx, ack_rx) = oneshot::channel();
+        self.wallet_persister_tx
+            .send(Some(ack_tx))
+            .await
+            .map_err(|_| anyhow!("Wallet persister task disconnected"))?;
+        ack_rx
+            .await
+            .context("Wallet persister task dropped our ack")?
+    }
+
+    /// Merges any staged changes into the aggregated [`ChangeSet`] and persists
+    /// it. Skips the persist if nothing was staged, unless `force`d.
+    async fn persist<PS: LexePersister>(
+        &self,
+        persister: &PS,
+        force: bool,
+    ) -> anyhow::Result<()> {
+        match self.write().take_staged() {
+            Some(new_changes) =>
+                self.changeset.lock().unwrap().merge(new_changes),
+            None if !force => {
+                debug!("Skipping persist: no new changes");
+                return Ok(());
+            }
+            None => (),
+        }
+
         let file = {
-            let new_changes = match self.write().take_staged() {
-                Some(c) => c,
-                None => {
-                    debug!("Skipping persist: no new changes");
-                    return;
-                }
-            };
-
-            let mut locked_changeset = self.changeset.lock().unwrap();
-            locked_changeset.merge(new_changes);
-
+            let locked_changeset = self.changeset.lock().unwrap();
             let file_id =
                 VfsFileId::new(SINGLETON_DIRECTORY, self.changeset_filename);
             persister.encrypt_json(file_id, &*locked_changeset)
         };
-
-        // Finish the current persist attempt before responding to
-        // any shutdown signal received in the meantime.
-        let persist_result = persister
+        let result = persister
             .persist_file(file, Retries::IMPORTANT_PERSISTS)
-            .await;
-
-        match persist_result {
+            .await
+            .context("Failed to persist wallet changeset");
+        match &result {
             Ok(()) => debug!("Success: persisted wallet db"),
             Err(e) => warn!("Wallet DB persist error: {e:#}"),
         }
+        result
     }
 
     /// Syncs the [`Wallet`] using a remote Esplora backend.
@@ -1423,11 +1447,11 @@ impl wallet_utils::WalletSource for OnchainWallet {
 // --- Wallet persister task --- //
 
 /// Spawns a task that (re-)persists the total wallet [`ChangeSet`] whenever
-/// it receives a notification (via the `wallet_persister_rx` channel).
+/// it receives a [`WalletPersistRequest`].
 pub fn spawn_wallet_persister_task<PS: LexePersister>(
     persister: PS,
     wallet: OnchainWallet,
-    mut wallet_persister_rx: notify::Receiver,
+    mut wallet_persister_rx: mpsc::Receiver<WalletPersistRequest>,
     // TODO(phlip9): only shutdown persisters after "activity" generating tasks
     // shutdown.
     mut shutdown: NotifyOnce,
@@ -1436,8 +1460,27 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
         loop {
             tokio::select! {
                 biased;
-                () = wallet_persister_rx.recv() => {
-                    wallet.persist(&persister).await;
+                Some(request) = wallet_persister_rx.recv() => {
+                    // Drain queued requests into one persist.
+                    let mut ack_txs = Vec::from_iter(request);
+                    while let Ok(request) = wallet_persister_rx.try_recv() {
+                        ack_txs.extend(request);
+                    }
+
+                    // An earlier trigger may have merged a requester's staged
+                    // changes and then failed to persist them, leaving nothing
+                    // staged. So a batch with any ack persists even when
+                    // nothing is staged, and the ack proves the changes are on
+                    // disk.
+                    let force = !ack_txs.is_empty();
+                    let result = wallet.persist(&persister, force).await;
+                    for ack_tx in ack_txs {
+                        let ack = result
+                            .as_ref()
+                            .map(|&()| ())
+                            .map_err(|e| anyhow!("{e:#}"));
+                        let _ = ack_tx.send(ack);
+                    }
                 }
                 () = shutdown.recv() => break,
             }
@@ -1450,8 +1493,8 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
 
 /// Derives BIP84 wpkh output descriptors from a master xpriv.
 ///
-/// Returns three descriptors (BIP389 multipath, external, internal) and the
-/// account-level xpub at `m/84'/{coin}'/0'`.
+/// Returns four descriptors (BIP389 multipath, external, internal,
+/// single-use) and the account-level xpub at `m/84'/{coin}'/0'`.
 ///
 /// Where `coin` is 0 for mainnet, 1 for testnet/signet/regtest.
 pub fn derive_bip84_descriptors(
@@ -1978,31 +2021,36 @@ mod test {
     struct Harness {
         wallet: OnchainWallet,
         network: Network,
-        root_seed: RootSeed,
+        seed: u64,
     }
 
     impl Harness {
         fn new(seed: u64) -> Self {
-            let root_seed = RootSeed::from_u64(seed);
-            let network = Network::Regtest;
-            let master_xprv = root_seed.derive_bip32_master_xprv(network);
-            let changeset = None;
-            let wallet = OnchainWallet::dummy(master_xprv, changeset);
+            let h = Self::from_changeset(seed, None);
 
             // Add some initial confirmed blocks
             {
-                let mut w = wallet.write();
+                let mut w = h.ww();
                 w.add_checkpoint(100);
                 w.add_checkpoint(900);
             }
 
-            let h = Harness {
-                wallet,
-                network,
-                root_seed,
-            };
             h.persist();
             h
+        }
+
+        /// Load the wallet from `changeset`, or create it if `None`.
+        fn from_changeset(seed: u64, changeset: Option<ChangeSet>) -> Self {
+            let network = Network::Regtest;
+            let master_xprv =
+                RootSeed::from_u64(seed).derive_bip32_master_xprv(network);
+            let (wallet, _wallet_persister_rx) =
+                OnchainWallet::dummy(master_xprv, changeset);
+            Harness {
+                wallet,
+                network,
+                seed,
+            }
         }
 
         /// Get the wallet write lock.
@@ -2143,11 +2191,9 @@ mod test {
                 changeset.merge(update);
             }
 
-            let master_xprv =
-                self.root_seed.derive_bip32_master_xprv(self.network);
-            let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
-            assert!(wallet.read().have_unused_spk(KeychainKind::External));
-            assert!(wallet.read().have_unused_spk(KeychainKind::Internal));
+            let h = Self::from_changeset(self.seed, Some(changeset));
+            assert!(h.wr().have_unused_spk(KeychainKind::External));
+            assert!(h.wr().have_unused_spk(KeychainKind::Internal));
         }
     }
 
@@ -2990,7 +3036,8 @@ mod test {
         let root_seed = RootSeed::from_u64(20260117);
         let network = Network::Regtest;
         let master_xprv = root_seed.derive_legacy_master_xprv(network);
-        let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
+        let (wallet, _wallet_persister_rx) =
+            OnchainWallet::dummy(master_xprv, Some(changeset));
 
         // Sanity checks: 100k external + 50k internal = 150k total
         let balance = wallet.read().balance();
@@ -3010,7 +3057,8 @@ mod test {
         let root_seed = RootSeed::from_u64(20260117);
         let network = Network::Regtest;
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
-        let wallet = OnchainWallet::dummy(master_xprv, Some(changeset));
+        let (wallet, _wallet_persister_rx) =
+            OnchainWallet::dummy(master_xprv, Some(changeset));
 
         // Sanity checks: 100k external + 50k internal = 150k total
         let balance = wallet.read().balance();

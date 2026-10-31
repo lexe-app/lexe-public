@@ -137,13 +137,12 @@ impl RecoveryNode {
         ));
 
         // Init BDK wallet.
-        let (wallet_persister_tx, wallet_persister_rx) = notify::channel();
         let maybe_changeset = persister
             .read_wallet_changeset()
             .await
             .context("Failed to read wallet changeset")?;
         let master_xprv = args.root_seed.derive_bip32_master_xprv(network);
-        let wallet = OnchainWallet::init(
+        let (wallet, wallet_persister_rx) = OnchainWallet::init(
             master_xprv,
             network,
             &esplora,
@@ -151,7 +150,6 @@ impl RecoveryNode {
             LexeCoinSelector::default(),
             maybe_changeset,
             RECOVERY_SCAN_PARAMS,
-            wallet_persister_tx,
         )
         .await
         .context("Failed to init BDK wallet")?;
