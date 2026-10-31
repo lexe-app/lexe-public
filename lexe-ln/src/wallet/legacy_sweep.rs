@@ -38,9 +38,6 @@ use crate::{
     wallet::{AddressScanParams, LexeCoinSelector, OnchainWallet},
 };
 
-/// The legacy wallet changeset filename (for wallets created <= node-v0.9.1).
-const WALLET_CHANGESET_LEGACY_FILENAME: &str = "bdk_wallet_changeset";
-
 /// Context required for legacy wallet sweep.
 pub struct LegacySweepCtx<CM, PS> {
     /// The legacy (pre-BIP39-compatible) master extended private key.
@@ -93,7 +90,7 @@ async fn do_legacy_sweep<
     // Initialize the legacy wallet. If no changeset exists, init will
     // full_sync to discover any funds.
     let (wallet_persister_tx, mut wallet_persister_rx) = notify::channel();
-    let legacy_wallet_res = OnchainWallet::init(
+    let legacy_wallet_res = OnchainWallet::init_legacy(
         ctx.legacy_master_xprv,
         ctx.network,
         &ctx.esplora,
@@ -125,9 +122,7 @@ async fn do_legacy_sweep<
     }
 
     // Persist the legacy wallet changeset
-    legacy_wallet
-        .persist(&ctx.persister, WALLET_CHANGESET_LEGACY_FILENAME)
-        .await;
+    legacy_wallet.persist(&ctx.persister).await;
 }
 
 /// Attempts to sync and then sweep the legacy wallet.

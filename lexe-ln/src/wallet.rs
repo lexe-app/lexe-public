@@ -69,7 +69,10 @@ use lexe_api::{
         PayOnchainPreflightResponse, PayOnchainRequest,
     },
     types::{payments::PaymentKind, retries::Retries},
-    vfs::{SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_V2_FILENAME},
+    vfs::{
+        SINGLETON_DIRECTORY, Vfs, VfsFileId, WALLET_CHANGESET_LEGACY_FILENAME,
+        WALLET_CHANGESET_V2_FILENAME,
+    },
 };
 #[cfg(test)]
 use lexe_common::ln::channel::OutPoint;
@@ -99,12 +102,17 @@ pub mod legacy_sweep;
 #[derive(Clone)]
 pub struct OnchainWallet {
     inner: Arc<std::sync::RwLock<Wallet>>,
-    fee_estimates: Arc<FeeEstimates>,
-    coin_selector: LexeCoinSelector,
-    scan_params: AddressScanParams,
     /// NOTE: This is the full, *aggregated* changeset, not an intermediate
     /// state diff, contrary to what the name of "[`ChangeSet`]" might suggest.
     changeset: Arc<std::sync::Mutex<ChangeSet>>,
+    /// The VFS filename the aggregated changeset is persisted to.
+    ///
+    /// This field only exists so [`OnchainWallet`] can be initialized as a
+    /// legacy wallet for the [`legacy_sweep`] task.
+    changeset_filename: &'static str,
+    scan_params: AddressScanParams,
+    fee_estimates: Arc<FeeEstimates>,
+    coin_selector: LexeCoinSelector,
     wallet_persister_tx: notify::Sender,
 }
 
@@ -196,7 +204,6 @@ impl OnchainWallet {
     /// [BIP 84]: https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
     /// [`RootSeed::derive_bip32_master_xprv`]: lexe_common::root_seed::RootSeed::derive_bip32_master_xprv
-    #[instrument(skip_all, name = "(wallet-init)")]
     pub async fn init(
         master_xprv: bitcoin::bip32::Xpriv,
         network: Network,
@@ -207,6 +214,60 @@ impl OnchainWallet {
         scan_params: AddressScanParams,
         wallet_persister_tx: notify::Sender,
     ) -> anyhow::Result<Self> {
+        let is_legacy = false;
+        Self::init_inner(
+            master_xprv,
+            network,
+            esplora,
+            fee_estimates,
+            coin_selector,
+            maybe_changeset,
+            scan_params,
+            wallet_persister_tx,
+            is_legacy,
+        )
+        .await
+    }
+
+    /// Init the legacy (<= node-v0.9.1) on-chain wallet for [`legacy_sweep`].
+    /// Persists to the legacy changeset file.
+    pub async fn init_legacy(
+        legacy_master_xprv: bitcoin::bip32::Xpriv,
+        network: Network,
+        esplora: &LexeEsplora,
+        fee_estimates: Arc<FeeEstimates>,
+        coin_selector: LexeCoinSelector,
+        maybe_changeset: Option<ChangeSet>,
+        scan_params: AddressScanParams,
+        wallet_persister_tx: notify::Sender,
+    ) -> anyhow::Result<Self> {
+        let is_legacy = true;
+        Self::init_inner(
+            legacy_master_xprv,
+            network,
+            esplora,
+            fee_estimates,
+            coin_selector,
+            maybe_changeset,
+            scan_params,
+            wallet_persister_tx,
+            is_legacy,
+        )
+        .await
+    }
+
+    #[instrument(skip_all, name = "(wallet-init)")]
+    async fn init_inner(
+        master_xprv: bitcoin::bip32::Xpriv,
+        network: Network,
+        esplora: &LexeEsplora,
+        fee_estimates: Arc<FeeEstimates>,
+        coin_selector: LexeCoinSelector,
+        maybe_changeset: Option<ChangeSet>,
+        scan_params: AddressScanParams,
+        wallet_persister_tx: notify::Sender,
+        is_legacy: bool,
+    ) -> anyhow::Result<Self> {
         let (lexe_wallet, wallet_created) = Self::new(
             master_xprv,
             network,
@@ -215,6 +276,7 @@ impl OnchainWallet {
             maybe_changeset,
             scan_params,
             wallet_persister_tx,
+            is_legacy,
         )?;
 
         if wallet_created {
@@ -235,6 +297,7 @@ impl OnchainWallet {
         maybe_changeset: Option<ChangeSet>,
         scan_params: AddressScanParams,
         wallet_persister_tx: notify::Sender,
+        is_legacy: bool,
     ) -> anyhow::Result<(Self, bool)> {
         let network = network.to_bitcoin();
 
@@ -330,13 +393,20 @@ impl OnchainWallet {
             "BDK wallet must have at least one External and one Internal signer"
         );
 
+        let changeset_filename = if is_legacy {
+            WALLET_CHANGESET_LEGACY_FILENAME
+        } else {
+            WALLET_CHANGESET_V2_FILENAME
+        };
+
         Ok((
             Self {
                 inner: Arc::new(std::sync::RwLock::new(wallet)),
+                changeset: Arc::new(std::sync::Mutex::new(initial_changeset)),
+                changeset_filename,
+                scan_params,
                 fee_estimates,
                 coin_selector,
-                scan_params,
-                changeset: Arc::new(std::sync::Mutex::new(initial_changeset)),
                 wallet_persister_tx,
             },
             wallet_created,
@@ -353,6 +423,7 @@ impl OnchainWallet {
         let coin_selector = LexeCoinSelector::default();
         let network = Network::Regtest;
         let (persist_tx, _persist_rx) = notify::channel();
+        let is_legacy = false;
         let (wallet, _wallet_created) = OnchainWallet::new(
             master_xprv,
             network,
@@ -361,6 +432,7 @@ impl OnchainWallet {
             maybe_changeset,
             AddressScanParams::default(),
             persist_tx,
+            is_legacy,
         )
         .unwrap();
 
@@ -388,11 +460,7 @@ impl OnchainWallet {
 
     /// Persist the current BDK wallet state if there are any outstanding
     /// changes.
-    async fn persist<PS: LexePersister>(
-        &self,
-        persister: &PS,
-        filename: &'static str,
-    ) {
+    async fn persist<PS: LexePersister>(&self, persister: &PS) {
         // Take any staged changes from the wallet and merge them
         // into the combined changeset (i.e. our write-back cache),
         // then serialize + encrypt these to a VFS file.
@@ -408,7 +476,8 @@ impl OnchainWallet {
             let mut locked_changeset = self.changeset.lock().unwrap();
             locked_changeset.merge(new_changes);
 
-            let file_id = VfsFileId::new(SINGLETON_DIRECTORY, filename);
+            let file_id =
+                VfsFileId::new(SINGLETON_DIRECTORY, self.changeset_filename);
             persister.encrypt_json(file_id, &*locked_changeset)
         };
 
@@ -448,7 +517,7 @@ impl OnchainWallet {
 
         // Apply the update to the wallet.
         {
-            let mut locked_wallet = self.inner.write().unwrap();
+            let mut locked_wallet = self.write();
             locked_wallet
                 .apply_update(sync_result)
                 .context("Could not apply sync update to wallet")?;
@@ -490,7 +559,7 @@ impl OnchainWallet {
         &self,
         synced_at: TimestampMs,
     ) -> (SyncRequest<(KeychainKind, u32)>, SyncStats) {
-        let locked_wallet = self.inner.read().unwrap();
+        let locked_wallet = self.read();
 
         let keychains = locked_wallet.spk_index();
         let keychains_inner = keychains.inner();
@@ -545,10 +614,6 @@ impl OnchainWallet {
                             > num_finalized_spends_from_spk
                             || *num_finalized_spends_from_spk == 0,
                 }
-            }
-
-            fn is_internal(&self) -> bool {
-                matches!(self, SpkInfo::Internal { .. })
             }
         }
 
@@ -665,31 +730,26 @@ impl OnchainWallet {
 
         // Collect some basic stats on how many spks for each keychain we're
         // going to sync.
-        let (syncing_external, syncing_internal) = spk_infos.values().fold(
-            (0_u32, 0_u32),
-            |(num_ext, num_int), spk_info| {
-                if !spk_info.needs_sync() {
-                    (num_ext, num_int)
-                } else if spk_info.is_internal() {
-                    (num_ext, num_int + 1)
-                } else {
-                    (num_ext + 1, num_int)
+        let (syncing_external, syncing_internal) = {
+            let (mut external, mut internal) = (0, 0);
+            for spk_info in spk_infos.values().filter(|info| info.needs_sync())
+            {
+                let (keychain_kind, _index) = spk_info.keychain_index();
+                match keychain_kind {
+                    KeychainKind::External => external += 1,
+                    KeychainKind::Internal | KeychainKind::SingleUse =>
+                        internal += 1,
                 }
-            },
-        );
-        let total_external = keychains
-            .last_revealed_index(KeychainKind::External)
-            .map(|index| index + 1)
-            .unwrap_or(0);
-        let total_internal = keychains
-            .last_revealed_index(KeychainKind::Internal)
-            .map(|index| index + 1)
-            .unwrap_or(0);
+            }
+            (external, internal)
+        };
         let sync_stats = SyncStats {
             is_full_sync: false,
-            total_external,
+            total_external: locked_wallet
+                .num_revealed_spks(KeychainKind::External),
             syncing_external,
-            total_internal,
+            total_internal: locked_wallet
+                .num_revealed_spks(KeychainKind::Internal),
             syncing_internal,
             ..SyncStats::default()
         };
@@ -748,7 +808,7 @@ impl OnchainWallet {
 
         // Apply the combined update to the wallet.
         {
-            let mut locked_wallet = self.inner.write().unwrap();
+            let mut locked_wallet = self.write();
             locked_wallet
                 .apply_update(full_scan_result)
                 .context("Could not apply full scan result to wallet")?;
@@ -763,7 +823,7 @@ impl OnchainWallet {
         &self,
         synced_at: TimestampMs,
     ) -> FullScanRequest<KeychainKind> {
-        let locked_wallet = self.inner.read().unwrap();
+        let locked_wallet = self.read();
         locked_wallet
             .start_full_scan_at(synced_at.to_secs())
             .build()
@@ -772,7 +832,7 @@ impl OnchainWallet {
     /// Returns the current wallet balance. Note that newly received funds will
     /// not be detected unless the wallet has been `sync()`ed first.
     pub fn get_balance(&self) -> OnchainBalance {
-        let balance = self.inner.read().unwrap().balance();
+        let balance = self.read().balance();
 
         // Convert bdk_wallet::Balance to lexe_common::ln::balance::Balance.
         // Not using a From impl bc we don't want `lexe-common` to depend on
@@ -794,7 +854,7 @@ impl OnchainWallet {
 
     /// Get a [`UtxoCounts`] for the UTXOs tracked by BDK.
     pub fn get_utxo_counts(&self) -> UtxoCounts {
-        self.inner.read().unwrap().list_unspent().fold(
+        self.read().list_unspent().fold(
             UtxoCounts::default(),
             |mut acc, utxo| {
                 acc.total += 1;
@@ -810,14 +870,14 @@ impl OnchainWallet {
 
     /// List all unspent transaction outputs.
     pub fn get_utxos(&self) -> Vec<bdk_wallet::LocalOutput> {
-        let locked_wallet = self.inner.read().unwrap();
+        let locked_wallet = self.read();
         locked_wallet.list_unspent().collect()
     }
 
     /// Get a [`TxDetails`] for given [`Txid`] inside of the wallet.
     /// If not found, returns `None`.
     pub fn get_tx_details(&self, txid: Txid) -> Option<TxDetails> {
-        let locked_wallet = self.inner.read().unwrap();
+        let locked_wallet = self.read();
         locked_wallet.tx_details(txid.0)
     }
 
@@ -937,10 +997,7 @@ impl OnchainWallet {
         let broadcasted_at_secs = broadcasted_at.to_duration().as_secs();
         let transactions =
             transactions.into_iter().map(|tx| (tx, broadcasted_at_secs));
-        self.inner
-            .write()
-            .unwrap()
-            .apply_unconfirmed_txs(transactions);
+        self.write().apply_unconfirmed_txs(transactions);
         self.trigger_persist();
     }
 
@@ -953,7 +1010,7 @@ impl OnchainWallet {
         evicted_at: TimestampMs,
         outpoint: OutPoint,
     ) -> anyhow::Result<()> {
-        let mut locked_wallet = self.inner.write().unwrap();
+        let mut locked_wallet = self.write();
         let outpoint = bitcoin::OutPoint::from(outpoint);
         let utxo = locked_wallet
             .get_utxo(outpoint)
@@ -982,9 +1039,7 @@ impl OnchainWallet {
         txid: lexe_common::ln::hashes::Txid,
     ) {
         let evicted_at_secs = evicted_at.to_duration().as_secs();
-        self.inner
-            .write()
-            .unwrap()
+        self.write()
             .apply_evicted_txs(std::iter::once((txid.0, evicted_at_secs)));
         self.trigger_persist();
     }
@@ -1012,7 +1067,7 @@ impl OnchainWallet {
         // => len == 34 bytes
         let fake_output_script = bitcoin::ScriptBuf::from_bytes(vec![0x69; 34]);
 
-        let mut locked_wallet = self.inner.write().unwrap();
+        let mut locked_wallet = self.write();
 
         // Build
         let conf_prio = Self::CHANNEL_FUNDING_CONF_PRIO;
@@ -1050,7 +1105,7 @@ impl OnchainWallet {
         output_script: bitcoin::ScriptBuf,
         channel_value: bitcoin::Amount,
     ) -> anyhow::Result<Transaction> {
-        let mut locked_wallet = self.inner.write().unwrap();
+        let mut locked_wallet = self.write();
 
         // Build
         let conf_prio = Self::CHANNEL_FUNDING_CONF_PRIO;
@@ -1083,7 +1138,7 @@ impl OnchainWallet {
         client_pk: Option<ed25519::PublicKey>,
     ) -> anyhow::Result<PaymentWithMetadata<OnchainSendV2>> {
         let (tx, onchain_fee) = {
-            let mut locked_wallet = self.inner.write().unwrap();
+            let mut locked_wallet = self.write();
 
             let address = req
                 .address
@@ -1133,7 +1188,7 @@ impl OnchainWallet {
         let dest_script = dest_address.script_pubkey();
         let feerate = self.fee_estimates.conf_prio_to_feerate(priority);
 
-        let mut locked_wallet = self.inner.write().unwrap();
+        let mut locked_wallet = self.write();
 
         // Build drain transaction using BDK's drain_wallet + drain_to. This
         // will fail if the balance is dust (can't cover fees).
@@ -1186,7 +1241,7 @@ impl OnchainWallet {
         let background_feerate =
             self.fee_estimates.conf_prio_to_feerate(background_prio);
 
-        let mut locked_wallet = self.inner.write().unwrap();
+        let mut locked_wallet = self.write();
 
         // We _require_ a tx to at least be able to use normal fee rate.
         let address = req.address.require_network(network.into())?;
@@ -1319,10 +1374,12 @@ impl OnchainWallet {
             ..SignOptions::default()
         };
 
+        // LDK signs its own inputs (e.g. the anchor input) after us, so an
+        // unfinalized PSBT is fine.
         self.read()
             .sign(&mut psbt, sign_options)
             .context("Failed to sign psbt")
-            .and_then(|_| {
+            .and_then(|_finalized| {
                 psbt.extract_tx().context("Failed to extract tx from psbt")
             })
             .map_err(|err| {
@@ -1380,9 +1437,7 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
             tokio::select! {
                 biased;
                 () = wallet_persister_rx.recv() => {
-                    wallet
-                        .persist(&persister, WALLET_CHANGESET_V2_FILENAME)
-                        .await;
+                    wallet.persist(&persister).await;
                 }
                 () = shutdown.recv() => break,
             }
@@ -1428,27 +1483,21 @@ pub fn derive_bip84_descriptors(
 
     // Build descriptor strings
     let origin = format!("[{fingerprint}/84'/{coin_type}'/0']");
+    let with_checksum = |body: String| {
+        let checksum = miniscript::descriptor::checksum::desc_checksum(&body)
+            .expect("valid descriptor");
+        format!("{body}#{checksum}")
+    };
 
     // BIP389 multipath: wpkh([fp/84'/coin'/0']xpub/<0;1>/*)
-    let multi_body = format!("wpkh({origin}{account_xpub}/<0;1>/*)");
-    let multi_checksum =
-        miniscript::descriptor::checksum::desc_checksum(&multi_body)
-            .expect("valid descriptor");
-    let multipath_descriptor = format!("{multi_body}#{multi_checksum}");
-
+    let multipath_descriptor =
+        with_checksum(format!("wpkh({origin}{account_xpub}/<0;1>/*)"));
     // External: wpkh([fp/84'/coin'/0']xpub/0/*)
-    let ext_body = format!("wpkh({origin}{account_xpub}/0/*)");
-    let ext_checksum =
-        miniscript::descriptor::checksum::desc_checksum(&ext_body)
-            .expect("valid descriptor");
-    let external_descriptor = format!("{ext_body}#{ext_checksum}");
-
+    let external_descriptor =
+        with_checksum(format!("wpkh({origin}{account_xpub}/0/*)"));
     // Internal: wpkh([fp/84'/coin'/0']xpub/1/*)
-    let int_body = format!("wpkh({origin}{account_xpub}/1/*)");
-    let int_checksum =
-        miniscript::descriptor::checksum::desc_checksum(&int_body)
-            .expect("valid descriptor");
-    let internal_descriptor = format!("{int_body}#{int_checksum}");
+    let internal_descriptor =
+        with_checksum(format!("wpkh({origin}{account_xpub}/1/*)"));
 
     OnchainDescriptors {
         multipath_descriptor,
@@ -3017,7 +3066,7 @@ mod test {
             } = descriptors;
 
             // BDK's implementation.
-            // This is also how we use `Bip84` in `OnchainWallet::new`
+            // This is also how we use `Bip84` in `OnchainWallet::init`
             let (bdk_desc_ext, _, _) =
                 Bip84(master_xprv, KeychainKind::External)
                     .build(network.to_bitcoin())
@@ -3042,49 +3091,33 @@ mod test {
             prop_assert_eq!(&expanded[0].to_string(), &our_ext_desc);
             prop_assert_eq!(&expanded[1].to_string(), &our_int_desc);
 
-            // Verify account_xpub by deriving external address at `idx`
-            let ext_xpub = account_xpub
-                .derive_pub(
-                    &SECP256K1,
-                    &[
-                        ChildNumber::from_normal_idx(0).unwrap(),
-                        ChildNumber::from_normal_idx(idx).unwrap(),
-                    ],
+            // Verify account_xpub by deriving the address at `idx` on each
+            // chain: external (0) and internal (1).
+            let our_addr = |chain: u32| {
+                let xpub = account_xpub
+                    .derive_pub(
+                        &SECP256K1,
+                        &[
+                            ChildNumber::from_normal_idx(chain).unwrap(),
+                            ChildNumber::from_normal_idx(idx).unwrap(),
+                        ],
+                    )
+                    .unwrap();
+                bitcoin::Address::p2wpkh(
+                    &bitcoin::CompressedPublicKey(xpub.public_key),
+                    network.to_bitcoin(),
                 )
-                .unwrap();
-            let our_ext_addr = bitcoin::Address::p2wpkh(
-                &bitcoin::CompressedPublicKey(ext_xpub.public_key),
-                network.to_bitcoin(),
-            );
+            };
+            let bdk_addr =
+                |desc: &miniscript::Descriptor<DescriptorPublicKey>| {
+                    desc.at_derivation_index(idx)
+                        .unwrap()
+                        .address(network.to_bitcoin())
+                        .unwrap()
+                };
 
-            // Verify account_xpub by deriving internal address at `idx`
-            let int_xpub = account_xpub
-                .derive_pub(
-                    &SECP256K1,
-                    &[
-                        ChildNumber::from_normal_idx(1).unwrap(),
-                        ChildNumber::from_normal_idx(idx).unwrap(),
-                    ],
-                )
-                .unwrap();
-            let our_int_addr = bitcoin::Address::p2wpkh(
-                &bitcoin::CompressedPublicKey(int_xpub.public_key),
-                network.to_bitcoin(),
-            );
-
-            let bdk_ext_addr = bdk_desc_ext
-                .at_derivation_index(idx)
-                .unwrap()
-                .address(network.to_bitcoin())
-                .unwrap();
-            let bdk_int_addr = bdk_desc_int
-                .at_derivation_index(idx)
-                .unwrap()
-                .address(network.to_bitcoin())
-                .unwrap();
-
-            prop_assert_eq!(our_ext_addr, bdk_ext_addr);
-            prop_assert_eq!(our_int_addr, bdk_int_addr);
+            prop_assert_eq!(our_addr(0), bdk_addr(&bdk_desc_ext));
+            prop_assert_eq!(our_addr(1), bdk_addr(&bdk_desc_int));
 
             // Verify account_zpub is account_xpub with a SLIP-132 prefix
             let zpub_prefix = match network {
