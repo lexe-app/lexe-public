@@ -1819,6 +1819,11 @@ impl SyncStats {
 /// A [`CoinSelectionAlgorithm`] impl which spends the oldest UTXOs first,
 /// i.e. it prioritizes confirmed UTXOds over unconfirmed UTXOs.
 ///
+/// Single-use addresses should be emptied so they age out of the incremental
+/// sync, so confirmed single-use UTXOs are spent first, oldest first, until
+/// they cover the target. Oldest-first selection over the remaining UTXOs
+/// covers any remainder.
+///
 /// Can be configured to log a warning if we select an unconfirmed UTXO.
 ///
 /// Note that `OldestFirstCoinSelection` (FIFO) only has a marginally higher
@@ -1835,14 +1840,14 @@ pub struct LexeCoinSelector {
 impl CoinSelectionAlgorithm for LexeCoinSelector {
     fn coin_select<R: RngCore>(
         &self,
-        required_utxos: Vec<WeightedUtxo>,
+        mut required_utxos: Vec<WeightedUtxo>,
         optional_utxos: Vec<WeightedUtxo>,
         fee_rate: bitcoin::FeeRate,
         target_amount: bitcoin::Amount,
         drain_script: &bitcoin::Script,
         rand: &mut R,
     ) -> Result<CoinSelectionResult, InsufficientFunds> {
-        use bdk_wallet::Utxo;
+        use bdk_wallet::{LocalOutput, Utxo};
 
         /// Whether the given `selection_result` contains any unconfirmed UTXOs.
         fn contains_unconfirmed_utxo(
@@ -1854,31 +1859,53 @@ impl CoinSelectionAlgorithm for LexeCoinSelector {
             })
         }
 
-        // First filter out all foreign UTXOs, as OldestFirstCoinSelection
-        // contains a bug which actually selects foreign UTXOs *first*:
-        // https://github.com/bitcoindevkit/bdk_wallet/issues/264
-        // TODO(max): Remove this filtering once fixed
-        let optional_utxos = optional_utxos
+        /// Whether the UTXO is a confirmed single-use UTXO.
+        fn is_confirmed_single_use(weighted: &WeightedUtxo) -> bool {
+            matches!(
+                &weighted.utxo,
+                Utxo::Local(LocalOutput {
+                    keychain: KeychainKind::SingleUse,
+                    chain_position: ChainPosition::Confirmed { .. },
+                    ..
+                })
+            )
+        }
+
+        // Unconfirmed single-use UTXOs stay with the rest, so that confirmed
+        // UTXOs are still preferred.
+        let (single_use, rest) = optional_utxos
             .into_iter()
-            .filter(|weighted| match weighted.utxo {
-                Utxo::Local(_) => true,
-                Utxo::Foreign { .. } => false,
-            })
-            .collect();
+            .partition::<Vec<_>, _>(is_confirmed_single_use);
 
         // This implementation depends on `ChainPosition`'s derived Ord impl;
         // confirmed UTXOs sort "less than" unconfirmed UTXOs, so oldest-first
         // selection spends them first.
         // BDK has a test named `chain_position_ord` which enforces this.
-        let selection_result =
-            bdk_wallet::coin_selection::OldestFirstCoinSelection.coin_select(
-                required_utxos,
-                optional_utxos,
-                fee_rate,
-                target_amount,
-                drain_script,
-                rand,
-            )?;
+        let oldest_first = bdk_wallet::coin_selection::OldestFirstCoinSelection;
+
+        // Try the single-use UTXOs alone. If they can't cover the target, all
+        // of them are needed, and the rest tops up.
+        let selection_result = match oldest_first.coin_select(
+            required_utxos.clone(),
+            single_use.clone(),
+            fee_rate,
+            target_amount,
+            drain_script,
+            rand,
+        ) {
+            Ok(result) => result,
+            Err(InsufficientFunds { .. }) => {
+                required_utxos.extend(single_use);
+                oldest_first.coin_select(
+                    required_utxos,
+                    rest,
+                    fee_rate,
+                    target_amount,
+                    drain_script,
+                    rand,
+                )?
+            }
+        };
 
         if self.log_unconfirmed && contains_unconfirmed_utxo(&selection_result)
         {
@@ -3450,6 +3477,362 @@ mod test {
             h.wallet.changeset.lock().unwrap().single_use_descriptor,
             Some(descriptor),
         );
+    }
+
+    // --- Spending single-use utxos --- //
+
+    fn pay_onchain_req(amount: Amount) -> PayOnchainRequest {
+        PayOnchainRequest {
+            client_payment_id: ClientPaymentId([42; 32]),
+            address: address3p(),
+            amount,
+            priority: ConfirmationPriority::Normal,
+            personal_note: None,
+        }
+    }
+
+    /// The spk of [`address3p`].
+    fn spk3p() -> bitcoin::ScriptBuf {
+        address3p().assume_checked_ref().script_pubkey()
+    }
+
+    /// A fake channel funding output script (P2WSH length, like
+    /// `preflight_channel_funding_tx`'s).
+    fn funding_script() -> bitcoin::ScriptBuf {
+        bitcoin::ScriptBuf::from_bytes(vec![0x69; 34])
+    }
+
+    /// The txids of a tx's inputs.
+    fn input_txids(tx: &Transaction) -> BTreeSet<bitcoin::Txid> {
+        tx.input
+            .iter()
+            .map(|input| input.previous_output.txid)
+            .collect()
+    }
+
+    /// Assert that all of a tx's inputs are signed (finalized witnesses).
+    #[track_caller]
+    fn assert_fully_signed(tx: &Transaction) {
+        assert!(tx.input.iter().all(|input| !input.witness.is_empty()));
+    }
+
+    /// Assert that every non-recipient output pays our Internal (change)
+    /// keychain.
+    #[track_caller]
+    fn assert_change_to_internal(
+        h: &Harness,
+        tx: &Transaction,
+        recipient_spk: &bitcoin::ScriptBuf,
+    ) {
+        for output in &tx.output {
+            let spk = &output.script_pubkey;
+            if spk == recipient_spk {
+                continue;
+            }
+            let keychain = h
+                .wr()
+                .derivation_of_spk(spk.clone())
+                .map(|(keychain, _idx)| keychain);
+            assert_eq!(keychain, Some(Internal), "Change must go to Internal");
+        }
+    }
+
+    /// The number of unspent single-use utxos.
+    fn num_single_use_utxos(h: &Harness) -> usize {
+        h.wallet
+            .get_utxos()
+            .iter()
+            .filter(|utxo| utxo.keychain == SingleUse)
+            .count()
+    }
+
+    #[test]
+    fn coin_select_drains_single_use_first() {
+        // A p2wpkh input's satisfaction weight.
+        let satisfaction_weight = bitcoin::Weight::from_wu(108);
+        let weighted_utxo = |n: u8, keychain, sats, height: Option<u32>| {
+            let chain_position = match height {
+                Some(height) => ChainPosition::Confirmed {
+                    anchor: ConfirmationBlockTime {
+                        block_id: BlockId::from_u32(height),
+                        confirmation_time: u64::from(height) * 100,
+                    },
+                    transitively: None,
+                },
+                None => ChainPosition::Unconfirmed {
+                    first_seen: Some(0),
+                    last_seen: Some(0),
+                },
+            };
+            let txid = bitcoin::Txid::from_byte_array([n; 32]);
+            WeightedUtxo {
+                satisfaction_weight,
+                utxo: bdk_wallet::Utxo::Local(bdk_wallet::LocalOutput {
+                    outpoint: bitcoin::OutPoint::new(txid, 0),
+                    txout: TxOut {
+                        value: bitcoin::Amount::from_sat(sats),
+                        script_pubkey: helpers::fake_drain_script(),
+                    },
+                    keychain,
+                    is_spent: false,
+                    derivation_index: 0,
+                    chain_position,
+                }),
+            }
+        };
+        let utxos = vec![
+            weighted_utxo(1, External, 100_000, Some(1)),
+            // Dust, but single-use UTXOs are swept regardless
+            weighted_utxo(2, SingleUse, 50, Some(2)),
+            weighted_utxo(3, SingleUse, 20_000, Some(20)),
+            weighted_utxo(4, SingleUse, 10_000, Some(10)),
+            weighted_utxo(5, SingleUse, 30_000, None),
+        ];
+        let select = |target_sats| {
+            let result = LexeCoinSelector::default()
+                .coin_select(
+                    Vec::new(),
+                    utxos.clone(),
+                    bitcoin::FeeRate::from_sat_per_vb(1).unwrap(),
+                    bitcoin::Amount::from_sat(target_sats),
+                    &helpers::fake_drain_script(),
+                    &mut FastRng::from_u64(1),
+                )
+                .unwrap();
+            result
+                .selected
+                .iter()
+                .map(|utxo| utxo.outpoint().txid.to_byte_array()[0])
+                .collect::<BTreeSet<_>>()
+        };
+
+        // The oldest single-use utxos cover the target.
+        assert_eq!(select(1_000), set! { 2, 4 });
+        // The next-oldest single-use utxo is needed too.
+        assert_eq!(select(15_000), set! { 2, 4, 3 });
+        // All confirmed single-use utxos, topped up by the oldest other utxo,
+        // which is preferred over the unconfirmed single-use utxo.
+        assert_eq!(select(100_000), set! { 2, 4, 3, 1 });
+    }
+
+    #[test]
+    fn spend_single_use_only() {
+        let h = Harness::new(111000111);
+
+        // Two single-use utxos; no other funds at all.
+        let (su_tx0, _, su_spk0) = h.ww().fund(SingleUse, sat!(50_000));
+        let (su_tx1, _, su_spk1) = h.ww().fund(SingleUse, sat!(40_000));
+        assert_ne!(su_spk0, su_spk1);
+
+        let req = pay_onchain_req(sat!(60_000));
+        let oswm = h.wallet.create_onchain_send(req, h.network, None).unwrap();
+        let tx = &oswm.payment.tx;
+
+        // Both single-use utxos are needed and selected.
+        assert_eq!(
+            input_txids(tx),
+            set! { su_tx0.compute_txid(), su_tx1.compute_txid() },
+        );
+        assert_fully_signed(tx);
+        assert_change_to_internal(&h, tx, &spk3p());
+
+        // Registering the broadcast marks the single-use utxos spent.
+        h.wallet
+            .transactions_broadcasted_at(h.now(), vec![tx.as_ref().clone()]);
+        assert_eq!(num_single_use_utxos(&h), 0);
+    }
+
+    /// Single-use utxos are drained first even when an older utxo could cover
+    /// the spend alone.
+    #[test]
+    fn spend_mixed_topup() {
+        let h = Harness::new(222000222);
+        let (main_tx, _, _) = h.ww().fund(External, sat!(50_000));
+        let (su_tx, _, _) = h.ww().fund(SingleUse, sat!(10_000));
+
+        let req = pay_onchain_req(sat!(30_000));
+        let oswm = h.wallet.create_onchain_send(req, h.network, None).unwrap();
+        let tx = &oswm.payment.tx;
+
+        assert_eq!(
+            input_txids(tx),
+            set! { su_tx.compute_txid(), main_tx.compute_txid() },
+        );
+        assert_fully_signed(tx);
+        assert_change_to_internal(&h, tx, &spk3p());
+    }
+
+    #[test]
+    fn preflight_fee_matches_actual_with_single_use() {
+        let h = Harness::new(555000555);
+        h.ww().fund(External, sat!(40_000));
+        h.ww().fund(SingleUse, sat!(25_000));
+
+        let amount = sat!(30_000);
+        let preflight_req = PayOnchainPreflightRequest {
+            client_payment_id: None,
+            address: address3p(),
+            amount,
+        };
+        let preflight = h
+            .wallet
+            .pay_onchain_preflight(preflight_req, h.network)
+            .unwrap();
+
+        let req = pay_onchain_req(amount);
+        let oswm = h.wallet.create_onchain_send(req, h.network, None).unwrap();
+
+        assert_eq!(preflight.normal.amount, oswm.payment.onchain_fee);
+    }
+
+    #[test]
+    fn preflight_doesnt_persist_with_single_use() {
+        let mut h = Harness::new(666000666);
+        h.ww().fund(External, sat!(20_000));
+        h.ww().fund(SingleUse, sat!(20_000));
+
+        h.assert_no_persists_in(|h| {
+            let req = PayOnchainPreflightRequest {
+                client_payment_id: None,
+                address: address3p(),
+                amount: sat!(25_000),
+            };
+            h.wallet.pay_onchain_preflight(req, h.network).unwrap();
+        });
+
+        h.assert_no_persists_in(|h| {
+            h.wallet.preflight_channel_funding_tx(sat!(25_000)).unwrap();
+        });
+    }
+
+    /// `single_use_sync_predicate`'s aging out, via the real spend path.
+    #[test]
+    fn spend_ages_single_use_spk_out_of_sync() {
+        let h = Harness::new(999000999);
+        let (su_tx0, _, su_spk0) = h.ww().fund(SingleUse, sat!(30_000));
+        let su_txid0 = su_tx0.compute_txid();
+        h.assert_sync(map! { su_spk0 => set! { su_txid0 } });
+
+        let req = pay_onchain_req(sat!(20_000));
+        let oswm = h.wallet.create_onchain_send(req, h.network, None).unwrap();
+        let spend_txid = oswm.payment.txid.0;
+        let change_spk = oswm
+            .payment
+            .tx
+            .output
+            .iter()
+            .map(|output| output.script_pubkey.clone())
+            .find(|spk| *spk != spk3p())
+            .unwrap();
+        h.wallet.transactions_broadcasted_at(
+            h.now(),
+            vec![oswm.payment.tx.as_ref().clone()],
+        );
+
+        // Unconfirmed spend: still syncs.
+        h.assert_sync(map! {
+            su_spk0 => set! { su_txid0, spend_txid },
+            change_spk => set! { spend_txid },
+        });
+
+        // Finalized spend: aged out; the unspent change keeps syncing.
+        h.ww()
+            .confirm_txids(OnchainWallet::CONFS_TO_FINALIZE, &[spend_txid]);
+        h.assert_sync(map! { change_spk => set! { spend_txid } });
+    }
+
+    #[test]
+    fn spend_mixed_proptest() {
+        let cfg = Config::with_cases(16);
+        proptest!(cfg, |(
+            seed: u64,
+            su_values in proptest::collection::vec(5_000u32..50_000, 0..4),
+            main_values in proptest::collection::vec(5_000u32..50_000, 1..4),
+            amount_frac in 0.1f64..0.6,
+        )| {
+            let h = Harness::new(seed);
+            // Fund the other utxos first, so that plain oldest-first
+            // selection would spend them first.
+            for value in &main_values {
+                h.ww().fund(External, sat!(*value));
+            }
+            let mut su_txids = BTreeSet::new();
+            for value in &su_values {
+                let (tx, _, _) = h.ww().fund(SingleUse, sat!(*value));
+                su_txids.insert(tx.compute_txid());
+            }
+
+            let total = su_values.iter().chain(main_values.iter()).sum::<u32>();
+            let amount = ((f64::from(total) * amount_frac) as u32).max(1_000);
+            let recipient_spk = spk3p();
+
+            let req = pay_onchain_req(sat!(amount));
+            let oswm = h.wallet.create_onchain_send(req, h.network, None).unwrap();
+            let tx = &oswm.payment.tx;
+
+            assert_fully_signed(tx);
+            assert_change_to_internal(&h, tx, &recipient_spk);
+
+            // The recipient is paid exactly `amount`.
+            let paid = tx
+                .output
+                .iter()
+                .filter(|o| o.script_pubkey == recipient_spk)
+                .map(|o| o.value.to_sat())
+                .sum::<u64>();
+            prop_assert_eq!(paid, u64::from(amount));
+
+            // Drain-first: if any non-single-use utxo was spent, every
+            // (economical, confirmed) single-use utxo must have been spent
+            // too.
+            let inputs = input_txids(tx);
+            let spent_main = inputs.iter().any(|txid| !su_txids.contains(txid));
+            if spent_main {
+                prop_assert!(su_txids.iter().all(|txid| inputs.contains(txid)));
+            }
+        });
+    }
+
+    /// Channel funding drains single-use utxos even when an older utxo could
+    /// fund it alone.
+    #[test]
+    fn channel_funding_from_single_use_only() {
+        let h = Harness::new(101010101);
+        h.ww().fund(External, sat!(50_000));
+        let (su_tx0, _, _) = h.ww().fund(SingleUse, sat!(50_000));
+
+        let tx = h
+            .wallet
+            .create_and_sign_funding_tx(funding_script(), sat!(30_000).into())
+            .unwrap();
+
+        assert_eq!(input_txids(&tx), set! { su_tx0.compute_txid() });
+        assert_fully_signed(&tx);
+        assert_change_to_internal(&h, &tx, &funding_script());
+    }
+
+    #[test]
+    fn channel_funding_preflight_matches_actual() {
+        let h = Harness::new(303030303);
+        let (su_tx, _, _) = h.ww().fund(SingleUse, sat!(25_000));
+        let (main_tx, _, _) = h.ww().fund(External, sat!(40_000));
+
+        let est_fee =
+            h.wallet.preflight_channel_funding_tx(sat!(30_000)).unwrap();
+
+        let tx = h
+            .wallet
+            .create_and_sign_funding_tx(funding_script(), sat!(30_000).into())
+            .unwrap();
+        // Both utxos are needed: 30k exceeds either alone (plus fees).
+        assert_eq!(
+            input_txids(&tx),
+            set! { su_tx.compute_txid(), main_tx.compute_txid() },
+        );
+        let output_sats =
+            tx.output.iter().map(|o| o.value.to_sat()).sum::<u64>();
+        let actual_fee = 25_000 + 40_000 - output_sats;
+        assert_eq!(est_fee.sats_u64(), actual_fee);
     }
 
     // Test creating full wallet sweep tx
