@@ -3148,7 +3148,7 @@ impl SseDecode for crate::ffi::api::PayInvoiceRequest {
         let mut var_invoice = <String>::sse_decode(deserializer);
         let mut var_fallbackAmountSats =
             <Option<u64>>::sse_decode(deserializer);
-        let mut var_message = <Option<String>>::sse_decode(deserializer);
+        let mut var_lud12Comment = <Option<String>>::sse_decode(deserializer);
         let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         let mut var_kind =
             <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
@@ -3156,7 +3156,7 @@ impl SseDecode for crate::ffi::api::PayInvoiceRequest {
         return crate::ffi::api::PayInvoiceRequest {
             invoice: var_invoice,
             fallback_amount_sats: var_fallbackAmountSats,
-            message: var_message,
+            lud12_comment: var_lud12Comment,
             personal_note: var_personalNote,
             kind: var_kind,
             ldk_route: var_ldkRoute,
@@ -3215,7 +3215,7 @@ impl SseDecode for crate::ffi::api::PayOfferRequest {
             <crate::ffi::types::ClientPaymentId>::sse_decode(deserializer);
         let mut var_offer = <String>::sse_decode(deserializer);
         let mut var_amountSats = <u64>::sse_decode(deserializer);
-        let mut var_message = <Option<String>>::sse_decode(deserializer);
+        let mut var_payerNote = <Option<String>>::sse_decode(deserializer);
         let mut var_personalNote = <Option<String>>::sse_decode(deserializer);
         let mut var_kind =
             <crate::ffi::types::PaymentKind>::sse_decode(deserializer);
@@ -3223,7 +3223,7 @@ impl SseDecode for crate::ffi::api::PayOfferRequest {
             client_payment_id: var_clientPaymentId,
             offer: var_offer,
             amount_sats: var_amountSats,
-            message: var_message,
+            payer_note: var_payerNote,
             personal_note: var_personalNote,
             kind: var_kind,
         };
@@ -5304,7 +5304,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayInvoiceRequest {
         [
             self.invoice.into_into_dart().into_dart(),
             self.fallback_amount_sats.into_into_dart().into_dart(),
-            self.message.into_into_dart().into_dart(),
+            self.lud12_comment.into_into_dart().into_dart(),
             self.personal_note.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
             self.ldk_route.into_into_dart().into_dart(),
@@ -5397,7 +5397,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::PayOfferRequest {
             self.client_payment_id.into_into_dart().into_dart(),
             self.offer.into_into_dart().into_dart(),
             self.amount_sats.into_into_dart().into_dart(),
-            self.message.into_into_dart().into_dart(),
+            self.payer_note.into_into_dart().into_dart(),
             self.personal_note.into_into_dart().into_dart(),
             self.kind.into_into_dart().into_dart(),
         ]
@@ -7572,7 +7572,7 @@ impl SseEncode for crate::ffi::api::PayInvoiceRequest {
     ) {
         <String>::sse_encode(self.invoice, serializer);
         <Option<u64>>::sse_encode(self.fallback_amount_sats, serializer);
-        <Option<String>>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.lud12_comment, serializer);
         <Option<String>>::sse_encode(self.personal_note, serializer);
         <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
         <Option<Vec<u8>>>::sse_encode(self.ldk_route, serializer);
@@ -7629,7 +7629,7 @@ impl SseEncode for crate::ffi::api::PayOfferRequest {
         );
         <String>::sse_encode(self.offer, serializer);
         <u64>::sse_encode(self.amount_sats, serializer);
-        <Option<String>>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.payer_note, serializer);
         <Option<String>>::sse_encode(self.personal_note, serializer);
         <crate::ffi::types::PaymentKind>::sse_encode(self.kind, serializer);
     }

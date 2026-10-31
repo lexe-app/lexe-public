@@ -928,7 +928,7 @@ where
         secret.into(),
         preimage.into(),
         req.kind,
-        req.message,
+        req.lud12_comment,
         req.personal_note,
         partner_fee,
         client_pk,
@@ -958,7 +958,7 @@ where
 pub struct PayInvoiceRequestInner {
     pub invoice: Invoice,
     pub fallback_amount: Option<Amount>,
-    pub message: Option<BoundedString>,
+    pub lud12_comment: Option<BoundedString>,
     pub personal_note: Option<BoundedString>,
     pub kind: PaymentKind,
     pub partner_pk: Option<UserPk>,
@@ -971,7 +971,7 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
         let PayInvoiceRequest {
             invoice,
             fallback_amount,
-            message,
+            lud12_comment,
             personal_note,
             kind,
             ldk_route: _,
@@ -982,7 +982,7 @@ impl From<PayInvoiceRequest> for PayInvoiceRequestInner {
         Self {
             invoice,
             fallback_amount,
-            message,
+            lud12_comment,
             personal_note,
             kind,
             partner_pk,
@@ -1189,7 +1189,7 @@ where
     let req = PayInvoiceRequestInner {
         invoice: req.invoice,
         fallback_amount: req.fallback_amount,
-        message: None,
+        lud12_comment: None,
         // User note not relevant for pre-flight.
         personal_note: None,
         kind: req.kind,
@@ -1373,7 +1373,7 @@ where
     // TODO(max): We should call chan_man.pay_for_offer_from_human_readable_name
     // below if the offer was resolved via BIP353.
     let _payer_name = &oopwm.metadata.payer_name;
-    let message = oopwm.metadata.message.clone();
+    let payer_note = oopwm.metadata.message.clone();
 
     let id = oopwm.payment.id();
 
@@ -1398,7 +1398,7 @@ where
     let params = OptionalOfferPaymentParams {
         route_params_config: routing_context
             .route_params_config(oopwm.payment.amount),
-        payer_note: message,
+        payer_note,
         retry_strategy: OUTBOUND_PAYMENT_RETRY_STRATEGY,
     };
 
@@ -1466,7 +1466,7 @@ where
         client_payment_id: req.client_payment_id,
         offer: req.offer,
         amount: req.amount,
-        message: None,
+        payer_note: None,
 
         // User note and kind not relevant for pre-flight.
         personal_note: None,
@@ -1728,7 +1728,7 @@ where
             routing_fee,
             first_hop_fee,
             partner_fee,
-            req.message,
+            req.lud12_comment,
             req.personal_note,
             client_pk,
         )
@@ -1813,7 +1813,7 @@ where
         routing_fee,
         first_hop_fee,
         partner_fee,
-        req.message,
+        req.lud12_comment,
         req.personal_note,
         client_pk,
     )
@@ -1999,7 +1999,7 @@ where
         quantity,
         routing_fee,
         payer_name,
-        req.message,
+        req.payer_note,
         req.personal_note,
         client_pk,
     )

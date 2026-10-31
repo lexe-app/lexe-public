@@ -376,7 +376,7 @@ impl TryFrom<CreateInvoiceRequest> for command::CreateInvoiceRequest {
             description: req.description,
             // TODO(maurice): Add description_hash if we really need it.
             description_hash: None,
-            message: None,
+            lud12_comment: None,
             personal_note: req
                 .personal_note
                 .map(BoundedString::new)
@@ -433,7 +433,7 @@ impl TryFrom<PayInvoiceRequest> for command::PayInvoiceRequest {
         Ok(Self {
             invoice: req.invoice,
             fallback_amount: req.fallback_amount,
-            message: None,
+            lud12_comment: None,
             personal_note: req
                 .personal_note
                 .map(BoundedString::new)
@@ -544,7 +544,7 @@ impl PayOfferRequest {
             client_payment_id,
             offer,
             amount,
-            message: message
+            payer_note: message
                 .map(BoundedString::new)
                 .transpose()
                 .context("Invalid message")?,

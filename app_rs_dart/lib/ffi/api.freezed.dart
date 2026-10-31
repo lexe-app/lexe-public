@@ -1503,22 +1503,22 @@ String toString() {
 /// @nodoc
 mixin _$PayInvoiceRequest {
 
- String get invoice; int? get fallbackAmountSats; String? get message; String? get personalNote; PaymentKind get kind; Uint8List? get ldkRoute;
+ String get invoice; int? get fallbackAmountSats; String? get lud12Comment; String? get personalNote; PaymentKind get kind; Uint8List? get ldkRoute;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.lud12Comment, lud12Comment) || other.lud12Comment == lud12Comment)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote,kind,const DeepCollectionEquality().hash(ldkRoute));
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,lud12Comment,personalNote,kind,const DeepCollectionEquality().hash(ldkRoute));
 
 @override
 String toString() {
-  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote, kind: $kind, ldkRoute: $ldkRoute)';
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, lud12Comment: $lud12Comment, personalNote: $personalNote, kind: $kind, ldkRoute: $ldkRoute)';
 }
 
 
@@ -1532,12 +1532,12 @@ String toString() {
 
 
 class _PayInvoiceRequest implements PayInvoiceRequest {
-  const _PayInvoiceRequest({required this.invoice, this.fallbackAmountSats, this.message, this.personalNote, required this.kind, this.ldkRoute});
+  const _PayInvoiceRequest({required this.invoice, this.fallbackAmountSats, this.lud12Comment, this.personalNote, required this.kind, this.ldkRoute});
   
 
 @override final  String invoice;
 @override final  int? fallbackAmountSats;
-@override final  String? message;
+@override final  String? lud12Comment;
 @override final  String? personalNote;
 @override final  PaymentKind kind;
 @override final  Uint8List? ldkRoute;
@@ -1547,16 +1547,16 @@ class _PayInvoiceRequest implements PayInvoiceRequest {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayInvoiceRequest&&(identical(other.invoice, invoice) || other.invoice == invoice)&&(identical(other.fallbackAmountSats, fallbackAmountSats) || other.fallbackAmountSats == fallbackAmountSats)&&(identical(other.lud12Comment, lud12Comment) || other.lud12Comment == lud12Comment)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind)&&const DeepCollectionEquality().equals(other.ldkRoute, ldkRoute));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,message,personalNote,kind,const DeepCollectionEquality().hash(ldkRoute));
+int get hashCode => Object.hash(runtimeType,invoice,fallbackAmountSats,lud12Comment,personalNote,kind,const DeepCollectionEquality().hash(ldkRoute));
 
 @override
 String toString() {
-  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, message: $message, personalNote: $personalNote, kind: $kind, ldkRoute: $ldkRoute)';
+  return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, lud12Comment: $lud12Comment, personalNote: $personalNote, kind: $kind, ldkRoute: $ldkRoute)';
 }
 
 
@@ -1751,22 +1751,22 @@ String toString() {
 /// @nodoc
 mixin _$PayOfferRequest {
 
- ClientPaymentId get clientPaymentId; String get offer; int get amountSats; String? get message; String? get personalNote; PaymentKind get kind;
+ ClientPaymentId get clientPaymentId; String get offer; int get amountSats; String? get payerNote; String? get personalNote; PaymentKind get kind;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferRequest&&(identical(other.clientPaymentId, clientPaymentId) || other.clientPaymentId == clientPaymentId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PayOfferRequest&&(identical(other.clientPaymentId, clientPaymentId) || other.clientPaymentId == clientPaymentId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,clientPaymentId,offer,amountSats,message,personalNote,kind);
+int get hashCode => Object.hash(runtimeType,clientPaymentId,offer,amountSats,payerNote,personalNote,kind);
 
 @override
 String toString() {
-  return 'PayOfferRequest(clientPaymentId: $clientPaymentId, offer: $offer, amountSats: $amountSats, message: $message, personalNote: $personalNote, kind: $kind)';
+  return 'PayOfferRequest(clientPaymentId: $clientPaymentId, offer: $offer, amountSats: $amountSats, payerNote: $payerNote, personalNote: $personalNote, kind: $kind)';
 }
 
 
@@ -1780,13 +1780,13 @@ String toString() {
 
 
 class _PayOfferRequest implements PayOfferRequest {
-  const _PayOfferRequest({required this.clientPaymentId, required this.offer, required this.amountSats, this.message, this.personalNote, required this.kind});
+  const _PayOfferRequest({required this.clientPaymentId, required this.offer, required this.amountSats, this.payerNote, this.personalNote, required this.kind});
   
 
 @override final  ClientPaymentId clientPaymentId;
 @override final  String offer;
 @override final  int amountSats;
-@override final  String? message;
+@override final  String? payerNote;
 @override final  String? personalNote;
 @override final  PaymentKind kind;
 
@@ -1795,16 +1795,16 @@ class _PayOfferRequest implements PayOfferRequest {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferRequest&&(identical(other.clientPaymentId, clientPaymentId) || other.clientPaymentId == clientPaymentId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.message, message) || other.message == message)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PayOfferRequest&&(identical(other.clientPaymentId, clientPaymentId) || other.clientPaymentId == clientPaymentId)&&(identical(other.offer, offer) || other.offer == offer)&&(identical(other.amountSats, amountSats) || other.amountSats == amountSats)&&(identical(other.payerNote, payerNote) || other.payerNote == payerNote)&&(identical(other.personalNote, personalNote) || other.personalNote == personalNote)&&(identical(other.kind, kind) || other.kind == kind));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,clientPaymentId,offer,amountSats,message,personalNote,kind);
+int get hashCode => Object.hash(runtimeType,clientPaymentId,offer,amountSats,payerNote,personalNote,kind);
 
 @override
 String toString() {
-  return 'PayOfferRequest(clientPaymentId: $clientPaymentId, offer: $offer, amountSats: $amountSats, message: $message, personalNote: $personalNote, kind: $kind)';
+  return 'PayOfferRequest(clientPaymentId: $clientPaymentId, offer: $offer, amountSats: $amountSats, payerNote: $payerNote, personalNote: $personalNote, kind: $kind)';
 }
 
 

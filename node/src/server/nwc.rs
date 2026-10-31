@@ -107,7 +107,7 @@ async fn handle_make_invoice(
         amount: Some(amount),
         description: params.description,
         description_hash: params.description_hash,
-        message: None,
+        lud12_comment: None,
         personal_note: None,
         kind: PaymentKind::Invoice,
         partner_pk: None,

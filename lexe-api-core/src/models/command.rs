@@ -416,11 +416,11 @@ pub struct CreateInvoiceRequest {
     /// return an error.
     pub description_hash: Option<[u8; 32]>,
 
-    /// An optional message from the payer, stored with this inbound payment.
-    /// For LNURL-pay, set from the LUD-12 `comment`.
-    // compat: Alias added in node-v0.9.7
-    #[serde(rename = "payer_note", alias = "message")]
-    pub message: Option<BoundedString>,
+    /// The LUD-12 `comment` the payer already sent in the LNURL-pay callback
+    /// that requested this invoice, stored with the inbound payment.
+    // compat: Alias added in node-v0.10.8
+    #[serde(rename = "payer_note", alias = "lud12_comment")]
+    pub lud12_comment: Option<BoundedString>,
 
     /// An optional personal note for this invoice.
     /// Added in `node-v0.9.10`
@@ -475,7 +475,7 @@ impl Default for CreateInvoiceRequest {
             amount: None,
             description: None,
             description_hash: None,
-            message: None,
+            lud12_comment: None,
             personal_note: None,
             kind: default_invoice_kind(),
             partner_pk: None,
@@ -503,12 +503,12 @@ pub struct PayInvoiceRequest {
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be [`Some`] for amountless invoices.
     pub fallback_amount: Option<Amount>,
-    /// An optional message to persist with this outbound payment. For
-    /// LNURL-pay, this is the LUD-12 `comment` sent during invoice
-    /// negotiation.
-    // compat: Alias added in node-v0.9.7
-    #[serde(rename = "payer_note", alias = "message")]
-    pub message: Option<BoundedString>,
+    /// The LUD-12 `comment` the payer already sent in the LNURL-pay callback
+    /// that produced this invoice, persisted with the payment. The node sends
+    /// nothing to the recipient.
+    // compat: Alias added in node-v0.10.8
+    #[serde(rename = "payer_note", alias = "lud12_comment")]
+    pub lud12_comment: Option<BoundedString>,
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
     // compat: Alias added in node-v0.9.7
@@ -732,9 +732,7 @@ pub struct PayOfferRequest {
     pub amount: Amount,
     /// An optional BOLT 12 `payer_note` included with the invoice request and
     /// visible to the recipient.
-    // compat: Alias added in node-v0.9.7
-    #[serde(rename = "payer_note", alias = "message")]
-    pub message: Option<BoundedString>,
+    pub payer_note: Option<BoundedString>,
     /// An optional personal note for this payment, useful if the
     /// receiver-provided description is insufficient.
     // compat: Alias added in node-v0.9.7

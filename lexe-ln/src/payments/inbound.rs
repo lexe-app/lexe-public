@@ -179,7 +179,7 @@ pub struct OfferClaimCtx {
     pub offer_id: OfferId,
     pub offer: Option<Arc<Offer>>,
     pub payer_name: Option<String>,
-    pub message: Option<BoundedString>,
+    pub payer_note: Option<BoundedString>,
     pub quantity: Option<NonZeroU64>,
 }
 
@@ -229,7 +229,7 @@ impl LnClaimCtx {
                     .map(|hrn| format!("{}@{}", hrn.user(), hrn.domain()));
                 // LDK truncates to PAYER_NOTE_LIMIT (512 B); we also enforce
                 // our 200-char limit.
-                let message = context
+                let payer_note = context
                     .invoice_request
                     .payer_note_truncated
                     .map(|s| s.0)
@@ -240,7 +240,7 @@ impl LnClaimCtx {
                     offer_id,
                     offer: offer.map(Arc::new),
                     payer_name,
-                    message,
+                    payer_note,
                     quantity,
                 }))
             }
@@ -395,14 +395,14 @@ impl InboundInvoicePaymentV2 {
         secret: PaymentSecret,
         preimage: PaymentPreimage,
         kind: PaymentKind,
-        message: Option<BoundedString>,
+        lud12_comment: Option<BoundedString>,
         personal_note: Option<BoundedString>,
         partner_fee: Option<PartnerFeeFields>,
         client_pk: Option<ed25519::PublicKey>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
-        let message = message.map(BoundedString::into_inner);
+        let message = lud12_comment.map(BoundedString::into_inner);
         let personal_note = personal_note.map(BoundedString::into_inner);
 
         let invoice_amount =
@@ -798,7 +798,7 @@ impl InboundOfferReusablePaymentV2 {
             // client which created the offer and record it here.
             client_pk: None,
             payer_name: ctx.payer_name,
-            message: ctx.message.map(BoundedString::into_inner),
+            message: ctx.payer_note.map(BoundedString::into_inner),
             personal_note: None,
             priority: None,
             quantity: ctx.quantity,

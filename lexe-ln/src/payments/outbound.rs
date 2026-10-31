@@ -187,13 +187,13 @@ impl OutboundInvoicePaymentV2 {
         routing_fee: Amount,
         first_hop_fee: Amount,
         partner_fee: Option<PartnerFeeFields>,
-        message: Option<BoundedString>,
+        lud12_comment: Option<BoundedString>,
         personal_note: Option<BoundedString>,
         client_pk: Option<ed25519::PublicKey>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Invoice)?;
 
-        let message = message.map(BoundedString::into_inner);
+        let message = lud12_comment.map(BoundedString::into_inner);
         let personal_note = personal_note.map(BoundedString::into_inner);
 
         let hash = invoice.payment_hash();
@@ -515,13 +515,13 @@ impl OutboundOfferPaymentV2 {
         quantity: Option<NonZeroU64>,
         routing_fee: Amount,
         payer_name: Option<String>,
-        message: Option<BoundedString>,
+        payer_note: Option<BoundedString>,
         personal_note: Option<BoundedString>,
         client_pk: Option<ed25519::PublicKey>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Offer)?;
 
-        let message = message.map(BoundedString::into_inner);
+        let message = payer_note.map(BoundedString::into_inner);
         let personal_note = personal_note.map(BoundedString::into_inner);
 
         let offer_id = offer.id();

@@ -267,7 +267,7 @@ sealed class PayInvoiceRequest with _$PayInvoiceRequest {
   const factory PayInvoiceRequest({
     required String invoice,
     int? fallbackAmountSats,
-    String? message,
+    String? lud12Comment,
     String? personalNote,
     required PaymentKind kind,
     Uint8List? ldkRoute,
@@ -316,7 +316,7 @@ sealed class PayOfferRequest with _$PayOfferRequest {
     required ClientPaymentId clientPaymentId,
     required String offer,
     required int amountSats,
-    String? message,
+    String? payerNote,
     String? personalNote,
     required PaymentKind kind,
   }) = _PayOfferRequest;

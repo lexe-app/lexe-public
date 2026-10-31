@@ -357,7 +357,6 @@ class SendState_Preflighted implements SendState {
       fallbackAmountSats: (preflighted.invoice.amountSats == null)
           ? preflighted.amountSats
           : null,
-      message: preflighted.message,
       personalNote: personalNote,
       kind: kind,
       ldkRoute: preflighted.preflight.ldkRoute,
@@ -404,7 +403,7 @@ class SendState_Preflighted implements SendState {
       clientPaymentId: this.clientPaymentId,
       offer: preflighted.offer.string,
       amountSats: preflighted.amountSats,
-      message: preflighted.message,
+      payerNote: preflighted.message,
       personalNote: personalNote,
       kind: kind,
     );

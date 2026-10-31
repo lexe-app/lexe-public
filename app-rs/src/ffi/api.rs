@@ -499,7 +499,7 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
                 .transpose()?,
             description: value.description,
             description_hash: None,
-            message: None,
+            lud12_comment: None,
             personal_note: value
                 .personal_note
                 .map(BoundedString::new)
@@ -533,7 +533,7 @@ impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
 pub struct PayInvoiceRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
-    pub message: Option<String>,
+    pub lud12_comment: Option<String>,
     pub personal_note: Option<String>,
     pub kind: PaymentKind,
     pub ldk_route: Option<Vec<u8>>,
@@ -559,7 +559,10 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
         Ok(Self {
             invoice,
             fallback_amount,
-            message: value.message.map(validate_note).transpose()?,
+            lud12_comment: value
+                .lud12_comment
+                .map(validate_note)
+                .transpose()?,
             personal_note: value
                 .personal_note
                 .map(validate_note)
@@ -752,7 +755,7 @@ pub struct PayOfferRequest {
     pub client_payment_id: ClientPaymentId,
     pub offer: String,
     pub amount_sats: u64,
-    pub message: Option<String>,
+    pub payer_note: Option<String>,
     pub personal_note: Option<String>,
     pub kind: PaymentKind,
 }
@@ -765,7 +768,7 @@ impl TryFrom<PayOfferRequest> for PayOfferRequestRs {
             offer: OfferRs::from_str(&value.offer)
                 .context("Failed to parse offer")?,
             amount: Amount::try_from_sats_u64(value.amount_sats)?,
-            message: value.message.map(validate_note).transpose()?,
+            payer_note: value.payer_note.map(validate_note).transpose()?,
             personal_note: value
                 .personal_note
                 .map(validate_note)

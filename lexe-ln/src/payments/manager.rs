@@ -2394,7 +2394,7 @@ mod test {
                 offer_id: iorp.offer_id,
                 offer: None,
                 payer_name: None,
-                message: None,
+                payer_note: None,
                 quantity: None,
             });
 

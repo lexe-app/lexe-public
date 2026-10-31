@@ -1031,13 +1031,11 @@ impl LexeWallet {
                     );
                 }
 
-                // The public `pay_invoice` request doesn't expose `message`,
-                // so this arm can't delegate to `LexeWallet::pay_invoice`.
                 let id = invoice.payment_id();
                 let pay_req = command::PayInvoiceRequest {
                     invoice,
                     fallback_amount,
-                    message,
+                    lud12_comment: None,
                     personal_note,
                     kind: PaymentKind::Invoice,
                     // TODO(nicole): Consider reusing the preflighted route by
@@ -1421,7 +1419,7 @@ impl LexeWallet {
         let invoice_req = command::PayInvoiceRequest {
             invoice,
             fallback_amount: None,
-            message: truncated_comment,
+            lud12_comment: truncated_comment,
             personal_note,
             kind: PaymentKind::Invoice,
             ldk_route: None,
@@ -1572,7 +1570,7 @@ impl LexeWallet {
             amount: Some(amount),
             description: Some("Cash App Buy".to_owned()),
             description_hash: None,
-            message: None,
+            lud12_comment: None,
             personal_note: None,
             kind: PaymentKind::BuyCashApp,
             partner_pk: None,

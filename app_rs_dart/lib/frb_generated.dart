@@ -5156,7 +5156,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     return PayInvoiceRequest(
       invoice: dco_decode_String(arr[0]),
       fallbackAmountSats: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
-      message: dco_decode_opt_String(arr[2]),
+      lud12Comment: dco_decode_opt_String(arr[2]),
       personalNote: dco_decode_opt_String(arr[3]),
       kind: dco_decode_payment_kind(arr[4]),
       ldkRoute: dco_decode_opt_list_prim_u_8_strict(arr[5]),
@@ -5209,7 +5209,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       clientPaymentId: dco_decode_client_payment_id(arr[0]),
       offer: dco_decode_String(arr[1]),
       amountSats: dco_decode_CastedPrimitive_u_64(arr[2]),
-      message: dco_decode_opt_String(arr[3]),
+      payerNote: dco_decode_opt_String(arr[3]),
       personalNote: dco_decode_opt_String(arr[4]),
       kind: dco_decode_payment_kind(arr[5]),
     );
@@ -7450,14 +7450,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_fallbackAmountSats = sse_decode_opt_CastedPrimitive_u_64(
       deserializer,
     );
-    var var_message = sse_decode_opt_String(deserializer);
+    var var_lud12Comment = sse_decode_opt_String(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
     var var_kind = sse_decode_payment_kind(deserializer);
     var var_ldkRoute = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return PayInvoiceRequest(
       invoice: var_invoice,
       fallbackAmountSats: var_fallbackAmountSats,
-      message: var_message,
+      lud12Comment: var_lud12Comment,
       personalNote: var_personalNote,
       kind: var_kind,
       ldkRoute: var_ldkRoute,
@@ -7507,14 +7507,14 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_clientPaymentId = sse_decode_client_payment_id(deserializer);
     var var_offer = sse_decode_String(deserializer);
     var var_amountSats = sse_decode_CastedPrimitive_u_64(deserializer);
-    var var_message = sse_decode_opt_String(deserializer);
+    var var_payerNote = sse_decode_opt_String(deserializer);
     var var_personalNote = sse_decode_opt_String(deserializer);
     var var_kind = sse_decode_payment_kind(deserializer);
     return PayOfferRequest(
       clientPaymentId: var_clientPaymentId,
       offer: var_offer,
       amountSats: var_amountSats,
-      message: var_message,
+      payerNote: var_payerNote,
       personalNote: var_personalNote,
       kind: var_kind,
     );
@@ -9687,7 +9687,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.invoice, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.fallbackAmountSats, serializer);
-    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.lud12Comment, serializer);
     sse_encode_opt_String(self.personalNote, serializer);
     sse_encode_payment_kind(self.kind, serializer);
     sse_encode_opt_list_prim_u_8_strict(self.ldkRoute, serializer);
@@ -9732,7 +9732,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_client_payment_id(self.clientPaymentId, serializer);
     sse_encode_String(self.offer, serializer);
     sse_encode_CastedPrimitive_u_64(self.amountSats, serializer);
-    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.payerNote, serializer);
     sse_encode_opt_String(self.personalNote, serializer);
     sse_encode_payment_kind(self.kind, serializer);
   }
