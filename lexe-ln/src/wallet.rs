@@ -467,6 +467,10 @@ impl OnchainWallet {
             .context("`EsploraAsyncExt::sync` failed")?;
         sync_stats.with_sync_response(&sync_result);
 
+        // TODO(phlip9): if we observe the +1 lookahead spk in the sync
+        // results, fallback to a full sync or extra lookahead sync, since our
+        // BDK wallet appears to have failed / missed an earlier persist.
+
         // Apply the update to the wallet.
         {
             let mut locked_wallet = self.inner.write().unwrap();
