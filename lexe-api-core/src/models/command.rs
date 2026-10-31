@@ -106,8 +106,9 @@ pub struct DebugInfo {
 /// These are copy-pasteable into other wallets like Sparrow.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OnchainDescriptors {
-    /// BIP389 multipath descriptor for both keychains:
-    /// `wpkh([fp/84'/0'/0']xpub.../<0;1>/*)#checksum`
+    /// BIP389 multipath descriptor for all keychains:
+    /// `wpkh([fp/84'/0'/0']xpub.../<0;1;2>/*)#checksum`
+    /// (`<0;1>` for a legacy wallet).
     pub multipath_descriptor: String,
 
     /// External (receive) keychain descriptor.
@@ -115,6 +116,11 @@ pub struct OnchainDescriptors {
 
     /// Internal (change) keychain descriptor.
     pub internal_descriptor: String,
+
+    /// Single-use keychain descriptor. `None` iff this is a legacy wallet.
+    // compat: Added in node-v0.10.9
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_use_descriptor: Option<String>,
 
     /// Account-level xpub at `m/84'/{coin}'/0'` for legacy tools.
     pub account_xpub: Xpub,
@@ -1258,6 +1264,7 @@ mod test {
             multipath_descriptor: String::new(),
             external_descriptor: String::new(),
             internal_descriptor: String::new(),
+            single_use_descriptor: None,
             account_xpub,
         };
         assert_eq!(descriptors.account_zpub(), zpub);
@@ -1272,15 +1279,17 @@ mod test {
         ).unwrap();
 
         // Descriptors with real checksums (computed via miniscript)
-        let descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/<0;1>/*)#c8v4zjyh".to_owned();
+        let descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/<0;1;2>/*)#rfagqskt".to_owned();
         let external_descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/0/*)#dwvchw0k".to_owned();
         let internal_descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/1/*)#u6fe2mlw".to_owned();
+        let single_use_descriptor = "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/2/*)#x0x6ydx0".to_owned();
 
         let debug_info = DebugInfo {
             descriptors: OnchainDescriptors {
                 multipath_descriptor: descriptor.clone(),
                 external_descriptor: external_descriptor.clone(),
                 internal_descriptor: internal_descriptor.clone(),
+                single_use_descriptor: Some(single_use_descriptor.clone()),
                 account_xpub,
             },
             legacy_descriptors: None,
@@ -1296,9 +1305,10 @@ mod test {
         let json = serde_json::to_string_pretty(&debug_info).unwrap();
         let expected = r#"{
   "descriptors": {
-    "multipath_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/<0;1>/*)#c8v4zjyh",
+    "multipath_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/<0;1;2>/*)#rfagqskt",
     "external_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/0/*)#dwvchw0k",
     "internal_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/1/*)#u6fe2mlw",
+    "single_use_descriptor": "wpkh([be83839f/84'/0'/0']xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA/2/*)#x0x6ydx0",
     "account_xpub": "xpub6DCQ1YcqvZtSwGWMrwHELPehjWV3f2MGZ69yBADTxFEUAoLwb5Mp5GniQK6tTp3AgbngVz9zEFbBJUPVnkG7LFYt8QMTfbrNqs6FNEwAPKA"
   },
   "num_utxos": 5,
@@ -1316,6 +1326,10 @@ mod test {
         assert_eq!(back.descriptors.multipath_descriptor, descriptor);
         assert_eq!(back.descriptors.external_descriptor, external_descriptor);
         assert_eq!(back.descriptors.internal_descriptor, internal_descriptor);
+        assert_eq!(
+            back.descriptors.single_use_descriptor,
+            Some(single_use_descriptor)
+        );
         assert_eq!(
             back.descriptors.account_xpub,
             debug_info.descriptors.account_xpub

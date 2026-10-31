@@ -19,7 +19,9 @@
 //!
 //! NOTE: It is possible that we'll lose some data if the node crashes before
 //! any staged changes are persisted, but this should be OK because all data in
-//! the [`ChangeSet`] can be re-derived with a full sync
+//! the [`ChangeSet`] can be re-derived with a full sync. The exception is a
+//! single-use reveal, which a crash would re-issue, so
+//! [`OnchainWallet::get_exclusive_address`] awaits the persist first.
 //!
 //! NOTE: a key design requirement is that we should be able to recover all BDK
 //! on-chain wallet funds from just the [`RootSeed`]. In other words, if we blow
@@ -32,6 +34,7 @@
 //! [`Wallet`]: bdk_wallet::Wallet
 //! [`OnchainWallet`]: crate::wallet::OnchainWallet
 //! [`OnchainWallet::trigger_persist`]: crate::wallet::OnchainWallet::trigger_persist
+//! [`OnchainWallet::get_exclusive_address`]: crate::wallet::OnchainWallet::get_exclusive_address
 //! [`RootSeed`]: lexe_common::root_seed::RootSeed
 
 use std::{
@@ -55,6 +58,7 @@ use bdk_wallet::{
     coin_selection::{
         CoinSelectionAlgorithm, CoinSelectionResult, InsufficientFunds,
     },
+    descriptor::IntoWalletDescriptor,
     miniscript,
     template::Bip84,
 };
@@ -99,7 +103,13 @@ use crate::{
 /// Sweeping legacy on-chain wallets to new BIP39-compatible wallets
 pub mod legacy_sweep;
 
-/// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
+/// Lexe's on-chain wallet, wrapping BDK's [`Wallet`]. Comes in two forms:
+///
+/// - [`OnchainWallet::init`]: the live wallet, with External (receive),
+///   Internal (change), and SingleUse keychains.
+/// - [`OnchainWallet::init_legacy`]: the pre-node-v0.9.1 wallet swept by
+///   [`legacy_sweep`], with only the External and Internal keychains and its
+///   own changeset file.
 #[derive(Clone)]
 pub struct OnchainWallet {
     inner: Arc<std::sync::RwLock<Wallet>>,
@@ -139,7 +149,9 @@ pub struct AddressScanParams {
 impl Default for AddressScanParams {
     fn default() -> Self {
         Self {
-            full_scan_stop_gap: 2,
+            // Single-use addresses may be paid in any order, or never, so a
+            // restore from seed must tolerate runs of unpaid addresses.
+            full_scan_stop_gap: 50,
             // We only reveal unused addresses. However, with write-back
             // persistence, a crash before the update persists can make us
             // forget that we revealed an index. Thus, a lookahead of 1
@@ -170,6 +182,10 @@ pub struct SyncStats {
     pub total_internal: u32,
     /// The number of internal spks we want to sync (incremental only)
     pub syncing_internal: u32,
+    /// The total number of (revealed) single-use spks
+    pub total_single_use: u32,
+    /// The number of single-use spks we want to sync (incremental only)
+    pub syncing_single_use: u32,
     /// The number of transactions synced
     pub txs: u32,
     /// The number of transaction outputs synced
@@ -238,8 +254,8 @@ impl OnchainWallet {
     }
 
     /// Init the legacy (<= node-v0.9.1) on-chain wallet for [`legacy_sweep`].
-    /// Persists to the legacy changeset file. Has no persister task:
-    /// [`legacy_sweep`] persists it directly.
+    /// Persists to the legacy changeset file. Has no single-use keychain and
+    /// no persister task: [`legacy_sweep`] persists it directly.
     pub async fn init_legacy(
         legacy_master_xprv: bitcoin::bip32::Xpriv,
         network: Network,
@@ -303,7 +319,7 @@ impl OnchainWallet {
         network: Network,
         fee_estimates: Arc<FeeEstimates>,
         coin_selector: LexeCoinSelector,
-        maybe_changeset: Option<ChangeSet>,
+        mut maybe_changeset: Option<ChangeSet>,
         scan_params: AddressScanParams,
         wallet_persister_tx: mpsc::Sender<WalletPersistRequest>,
         is_legacy: bool,
@@ -314,16 +330,38 @@ impl OnchainWallet {
         let external = Bip84(master_xprv, KeychainKind::External);
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let internal = Bip84(master_xprv, KeychainKind::Internal);
+        // Descriptor for single-use addresses: `m/84h/{0,1}h/0h/2/*`
+        let maybe_single_use =
+            (!is_legacy).then_some(Bip84(master_xprv, KeychainKind::SingleUse));
+
+        // compat: Changesets persisted before node-v0.10.9 lack the single-use
+        // descriptor, which `Wallet::load_with_params` would reject as a
+        // mismatch, so fill it in. BDK treats an empty changeset as "create a
+        // new wallet", so leave those alone.
+        if let (Some(single_use), Some(changeset)) =
+            (&maybe_single_use, &mut maybe_changeset)
+            && !changeset.is_empty()
+            && changeset.single_use_descriptor.is_none()
+        {
+            let (descriptor, _keymap) = single_use
+                .clone()
+                .into_wallet_descriptor(&SECP256K1, network)
+                .context("Failed to derive single-use descriptor")?;
+            changeset.single_use_descriptor = Some(descriptor);
+        }
 
         // Creates a new wallet.
         let mut wallet_created = false;
         let mut create_wallet = || {
-            let create_params =
+            let mut create_params =
                 CreateParams::new(external.clone(), internal.clone())
                     .network(network)
                     // TODO(max): Wire through specific testnet3/testnet4 hash
                     // .genesis_hash(genesis_hash)
                     .lookahead(scan_params.lookahead);
+            if let Some(single_use) = maybe_single_use.clone() {
+                create_params = create_params.single_use_descriptor(single_use);
+            }
             // NOTE: This call stages a non-empty `ChangeSet`.
             let wallet = Wallet::create_with_params(create_params)
                 .context("Wallet::create_with_params failed")?;
@@ -339,6 +377,7 @@ impl OnchainWallet {
                 // remove these checks for compatibility.
                 .descriptor(KeychainKind::External, Some(external.clone()))
                 .descriptor(KeychainKind::Internal, Some(internal.clone()))
+                .descriptor(KeychainKind::SingleUse, maybe_single_use.clone())
                 // Extract private keys from these descriptors so we can
                 // actually sign txs.
                 .extract_keys()
@@ -373,6 +412,10 @@ impl OnchainWallet {
                     // Technically we can also reveal and use multiple spks
                     // before crashing, but we're only going to try to handle
                     // one spk used-before-crash per keychain for now.
+                    //
+                    // NOTE: Not SingleUse: its reveals persist before the
+                    // address is handed out, so a crash can't lose one, and
+                    // an extra reveal would burn an address.
                     w.reveal_spk_if_no_unused(KeychainKind::External);
                     w.reveal_spk_if_no_unused(KeychainKind::Internal);
                     w
@@ -392,14 +435,17 @@ impl OnchainWallet {
             .or_else(|| wallet.take_staged())
             .unwrap_or_default();
 
-        // Sanity check: BDK wallet should pick up our change/external signers.
-        let has_internal_signers =
-            !wallet.get_signers(KeychainKind::Internal).ids().is_empty();
-        let has_external_signers =
-            !wallet.get_signers(KeychainKind::External).ids().is_empty();
+        // Sanity check: BDK wallet should pick up our signers.
+        let has_signers =
+            |keychain| !wallet.get_signers(keychain).ids().is_empty();
         assert!(
-            has_internal_signers && has_external_signers,
+            has_signers(KeychainKind::External)
+                && has_signers(KeychainKind::Internal),
             "BDK wallet must have at least one External and one Internal signer"
+        );
+        assert!(
+            maybe_single_use.is_none() || has_signers(KeychainKind::SingleUse),
+            "BDK wallet must have at least one SingleUse signer"
         );
 
         let changeset_filename = if is_legacy {
@@ -407,7 +453,6 @@ impl OnchainWallet {
         } else {
             WALLET_CHANGESET_V2_FILENAME
         };
-
         Ok((
             Self {
                 inner: Arc::new(std::sync::RwLock::new(wallet)),
@@ -673,10 +718,10 @@ impl OnchainWallet {
         let mut expected_spk_txids =
             HashSet::<(&bitcoin::ScriptBuf, bitcoin::Txid)>::new();
 
-        // Collect info about every revealed internal and external spk.
+        // Collect info about every revealed spk.
         let mut spk_infos: HashMap<&bitcoin::ScriptBuf, SpkInfo> = keychains
             .inner()
-            .all_spks() // all internal and external spks we've ever revealed
+            .all_spks() // all spks we've ever revealed
             .iter()
             .map(|(&keychain_index, spk)| {
                 // Number of canonical outputs that spend to this spk (only used
@@ -723,8 +768,7 @@ impl OnchainWallet {
                 if let Some((_keychain_index, txout)) =
                     keychains_inner.txout(input.previous_output)
                 {
-                    // Record another canonical tx that spends from this
-                    // internal or external spk.
+                    // Record another canonical tx that spends from this spk.
                     let spk = &txout.script_pubkey;
                     expected_spk_txids.insert((spk, txid));
 
@@ -754,18 +798,18 @@ impl OnchainWallet {
 
         // Collect some basic stats on how many spks for each keychain we're
         // going to sync.
-        let (syncing_external, syncing_internal) = {
-            let (mut external, mut internal) = (0, 0);
+        let (syncing_external, syncing_internal, syncing_single_use) = {
+            let (mut external, mut internal, mut single_use) = (0, 0, 0);
             for spk_info in spk_infos.values().filter(|info| info.needs_sync())
             {
                 let (keychain_kind, _index) = spk_info.keychain_index();
                 match keychain_kind {
                     KeychainKind::External => external += 1,
-                    KeychainKind::Internal | KeychainKind::SingleUse =>
-                        internal += 1,
+                    KeychainKind::Internal => internal += 1,
+                    KeychainKind::SingleUse => single_use += 1,
                 }
             }
-            (external, internal)
+            (external, internal, single_use)
         };
         let sync_stats = SyncStats {
             is_full_sync: false,
@@ -775,6 +819,9 @@ impl OnchainWallet {
             total_internal: locked_wallet
                 .num_revealed_spks(KeychainKind::Internal),
             syncing_internal,
+            total_single_use: locked_wallet
+                .num_revealed_spks(KeychainKind::SingleUse),
+            syncing_single_use,
             ..SyncStats::default()
         };
 
@@ -800,7 +847,7 @@ impl OnchainWallet {
     }
 
     /// Conducts a full sync of all script pubkeys derived from all of our
-    /// wallet descriptors, until a stop gap is hit on both of our keychains.
+    /// wallet descriptors, until a stop gap is hit on each of our keychains.
     ///
     /// This should be done rarely, i.e. only when creating the wallet or if we
     /// need to restore from a existing seed. See BDK's examples for more info.
@@ -931,6 +978,37 @@ impl OnchainWallet {
             .address;
         self.trigger_persist();
         address
+    }
+
+    /// Reveal, persist, and return a fresh address from the single-use
+    /// keychain.
+    ///
+    /// Unlike [`Self::get_next_unused_address`], every call reveals a new
+    /// address.
+    pub async fn get_exclusive_address(
+        &self,
+    ) -> anyhow::Result<bitcoin::Address> {
+        // Reveal the next single-use address.
+        let address = {
+            let mut locked_wallet = self.write();
+            // Without a SingleUse keychain, BDK would reveal an External
+            // address instead.
+            let has_single_use = locked_wallet
+                .keychains()
+                .any(|(keychain, _)| keychain == KeychainKind::SingleUse);
+            ensure!(has_single_use, "Wallet has no single-use keychain");
+
+            locked_wallet
+                .reveal_next_address(KeychainKind::SingleUse)
+                .address
+        };
+
+        // Await the write-through persist before handing out the address.
+        self.persist_and_wait()
+            .await
+            .context("Failed to persist single-use reveal")?;
+
+        Ok(address)
     }
 
     /// Return the next unused address from the internal (change) descriptor.
@@ -1501,6 +1579,25 @@ pub fn derive_bip84_descriptors(
     network: Network,
     master_xprv: bitcoin::bip32::Xpriv,
 ) -> OnchainDescriptors {
+    let has_single_use = true;
+    derive_bip84_descriptors_inner(network, master_xprv, has_single_use)
+}
+
+/// [`derive_bip84_descriptors`] for a legacy (<= node-v0.9.1) wallet, which
+/// has no single-use keychain.
+pub fn derive_legacy_bip84_descriptors(
+    network: Network,
+    legacy_master_xprv: bitcoin::bip32::Xpriv,
+) -> OnchainDescriptors {
+    let has_single_use = false;
+    derive_bip84_descriptors_inner(network, legacy_master_xprv, has_single_use)
+}
+
+fn derive_bip84_descriptors_inner(
+    network: Network,
+    master_xprv: bitcoin::bip32::Xpriv,
+    has_single_use: bool,
+) -> OnchainDescriptors {
     let coin_type = match network {
         Network::Mainnet => 0,
         Network::Testnet3
@@ -1532,20 +1629,25 @@ pub fn derive_bip84_descriptors(
         format!("{body}#{checksum}")
     };
 
-    // BIP389 multipath: wpkh([fp/84'/coin'/0']xpub/<0;1>/*)
+    // BIP389 multipath: wpkh([fp/84'/coin'/0']xpub/<0;1;2>/*)
+    let paths = if has_single_use { "<0;1;2>" } else { "<0;1>" };
     let multipath_descriptor =
-        with_checksum(format!("wpkh({origin}{account_xpub}/<0;1>/*)"));
+        with_checksum(format!("wpkh({origin}{account_xpub}/{paths}/*)"));
     // External: wpkh([fp/84'/coin'/0']xpub/0/*)
     let external_descriptor =
         with_checksum(format!("wpkh({origin}{account_xpub}/0/*)"));
     // Internal: wpkh([fp/84'/coin'/0']xpub/1/*)
     let internal_descriptor =
         with_checksum(format!("wpkh({origin}{account_xpub}/1/*)"));
+    // Single-use: wpkh([fp/84'/coin'/0']xpub/2/*)
+    let single_use_descriptor = has_single_use
+        .then(|| with_checksum(format!("wpkh({origin}{account_xpub}/2/*)")));
 
     OnchainDescriptors {
         multipath_descriptor,
         external_descriptor,
         internal_descriptor,
+        single_use_descriptor,
         account_xpub,
     }
 }
@@ -1578,6 +1680,8 @@ impl SyncStats {
         let sync_ext = self.syncing_external;
         let num_int = self.total_internal;
         let sync_int = self.syncing_internal;
+        let num_su = self.total_single_use;
+        let sync_su = self.syncing_single_use;
         let txs = self.txs;
         let txouts = self.txouts;
         let anchors = self.anchors;
@@ -1586,14 +1690,15 @@ impl SyncStats {
         if self.is_full_sync {
             info!(
                 "{kind}BDK full sync complete <{elapsed_ms}ms> | \
-                 {num_int} int, {num_ext} ext | \
+                 {num_int} int, {num_ext} ext, {num_su} su | \
                  resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
                  seen={seen}, evicted={evicted}",
             );
         } else {
             info!(
                 "{kind}BDK sync complete <{elapsed_ms}ms> | \
-                 req: {sync_int}/{num_int} int, {sync_ext}/{num_ext} ext | \
+                 req: {sync_int}/{num_int} int, {sync_ext}/{num_ext} ext, \
+                 {sync_su}/{num_su} su | \
                  resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
                  seen={seen}, evicted={evicted}",
             );
@@ -1994,10 +2099,10 @@ mod test {
         str::FromStr,
     };
 
-    use bdk_chain::{BlockId, ConfirmationBlockTime};
+    use bdk_chain::{BlockId, ConfirmationBlockTime, DescriptorExt};
     use bdk_wallet::{
         AddressInfo,
-        KeychainKind::{self, External, Internal},
+        KeychainKind::{self, External, Internal, SingleUse},
         miniscript::DescriptorPublicKey,
         template::{Bip84, DescriptorTemplate},
     };
@@ -2022,6 +2127,7 @@ mod test {
         wallet: OnchainWallet,
         network: Network,
         seed: u64,
+        wallet_persister_rx: mpsc::Receiver<WalletPersistRequest>,
     }
 
     impl Harness {
@@ -2044,13 +2150,21 @@ mod test {
             let network = Network::Regtest;
             let master_xprv =
                 RootSeed::from_u64(seed).derive_bip32_master_xprv(network);
-            let (wallet, _wallet_persister_rx) =
+            let (wallet, wallet_persister_rx) =
                 OnchainWallet::dummy(master_xprv, changeset);
             Harness {
                 wallet,
                 network,
                 seed,
+                wallet_persister_rx,
             }
+        }
+
+        /// Reload the wallet from the aggregated changeset alone, dropping
+        /// any staged (unpersisted) changes. Emulates a crash + reboot.
+        fn reload(&self) -> Self {
+            let changeset = self.wallet.changeset.lock().unwrap().clone();
+            Self::from_changeset(self.seed, Some(changeset))
         }
 
         /// Get the wallet write lock.
@@ -2090,6 +2204,43 @@ mod test {
             let ret = f(self);
             assert_eq!(None, self.ww().take_staged());
             ret
+        }
+
+        /// Reveal a single-use address, standing in for the wallet persister
+        /// task by acking the write-through persist with `persist_result`.
+        async fn reveal_single_use_with(
+            &mut self,
+            persist_result: anyhow::Result<()>,
+        ) -> anyhow::Result<bitcoin::Address> {
+            let reveal_fut = self.wallet.get_exclusive_address();
+            tokio::pin!(reveal_fut);
+            let mut persist_result = Some(persist_result);
+            loop {
+                tokio::select! {
+                    result = &mut reveal_fut => return result,
+                    // Drain plain triggers too, or a queued one deadlocks the
+                    // reveal (select! disables a branch whose pattern fails).
+                    Some(maybe_ack_tx) = self.wallet_persister_rx.recv() => {
+                        self.persist();
+                        if let Some(ack_tx) = maybe_ack_tx {
+                            ack_tx.send(persist_result.take().unwrap()).unwrap();
+                        }
+                    }
+                }
+            }
+        }
+
+        /// Reveal a single-use address with a successful write-through persist.
+        async fn reveal_single_use(&mut self) -> bitcoin::Address {
+            self.reveal_single_use_with(Ok(())).await.unwrap()
+        }
+
+        /// Reveal a single-use address whose write-through persist fails;
+        /// asserts that the reveal errors (the address is withheld).
+        async fn reveal_single_use_persist_err(&mut self) {
+            self.reveal_single_use_with(Err(anyhow!("test: persist failed")))
+                .await
+                .unwrap_err();
         }
 
         /// Assert that the BDK wallet believes we can spend a given amount and
@@ -2416,6 +2567,56 @@ mod test {
 
         let signed_tx = h.wallet.sign_psbt(psbt).await.unwrap();
         assert!(!signed_tx.input[0].witness.is_empty());
+    }
+
+    /// `WalletSource` serves and signs single-use utxos, including in a
+    /// mixed-keychain PSBT with only `witness_utxo` set, as LDK builds them.
+    #[tokio::test]
+    async fn wallet_source_spans_single_use() {
+        let h = Harness::new(505050505);
+        let (main_tx, _, _) = h.ww().fund(External, sat!(10_000));
+        let (su_tx, _, _) = h.ww().fund(SingleUse, sat!(12_000));
+        h.ww().fund_unconfirmed(SingleUse, sat!(5_000));
+
+        let utxos = h.wallet.list_confirmed_utxos().await.unwrap();
+        let txids = utxos
+            .iter()
+            .map(|utxo| utxo.outpoint.txid)
+            .collect::<BTreeSet<_>>();
+        let expected_txids =
+            BTreeSet::from([main_tx.compute_txid(), su_tx.compute_txid()]);
+        assert_eq!(txids, expected_txids);
+
+        let su_outpoint = bitcoin::OutPoint::new(su_tx.compute_txid(), 0);
+        assert_eq!(h.wallet.get_prevtx(su_outpoint).await.unwrap(), su_tx);
+
+        let change_script = h.wallet.get_change_script().await.unwrap();
+        let unsigned_tx = Transaction {
+            input: utxos
+                .iter()
+                .map(|utxo| bitcoin::TxIn {
+                    previous_output: utxo.outpoint,
+                    ..Default::default()
+                })
+                .collect(),
+            output: vec![TxOut {
+                value: sat!(21_000).into(),
+                script_pubkey: change_script,
+            }],
+            ..new_tx()
+        };
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        for (psbt_input, utxo) in psbt.inputs.iter_mut().zip(&utxos) {
+            psbt_input.witness_utxo = Some(utxo.output.clone());
+        }
+
+        let signed_tx = h.wallet.sign_psbt(psbt).await.unwrap();
+        assert!(
+            signed_tx
+                .input
+                .iter()
+                .all(|input| !input.witness.is_empty())
+        );
     }
 
     #[test]
@@ -2900,6 +3101,141 @@ mod test {
         });
     }
 
+    // --- Single-use keychain --- //
+
+    #[tokio::test]
+    async fn single_use_reveal_is_unique_and_write_through() {
+        let mut h = Harness::new(89230412);
+
+        let addr0 = h.reveal_single_use().await;
+        let addr1 = h.reveal_single_use().await;
+        assert_ne!(addr0, addr1);
+
+        // The persister merged the reveals into the aggregated changeset
+        // before acking; nothing is left staged.
+        assert!(h.wr().staged().is_none());
+        let descriptor_id = h.wr().public_descriptor(SingleUse).descriptor_id();
+        let last_revealed = h
+            .wallet
+            .changeset
+            .lock()
+            .unwrap()
+            .indexer
+            .last_revealed
+            .get(&descriptor_id)
+            .copied();
+        assert_eq!(last_revealed, Some(1));
+    }
+
+    #[tokio::test]
+    async fn single_use_reveal_survives_reload() {
+        let mut h = Harness::new(777123);
+        let addr0 = h.reveal_single_use().await;
+
+        // Reload from the aggregated changeset alone (i.e. without any
+        // harness-side persist): write-through must have persisted the
+        // reveal already.
+        let mut h2 = h.reload();
+        let addr1 = h2.reveal_single_use().await;
+        assert_ne!(addr0, addr1);
+    }
+
+    #[tokio::test]
+    async fn single_use_failed_persist_withholds_address() {
+        let mut h = Harness::new(20260903001);
+
+        // The state the last successful persist wrote to "disk".
+        let disk_changeset = h.wallet.changeset.lock().unwrap().clone();
+
+        // The reveal errors when the persist fails; addr0 is withheld.
+        let addr0 = h.wr().peek_address(SingleUse, 0).address;
+        h.reveal_single_use_persist_err().await;
+
+        // An in-process retry hands out the next address, not addr0: the
+        // failed reveal still advanced the revealed index, and the retry's
+        // successful persist covers both reveals.
+        let addr1 = h.reveal_single_use().await;
+        assert_ne!(addr1, addr0);
+
+        // Crash + reload from the pre-failure disk state re-issues the
+        // withheld address.
+        let mut h2 = Harness::from_changeset(h.seed, Some(disk_changeset));
+        let addr2 = h2.reveal_single_use().await;
+        assert_eq!(addr2, addr0);
+    }
+
+    /// Without a single-use keychain, the reveal errors instead of falling
+    /// back to the External keychain as BDK does.
+    #[tokio::test]
+    async fn single_use_address_requires_keychain() {
+        let network = Network::Regtest;
+        let master_xprv =
+            RootSeed::from_u64(31337).derive_legacy_master_xprv(network);
+        let (wallet_persister_tx, _wallet_persister_rx) =
+            mpsc::channel(OnchainWallet::PERSISTER_CHANNEL_SIZE);
+        let is_legacy = true;
+        let (wallet, _wallet_created) = OnchainWallet::new(
+            master_xprv,
+            network,
+            FeeEstimates::dummy(),
+            LexeCoinSelector::default(),
+            None,
+            AddressScanParams::default(),
+            wallet_persister_tx,
+            is_legacy,
+        )
+        .unwrap();
+
+        wallet.get_exclusive_address().await.unwrap_err();
+        assert_eq!(wallet.read().num_revealed_spks(External), 0);
+    }
+
+    /// Drift in the single-use descriptor derivation would orphan funds on
+    /// already issued addresses, so pin it.
+    #[test]
+    fn single_use_descriptor_snapshot() {
+        let root_seed = RootSeed::from_u64(20260903);
+        let network = Network::Regtest;
+        let master_xprv = root_seed.derive_bip32_master_xprv(network);
+
+        let descriptors = derive_bip84_descriptors(network, master_xprv);
+        assert_eq!(
+            descriptors.single_use_descriptor.as_deref(),
+            Some(
+                "wpkh([01ee5425/84'/1'/0']tpubDDjY5BgnXWr2kLr2itGRV37RfLnHkXR\
+                 LYMGdoXY1s5p7SgGUhFogXVf5NXnaXLYAgLTP5wdhJRNebhvXNPXx9bw59BC\
+                 bEw6VgqSDN7xDw2h/2/*)#lxk0rlx2"
+            ),
+        );
+
+        // The first two single-use addresses.
+        let h = Harness::new(20260903);
+        let addr0 = h.ww().reveal_next_address(SingleUse).address.to_string();
+        let addr1 = h.ww().reveal_next_address(SingleUse).address.to_string();
+        assert_eq!(addr0, "bcrt1qj245lyahm824qwlnljcr0w78xdw7kmq4lgyjqd");
+        assert_eq!(addr1, "bcrt1q4nlny4vzqsd5cjxsr27sycd9sv9zwghkkqmmus");
+    }
+
+    /// A pre-keychain changeset loads, and the aggregated changeset gains the
+    /// single-use descriptor.
+    #[test]
+    #[cfg_attr(target_env = "sgx", ignore = "Can't read files in SGX")]
+    fn pre_single_use_changeset_loads() {
+        let snapshot =
+            fs::read_to_string("data/bip39-onchain-wallet-snapshot.json")
+                .unwrap();
+        let changeset = serde_json::from_str::<ChangeSet>(&snapshot).unwrap();
+        assert_eq!(changeset.single_use_descriptor, None);
+
+        let h = Harness::from_changeset(20260117, Some(changeset));
+        let descriptor = h.wr().public_descriptor(SingleUse).clone();
+        assert_eq!(h.wr().num_revealed_spks(SingleUse), 0);
+        assert_eq!(
+            h.wallet.changeset.lock().unwrap().single_use_descriptor,
+            Some(descriptor),
+        );
+    }
+
     // Test creating full wallet sweep tx
     #[test]
     fn test_sweep_tx() {
@@ -3110,8 +3446,10 @@ mod test {
                 multipath_descriptor: our_multi_desc,
                 external_descriptor: our_ext_desc,
                 internal_descriptor: our_int_desc,
+                single_use_descriptor: our_su_desc,
                 account_xpub,
             } = descriptors;
+            let our_su_desc = our_su_desc.unwrap();
 
             // BDK's implementation.
             // This is also how we use `Bip84` in `OnchainWallet::init`
@@ -3123,24 +3461,36 @@ mod test {
                 Bip84(master_xprv, KeychainKind::Internal)
                     .build(network.to_bitcoin())
                     .unwrap();
+            let (bdk_desc_su, _, _) =
+                Bip84(master_xprv, KeychainKind::SingleUse)
+                    .build(network.to_bitcoin())
+                    .unwrap();
 
-            // Verify external/internal descriptor strings match BDK
+            // Verify external/internal/single-use descriptor strings match BDK
             prop_assert_eq!(&our_ext_desc, &bdk_desc_ext.to_string());
             prop_assert_eq!(&our_int_desc, &bdk_desc_int.to_string());
+            prop_assert_eq!(&our_su_desc, &bdk_desc_su.to_string());
 
-            // Verify multipath descriptor expands to external + internal
-            // (differential fuzz against miniscript's into_single_descriptors)
+            // Verify multipath descriptor expands to external + internal +
+            // single-use (differential fuzz against miniscript's
+            // into_single_descriptors)
             let parsed =
                 miniscript::Descriptor::<DescriptorPublicKey>::from_str(
                     &our_multi_desc
                 ).unwrap();
             let expanded = parsed.into_single_descriptors().unwrap();
-            prop_assert_eq!(expanded.len(), 2);
+            prop_assert_eq!(expanded.len(), 3);
             prop_assert_eq!(&expanded[0].to_string(), &our_ext_desc);
             prop_assert_eq!(&expanded[1].to_string(), &our_int_desc);
+            prop_assert_eq!(&expanded[2].to_string(), &our_su_desc);
+
+            // Legacy wallets have no single-use keychain
+            let legacy = derive_legacy_bip84_descriptors(network, master_xprv);
+            prop_assert_eq!(legacy.single_use_descriptor, None);
+            prop_assert!(legacy.multipath_descriptor.contains("/<0;1>/"));
 
             // Verify account_xpub by deriving the address at `idx` on each
-            // chain: external (0) and internal (1).
+            // chain: external (0), internal (1), and single-use (2).
             let our_addr = |chain: u32| {
                 let xpub = account_xpub
                     .derive_pub(
@@ -3166,6 +3516,7 @@ mod test {
 
             prop_assert_eq!(our_addr(0), bdk_addr(&bdk_desc_ext));
             prop_assert_eq!(our_addr(1), bdk_addr(&bdk_desc_int));
+            prop_assert_eq!(our_addr(2), bdk_addr(&bdk_desc_su));
 
             // Verify account_zpub is account_xpub with a SLIP-132 prefix
             let zpub_prefix = match network {

@@ -493,7 +493,7 @@ impl UserNode {
         let legacy_descriptors =
             if initial_migrations.is_applied(migrations::MARKER_LEGACY_BDK) {
                 let xprv = root_seed.derive_legacy_master_xprv(network);
-                Some(wallet::derive_bip84_descriptors(network, xprv))
+                Some(wallet::derive_legacy_bip84_descriptors(network, xprv))
             } else {
                 None
             };
