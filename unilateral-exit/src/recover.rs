@@ -280,7 +280,7 @@ impl RecoveryCtx {
             // No sweep is in flight before the recovery settles.
             let sweep_progress = None;
             let mut progress = self.measure_progress(sweep_progress).await?;
-            self.stall_detector.check_for_stall(&mut progress)?;
+            self.stall_detector.check_for_stall(&mut progress).await?;
 
             // Publish the snapshot for progress displays (e.g. the CLI's
             // per-block countdown line).
@@ -437,8 +437,8 @@ impl RecoveryCtx {
     async fn resync(&self) -> anyhow::Result<()> {
         // BDK goes first so that the fee-bump attempts LDK makes on connecting
         // a block select from a wallet which has seen that block too, e.g. a
-        // deposit which just confirmed. A failed attempt would escalate the
-        // next one's feerate and publish a stale deposit requirement.
+        // deposit which just confirmed. Otherwise the attempt may fail,
+        // leaving the claim unbumped until LDK's next retry.
         let (bdk_tx, bdk_rx) = oneshot::channel();
         self.bdk_resync_tx
             .send(BdkSyncRequest {
@@ -464,7 +464,7 @@ impl RecoveryCtx {
 /// requirement to publish.
 ///
 /// LDK retries each claim's fee-bump on every block, so the recovery is
-/// stalled while any claim's latest attempt has failed.
+/// stalled while the wallet can't fund some claim's latest failed attempt.
 //
 // NOTE: On each new block, LDK regenerates pending claims with
 // `FeerateStrategy::ForceBump`. When the fee estimate hasn't risen, this
@@ -476,6 +476,7 @@ impl RecoveryCtx {
 //
 // TODO(max): Report this behavior upstream to rust-lightning.
 pub(crate) struct StallDetector {
+    chain_monitor: Arc<ChainMonitorType>,
     fee_estimates: Arc<FeeEstimates>,
     outstanding_requirement: Option<AnchorFundsNeeded>,
     underfunded_claims: UnderfundedClaims,
@@ -484,11 +485,13 @@ pub(crate) struct StallDetector {
 
 impl StallDetector {
     pub(crate) fn new(
+        chain_monitor: Arc<ChainMonitorType>,
         fee_estimates: Arc<FeeEstimates>,
         underfunded_claims: UnderfundedClaims,
         wallet: OnchainWallet,
     ) -> Self {
         Self {
+            chain_monitor,
             fee_estimates,
             outstanding_requirement: None,
             underfunded_claims,
@@ -505,13 +508,7 @@ impl StallDetector {
         progress: &mut RecoveryProgress,
         channels: &[ChannelDetails],
     ) -> anyhow::Result<()> {
-        let wallet_utxos = self
-            .wallet
-            .list_confirmed_utxos()
-            .await
-            .map_err(|()| anyhow!("Failed to list confirmed UTXOs"))?;
-        let estimator =
-            DepositEstimator::new(&self.fee_estimates, &wallet_utxos);
+        let estimator = self.deposit_estimator().await?;
         let asks = channels
             .iter()
             .filter_map(|channel| estimator.channel_close_ask(channel))
@@ -521,21 +518,50 @@ impl StallDetector {
 
     /// Sets `progress.awaiting_anchor_funds` to the outstanding deposit
     /// requirement if the recovery is stalled on fee-bump coin selection.
-    fn check_for_stall(
+    async fn check_for_stall(
         &mut self,
         progress: &mut RecoveryProgress,
     ) -> anyhow::Result<()> {
-        let mut underfunded_claims = self.underfunded_claims.lock().unwrap();
         // A claim can resolve without a final successful coin selection,
         // e.g. if an earlier bump confirms first, leaving a stale entry.
-        // Every pending claim backs an unresolved monitor, so once none
-        // remain, all entries are stale.
-        if progress.num_unresolved_monitors == 0 {
+        // Once no monitor has pending claims, all entries are stale.
+        let has_pending_claims = self
+            .chain_monitor
+            .list_monitors()
+            .into_iter()
+            .any(|channel_id| {
+                self.chain_monitor
+                    .get_monitor(channel_id)
+                    .is_ok_and(|monitor| monitor.has_pending_claims())
+            });
+
+        let estimator = self.deposit_estimator().await?;
+        let mut underfunded_claims = self.underfunded_claims.lock().unwrap();
+        if !has_pending_claims {
             underfunded_claims.clear();
         }
-        let asks = underfunded_claims.values().copied().collect::<Vec<_>>();
+        let asks = underfunded_claims
+            .values()
+            .map(|request| {
+                estimator.ask(
+                    &request.must_spend,
+                    &request.must_pay_to,
+                    request.target_feerate_sat_per_1000_weight,
+                )
+            })
+            .collect::<Vec<_>>();
         drop(underfunded_claims);
         self.update_requirement(progress, &asks)
+    }
+
+    /// A [`DepositEstimator`] over the wallet's latest confirmed UTXOs.
+    async fn deposit_estimator(&self) -> anyhow::Result<DepositEstimator> {
+        let wallet_utxos = self
+            .wallet
+            .list_confirmed_utxos()
+            .await
+            .map_err(|()| anyhow!("Failed to list confirmed UTXOs"))?;
+        Ok(DepositEstimator::new(&self.fee_estimates, wallet_utxos))
     }
 
     /// Aggregates per-claim asks into one deposit requirement and sets

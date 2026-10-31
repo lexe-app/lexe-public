@@ -184,7 +184,6 @@ impl RecoveryNode {
         let coin_selector = RecoveryCoinSelector::new(
             wallet.clone(),
             logger.clone(),
-            fee_estimates.clone(),
             wallet_synced.clone(),
             underfunded_claims.clone(),
         );
@@ -400,6 +399,7 @@ impl RecoveryNode {
             mpsc::channel(SMALLER_CHANNEL_SIZE);
 
         let stall_detector = StallDetector::new(
+            chain_monitor.clone(),
             fee_estimates.clone(),
             underfunded_claims,
             wallet.clone(),

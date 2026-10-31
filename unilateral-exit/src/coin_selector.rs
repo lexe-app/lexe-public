@@ -33,13 +33,15 @@ use lightning::{
         channel_state::ChannelDetails,
     },
     util::wallet_utils::{
-        self, CoinSelection, CoinSelectionSource, Input, Utxo, WalletSource,
+        self, CoinSelection, CoinSelectionSource, Input, Utxo,
     },
 };
 /// LDK's [`wallet_utils::Wallet`]. Despite its name, it is a coin selector,
 /// not a wallet. It selects confirmed UTXOs from our [`OnchainWallet`]'s
 /// [`WalletSource`] impl to fund fee-bump txs, signs the resulting PSBTs, and
 /// locks each claim's selected UTXOs so concurrent claims don't conflict.
+///
+/// [`WalletSource`]: wallet_utils::WalletSource
 //
 // NOTE: These locks are in-memory and invisible to BDK, so a concurrently
 // built BDK tx could double-spend a selection that hasn't been broadcast
@@ -49,13 +51,24 @@ use lightning::{
 pub(crate) type LdkCoinSelector =
     wallet_utils::Wallet<Arc<OnchainWallet>, LexeTracingLogger>;
 
-/// The claims whose latest fee-bump coin selection failed, each with its
-/// [`DepositAsk`]. Shared between the [`RecoveryCoinSelector`], which
+/// The claims whose latest fee-bump coin selection failed, each with that
+/// [`SelectionRequest`]. Shared between the [`RecoveryCoinSelector`], which
 /// records every attempt, and the [`StallDetector`], which reads it.
 ///
 /// [`StallDetector`]: crate::recover::StallDetector
 pub(crate) type UnderfundedClaims =
-    Arc<Mutex<HashMap<Option<ClaimId>, DepositAsk>>>;
+    Arc<Mutex<HashMap<Option<ClaimId>, SelectionRequest>>>;
+
+/// A coin selection's inputs, from which the [`StallDetector`] estimates its
+/// [`DepositAsk`] against the wallet's latest UTXOs. The selection itself may
+/// have seen an older wallet, e.g. if LDK connected a block before BDK did.
+///
+/// [`StallDetector`]: crate::recover::StallDetector
+pub(crate) struct SelectionRequest {
+    pub must_spend: Vec<Input>,
+    pub must_pay_to: Vec<TxOut>,
+    pub target_feerate_sat_per_1000_weight: u32,
+}
 
 /// A failed coin selection's estimates of the deposit which would let it
 /// succeed.
@@ -87,9 +100,7 @@ pub(crate) struct DepositEstimate {
 /// and records each attempt in [`UnderfundedClaims`], so the recovery loop can
 /// tell the user when the exit is stalled on missing funds.
 pub(crate) struct RecoveryCoinSelector {
-    fee_estimates: Arc<FeeEstimates>,
     ldk_coin_selector: LdkCoinSelector,
-    wallet: Arc<OnchainWallet>,
     /// Signaled once the wallet has completed its first chain sync.
     wallet_synced: NotifyOnce,
     underfunded_claims: UnderfundedClaims,
@@ -99,15 +110,11 @@ impl RecoveryCoinSelector {
     pub(crate) fn new(
         wallet: OnchainWallet,
         logger: LexeTracingLogger,
-        fee_estimates: Arc<FeeEstimates>,
         wallet_synced: NotifyOnce,
         underfunded_claims: UnderfundedClaims,
     ) -> Self {
-        let wallet = Arc::new(wallet);
         Self {
-            fee_estimates,
-            ldk_coin_selector: LdkCoinSelector::new(wallet.clone(), logger),
-            wallet,
+            ldk_coin_selector: LdkCoinSelector::new(Arc::new(wallet), logger),
             wallet_synced,
             underfunded_claims,
         }
@@ -129,11 +136,11 @@ impl CoinSelectionSource for RecoveryCoinSelector {
         // failed attempt, so wait for the sync instead.
         self.wallet_synced.clone().recv_owned().await;
 
-        // The same UTXOs selection will see, to estimate a deposit on failure.
-        let wallet_utxos =
-            self.wallet.list_confirmed_utxos().await.unwrap_or_default();
-        let ask = DepositEstimator::new(&self.fee_estimates, &wallet_utxos)
-            .ask(&must_spend, must_pay_to, target_feerate_sat_per_1000_weight);
+        let request = SelectionRequest {
+            must_spend: must_spend.clone(),
+            must_pay_to: must_pay_to.to_vec(),
+            target_feerate_sat_per_1000_weight,
+        };
         let result = self
             .ldk_coin_selector
             .select_confirmed_utxos(
@@ -149,7 +156,7 @@ impl CoinSelectionSource for RecoveryCoinSelector {
             // Selection succeeded; this claim's fee-bump tx is funded.
             Ok(_) => underfunded_claims.remove(&claim_id),
             // Selection failed; the wallet doesn't have enough confirmed funds.
-            Err(()) => underfunded_claims.insert(claim_id, ask),
+            Err(()) => underfunded_claims.insert(claim_id, request),
         };
         result
     }
@@ -164,17 +171,17 @@ impl CoinSelectionSource for RecoveryCoinSelector {
 
 /// Estimates deposits from the wallet's confirmed UTXOs, as coin selection
 /// sees them.
-pub(crate) struct DepositEstimator<'a> {
+pub(crate) struct DepositEstimator {
     /// LDK's target for a close with pending HTLCs. HTLC-free closes use a
     /// slower one, so this over-asks for them.
     urgent_feerate_sat_per_1000_weight: u32,
-    wallet_utxos: &'a [Utxo],
+    wallet_utxos: Vec<Utxo>,
 }
 
-impl<'a> DepositEstimator<'a> {
+impl DepositEstimator {
     pub(crate) fn new(
         fee_estimates: &FeeEstimates,
-        wallet_utxos: &'a [Utxo],
+        wallet_utxos: Vec<Utxo>,
     ) -> Self {
         let urgent_feerate_sat_per_1000_weight = fee_estimates
             .conf_target_to_feerate(ConfirmationTarget::UrgentOnChainSweep)
@@ -197,7 +204,7 @@ impl<'a> DepositEstimator<'a> {
             self.bump_cap_feerate(target_feerate_sat_per_1000_weight);
         let estimate = |feerate| {
             helpers::estimate_needed_deposit(
-                self.wallet_utxos,
+                &self.wallet_utxos,
                 must_spend,
                 must_pay_to,
                 feerate,
@@ -399,6 +406,7 @@ mod test {
         WScriptHash, absolute::LockTime, hashes::Hash as _,
         transaction::Version,
     };
+    use lightning::util::wallet_utils::WalletSource;
 
     use super::*;
 
