@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use anyhow::{Context, bail, ensure};
-use bitcoin::Transaction;
+use bitcoin::{Transaction, address::NetworkUnchecked};
 use lexe_api::{
     models::command::PayOnchainRequest,
     types::{
@@ -488,6 +488,7 @@ impl OnchainReceiveV2 {
         tx: Arc<bitcoin::Transaction>,
         kind: PaymentKind,
         amount: Amount,
+        address: Option<bitcoin::Address<NetworkUnchecked>>,
     ) -> anyhow::Result<PaymentWithMetadata<Self>> {
         kind.expect_rail(PaymentRail::Onchain)?;
 
@@ -503,7 +504,10 @@ impl OnchainReceiveV2 {
             finalized_at: None,
         };
 
-        let metadata = PaymentMetadata::empty(or.id());
+        let metadata = PaymentMetadata {
+            address: address.map(Arc::new),
+            ..PaymentMetadata::empty(or.id())
+        };
 
         Ok(PaymentWithMetadata {
             payment: or,
@@ -775,9 +779,15 @@ mod arbitrary_impl {
                 any_conf_status,
             )
                 .prop_map(|(tx, kind, amount, created_at, conf_status)| {
-                    let mut orwm =
-                        OnchainReceiveV2::new(Arc::new(tx), kind, amount)
-                            .expect("Valid kind");
+                    // Only the payment is kept, so the address is moot.
+                    let address = None;
+                    let mut orwm = OnchainReceiveV2::new(
+                        Arc::new(tx),
+                        kind,
+                        amount,
+                        address,
+                    )
+                    .expect("Valid kind");
                     // Set created_at for test purposes
                     orwm.payment.created_at = Some(created_at);
                     if let Some(conf_status) = conf_status

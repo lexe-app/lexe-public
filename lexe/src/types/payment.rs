@@ -93,7 +93,7 @@ pub struct Payment {
     /// customized per payment type, e.g. "invoice generated", "timed out"
     pub status_msg: String,
 
-    /// (Onchain send only) The address that we're sending to.
+    /// (Onchain only) The address we sent to or received on.
     pub address: Option<Arc<bitcoin::Address<NetworkUnchecked>>>,
 
     /// (Invoice payments only) The BOLT 11 invoice used in this payment.

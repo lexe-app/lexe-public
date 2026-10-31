@@ -38,7 +38,7 @@
 //! [`RootSeed`]: lexe_common::root_seed::RootSeed
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     iter,
     ops::DerefMut,
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
@@ -65,6 +65,7 @@ use bdk_wallet::{
 };
 use bitcoin::{
     Psbt, Transaction,
+    address::NetworkUnchecked,
     bip32::{ChildNumber, Xpub},
     hashes::Hash as _,
 };
@@ -168,6 +169,16 @@ pub struct UtxoCounts {
     pub total: usize,
     pub confirmed: usize,
     pub unconfirmed: usize,
+}
+
+/// A tx paying our receive spks.
+pub struct OnchainRecvInfo {
+    /// The full receiving tx.
+    pub tx: Arc<Transaction>,
+    /// Total value the tx pays to the wallet.
+    pub received: bitcoin::Amount,
+    /// The receive address this tx pays.
+    pub address: Option<bitcoin::Address<NetworkUnchecked>>,
 }
 
 /// Various stats collected about an on-chain BDK wallet sync
@@ -1050,6 +1061,73 @@ impl OnchainWallet {
     pub fn get_utxos(&self) -> Vec<bdk_wallet::LocalOutput> {
         let locked_wallet = self.read();
         locked_wallet.list_unspent().collect()
+    }
+
+    /// Txids of txs with unspent outputs on our receive keychains
+    /// (External and SingleUse).
+    pub fn get_recv_txids(&self) -> BTreeSet<bitcoin::Txid> {
+        self.read()
+            .list_unspent()
+            // Only count receives to the receive keychains, so there aren't
+            // entries for channel closes / splices / etc.
+            // TODO(max): We actually want to remove this in the future, so
+            // that we can track the sweeping of funds from closed channels;
+            // OnchainRecv would include channel sweeps and anything that
+            // spends to the BDK wallet. We should match the channel sweep
+            // credit with the channel close debit, but channel opens / closes
+            // need to be tracked separately.
+            .filter(|o| helpers::is_receive_keychain(o.keychain))
+            .map(|o| o.outpoint.txid)
+            .collect()
+    }
+
+    /// Info about the onchain receive with the given txid. Errors if the
+    /// wallet doesn't know the full tx.
+    pub fn get_recv_info(
+        &self,
+        txid: bitcoin::Txid,
+    ) -> anyhow::Result<OnchainRecvInfo> {
+        let locked_wallet = self.read();
+
+        let tx = locked_wallet
+            .get_tx(txid)
+            .context("Missing full tx for owned output")?
+            .tx_node
+            .tx;
+        let (_sent, received) = locked_wallet.sent_and_received(&tx);
+
+        // The receive keychain outputs this tx pays, in output order.
+        let recv_outputs = tx
+            .output
+            .iter()
+            .filter_map(|txout| {
+                let spk = &txout.script_pubkey;
+                let (keychain, _idx) =
+                    locked_wallet.derivation_of_spk(spk.clone())?;
+                helpers::is_receive_keychain(keychain)
+                    .then_some((keychain, spk))
+            })
+            .collect::<Vec<_>>();
+        // A tx paying several of our receive addresses is still one payment,
+        // so pick one: the first SingleUse output, else the first output.
+        let recv_spk = recv_outputs
+            .iter()
+            .find(|(keychain, _)| *keychain == KeychainKind::SingleUse)
+            .or(recv_outputs.first())
+            .map(|(_, spk)| *spk);
+        let address = recv_spk
+            .map(|spk| {
+                bitcoin::Address::from_script(spk, locked_wallet.network())
+            })
+            .transpose()
+            .context("Unaddressable wallet spk")?
+            .map(bitcoin::Address::into_unchecked);
+
+        Ok(OnchainRecvInfo {
+            tx,
+            received,
+            address,
+        })
     }
 
     /// Get a [`TxDetails`] for given [`Txid`] inside of the wallet.
@@ -2039,6 +2117,14 @@ mod helpers {
     pub fn fake_drain_script() -> bitcoin::ScriptBuf {
         let wpkh = bitcoin::WPubkeyHash::from_byte_array([0xaa; 20]);
         bitcoin::ScriptBuf::new_p2wpkh(&wpkh)
+    }
+
+    /// Whether funds received on this keychain count as onchain receives.
+    pub fn is_receive_keychain(keychain: KeychainKind) -> bool {
+        match keychain {
+            KeychainKind::External | KeychainKind::SingleUse => true,
+            KeychainKind::Internal => false,
+        }
     }
 }
 
@@ -3477,6 +3563,76 @@ mod test {
             h.wallet.changeset.lock().unwrap().single_use_descriptor,
             Some(descriptor),
         );
+    }
+
+    #[tokio::test]
+    async fn recv_info_spans_receive_keychains() {
+        let mut h = Harness::new(606060606);
+
+        // Internal (change) receives are not detected as recvs.
+        let (int_tx, _, _) = h.ww().fund(Internal, sat!(5_000));
+        assert!(!h.wallet.get_recv_txids().contains(&int_tx.compute_txid()));
+
+        // A single-use receive is detected and carries its address.
+        let su_addr = h.reveal_single_use().await;
+        let (su_tx, _, su_spk) = h.ww().fund(SingleUse, sat!(12_000));
+        assert_eq!(su_spk, su_addr.script_pubkey());
+        let su_txid = su_tx.compute_txid();
+        assert!(h.wallet.get_recv_txids().contains(&su_txid));
+        let info = h.wallet.get_recv_info(su_txid).unwrap();
+        assert_eq!(info.received.to_sat(), 12_000);
+        assert_eq!(info.address, Some(su_addr.into_unchecked()));
+
+        // One tx paying both an External and a SingleUse address: one
+        // deduped txid, total amount, and the single-use address.
+        let ext_addr = h.ww().next_unused_address(External).address;
+        let su_addr2 = h.reveal_single_use().await;
+        let tx = Transaction {
+            output: vec![
+                TxOut {
+                    value: sat!(1_000).into(),
+                    script_pubkey: ext_addr.script_pubkey(),
+                },
+                TxOut {
+                    value: sat!(2_000).into(),
+                    script_pubkey: su_addr2.script_pubkey(),
+                },
+            ],
+            ..new_tx()
+        };
+        let txid = tx.compute_txid();
+        h.wallet.transactions_broadcasted_at(h.now(), vec![tx]);
+
+        // {su_txid, txid}: the two-keychain txid appears once; no internal.
+        let txids = h.wallet.get_recv_txids();
+        assert_eq!(txids, BTreeSet::from([su_txid, txid]));
+
+        let info = h.wallet.get_recv_info(txid).unwrap();
+        assert_eq!(info.received.to_sat(), 3_000);
+        assert_eq!(info.address, Some(su_addr2.into_unchecked()));
+
+        // One tx paying two SingleUse addresses: the first output's address.
+        let su_addr3 = h.reveal_single_use().await;
+        let su_addr4 = h.reveal_single_use().await;
+        let tx = Transaction {
+            output: vec![
+                TxOut {
+                    value: sat!(4_000).into(),
+                    script_pubkey: su_addr4.script_pubkey(),
+                },
+                TxOut {
+                    value: sat!(3_000).into(),
+                    script_pubkey: su_addr3.script_pubkey(),
+                },
+            ],
+            ..new_tx()
+        };
+        let txid = tx.compute_txid();
+        h.wallet.transactions_broadcasted_at(h.now(), vec![tx]);
+
+        let info = h.wallet.get_recv_info(txid).unwrap();
+        assert_eq!(info.received.to_sat(), 7_000);
+        assert_eq!(info.address, Some(su_addr4.into_unchecked()));
     }
 
     // --- Spending single-use utxos --- //

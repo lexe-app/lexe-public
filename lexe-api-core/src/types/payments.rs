@@ -164,7 +164,7 @@ pub struct BasicPaymentV2 {
 
     // --- Payment methods --- //
     ///
-    /// (Onchain send only) The address that we're sending to.
+    /// (Onchain only) The address we sent to or received on.
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(

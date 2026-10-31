@@ -178,7 +178,7 @@ pub struct PaymentMetadata {
 
     // --- Payment methods --- //
     // -
-    /// (On-chain send only) The address that we're sending to.
+    /// (Onchain only) The address we sent to or received on.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(
         test,

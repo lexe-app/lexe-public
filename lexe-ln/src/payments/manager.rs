@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, bail, ensure};
-use bdk_wallet::KeychainKind;
 use either::Either;
 use lexe_api::{
     models::command::UpdatePersonalNote,
@@ -1490,23 +1489,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         debug!("Checking for onchain recvs");
         let mut locked_data = self.data.lock().await;
 
-        // List the txids of UTXOs owned by us (from BDK's perspective).
-        let unspent_txids = {
-            let locked_wallet = wallet.read();
-            locked_wallet
-                .list_unspent()
-                // Only register payments to the external descriptor, so there
-                // aren't entries for channel closes / splices / etc.
-                // TODO(max): We actually want to remove this in the future, so
-                // that we can track the sweeping of funds from closed channels;
-                // OnchainRecv would include channel sweeps and anything that
-                // spends to the BDK wallet. We should match the channel sweep
-                // credit with the channel close debit, but channel opens /
-                // closes need to be tracked separately.
-                .filter(|o| matches!(o.keychain, KeychainKind::External))
-                .map(|local_output| local_output.outpoint.txid)
-                .collect::<Vec<_>>()
-        };
+        // List the txids of receive UTXOs owned by us (from BDK's
+        // perspective).
+        let unspent_txids = wallet.get_recv_txids();
 
         // Filter out txids we've already seen (already registered).
         let unseen_txids = {
@@ -1527,25 +1512,24 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
         };
 
         // Construct new `OnchainReceive`s for each unseen txid.
-        let onchain_recvs = {
-            let locked_wallet = wallet.read();
-            unseen_txids
-                .into_iter()
-                .map(|txid| {
-                    let canonical_tx = locked_wallet
-                        .get_tx(txid)
-                        .context("Missing full tx for owned output")?;
-                    let raw_tx = canonical_tx.tx_node.tx;
-                    let (_, received) =
-                        locked_wallet.sent_and_received(&raw_tx);
-                    let kind = PaymentKind::Onchain;
-                    let amount =
-                        Amount::try_from(received).context("Overflowed")?;
-                    OnchainReceiveV2::new(raw_tx, kind, amount)
-                        .context("Failed to create payment")
-                })
-                .collect::<anyhow::Result<Vec<_>>>()?
-        };
+        let onchain_recvs = unseen_txids
+            .into_iter()
+            .map(|txid| {
+                let recv_info = wallet
+                    .get_recv_info(txid)
+                    .context("Could not get recv info")?;
+                let kind = PaymentKind::Onchain;
+                let amount = Amount::try_from(recv_info.received)
+                    .context("Overflowed")?;
+                OnchainReceiveV2::new(
+                    recv_info.tx,
+                    kind,
+                    amount,
+                    recv_info.address,
+                )
+                .context("Failed to create payment")
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         // Register all of the new onchain receives.
         for orwm in onchain_recvs {

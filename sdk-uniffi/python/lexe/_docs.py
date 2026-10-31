@@ -2779,7 +2779,7 @@ Attributes:
     status: Payment status: pending, completed, or failed.
     status_msg: Human-readable status message, customized per payment type
         (e.g. "invoice generated", "timed out").
-    address: (Onchain send only) The address we're sending to.
+    address: (Onchain only) The address we sent to or received on.
     invoice: (Invoice payments only) The BOLT 11 invoice.
     client_pk: Hex-encoded public key of the Lexe SDK client which created
         this payment. (Inbound offer payments aren't tracked yet.) ``None``
