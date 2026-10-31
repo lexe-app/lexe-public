@@ -48,6 +48,7 @@ use lexe::{
             CashAppBuyRequest as SdkCashAppBuyRequest,
             CashAppBuyResponse as SdkCashAppBuyResponse,
             ChannelDetails as SdkChannelDetails,
+            CheckAddressResponse as SdkCheckAddressResponse,
             ClaimableDetails as SdkClaimableDetails,
             ClientInfo as SdkClientInfo,
             CloseChannelRequest as SdkCloseChannelRequest,
@@ -1245,7 +1246,9 @@ impl AsyncLexeWallet {
     /// per-invoice receives, e.g. a payment gateway issuing one address per
     /// invoice, or a service giving each customer their own deposit address.
     ///
-    /// The node does not watch exclusive addresses for incoming payments.
+    /// The node does not watch exclusive addresses for incoming payments. Funds
+    /// sent to one are detected only when you call `check_address`, so poll it
+    /// for as long as you still expect a payment.
     ///
     /// If you only want to avoid address reuse, or to receive a one-off
     /// payment, use `get_next_unused_address` instead. It rotates after each
@@ -1255,6 +1258,21 @@ impl AsyncLexeWallet {
     ) -> Result<GetExclusiveAddressResponse, FfiError> {
         let resp = self.inner.get_exclusive_address().await?;
         Ok(GetExclusiveAddressResponse::from(resp))
+    }
+
+    /// Check an address from `get_exclusive_address` for new payments, which
+    /// the node does not otherwise detect. Records any payments to the
+    /// address, then returns those that are unconfirmed, or confirmed at or
+    /// after the previous check's block height (on the first check, all of
+    /// them). A payment can thus be returned more than once.
+    pub async fn check_address(
+        &self,
+        address: String,
+    ) -> Result<CheckAddressResponse, FfiError> {
+        let address =
+            SdkAddress::from_str(&address).context("Invalid address")?;
+        let resp = self.inner.check_address(address).await?;
+        Ok(CheckAddressResponse::from(resp))
     }
 
     /// Send Bitcoin on-chain to the given address.
@@ -2451,7 +2469,9 @@ impl BlockingLexeWallet {
     /// per-invoice receives, e.g. a payment gateway issuing one address per
     /// invoice, or a service giving each customer their own deposit address.
     ///
-    /// The node does not watch exclusive addresses for incoming payments.
+    /// The node does not watch exclusive addresses for incoming payments. Funds
+    /// sent to one are detected only when you call `check_address`, so poll it
+    /// for as long as you still expect a payment.
     ///
     /// If you only want to avoid address reuse, or to receive a one-off
     /// payment, use `get_next_unused_address` instead. It rotates after each
@@ -2461,6 +2481,21 @@ impl BlockingLexeWallet {
     ) -> Result<GetExclusiveAddressResponse, FfiError> {
         let resp = self.inner.get_exclusive_address()?;
         Ok(GetExclusiveAddressResponse::from(resp))
+    }
+
+    /// Check an address from `get_exclusive_address` for new payments, which
+    /// the node does not otherwise detect. Records any payments to the
+    /// address, then returns those that are unconfirmed, or confirmed at or
+    /// after the previous check's block height (on the first check, all of
+    /// them). A payment can thus be returned more than once.
+    pub fn check_address(
+        &self,
+        address: String,
+    ) -> Result<CheckAddressResponse, FfiError> {
+        let address =
+            SdkAddress::from_str(&address).context("Invalid address")?;
+        let resp = self.inner.check_address(address)?;
+        Ok(CheckAddressResponse::from(resp))
     }
 
     /// Send Bitcoin on-chain to the given address.
@@ -4170,6 +4205,26 @@ impl From<SdkGetExclusiveAddressResponse> for GetExclusiveAddressResponse {
     fn from(resp: SdkGetExclusiveAddressResponse) -> Self {
         Self {
             address: resp.address.assume_checked_ref().to_string(),
+        }
+    }
+}
+
+/// Response from checking an exclusive address for new payments.
+#[derive(Clone, uniffi::Record)]
+pub struct CheckAddressResponse {
+    /// The receives to the address since the previous check, or all of them
+    /// on the first check. Track their status with the payment APIs.
+    pub payments: Vec<Payment>,
+    /// The block height this address was checked up to. The next check of
+    /// this address reports payments at or after this height.
+    pub synced_block_height: u32,
+}
+
+impl From<SdkCheckAddressResponse> for CheckAddressResponse {
+    fn from(resp: SdkCheckAddressResponse) -> Self {
+        Self {
+            payments: resp.payments.into_iter().map(Payment::from).collect(),
+            synced_block_height: resp.synced_block_height,
         }
     }
 }

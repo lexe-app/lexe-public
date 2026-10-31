@@ -18,10 +18,11 @@ use lexe::{
         bitcoin::{ClaimMethod, PaymentMethod, PaymentUriMethod},
         command::{
             AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
-            CashAppBuyResponse, ClaimableDetails as SdkClaimableDetails,
-            ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
-            CreateClientResponse, CreateInvoiceRequest, CreateInvoiceResponse,
-            CreateOfferRequest, CreateOfferResponse, CreatePayerProofRequest,
+            CashAppBuyResponse, CheckAddressResponse,
+            ClaimableDetails as SdkClaimableDetails, ClientInfoResponse,
+            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+            CreateOfferResponse, CreatePayerProofRequest,
             CreatePayerProofResponse, GetClientInfoResponse,
             GetExclusiveAddressResponse, GetHumanBitcoinAddressResponse,
             GetNextUnusedAddressResponse, GetPaymentByIdRequest,
@@ -53,10 +54,11 @@ use tracing::{debug, instrument, warn};
 
 use crate::{
     api::{
-        AnalyzeResponse, ClaimableDetails, HealthCheckResponse,
-        ListPaymentsRequest, PayLnurlRequest, PayRequest, PayableDetails,
-        SignupRequest, UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
-        WaitForNextPaymentRequest, WaitForPaymentRequest, WithdrawLnurlRequest,
+        AnalyzeResponse, CheckAddressRequest, ClaimableDetails,
+        HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest, PayRequest,
+        PayableDetails, SignupRequest, UpdateClientRequest,
+        UpdateHumanBitcoinAddressRequest, WaitForNextPaymentRequest,
+        WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     extract::{
         CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
@@ -110,6 +112,7 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
             "/v2/node/get_exclusive_address",
             post(node::get_exclusive_address),
         )
+        .route("/v2/node/check_address", post(node::check_address))
         .route("/v2/node/pay_onchain", post(node::pay_onchain))
         .route(
             "/v2/node/pay_onchain_preflight",
@@ -521,6 +524,20 @@ mod node {
     ) -> Result<LxJson<GetExclusiveAddressResponse>, SdkApiError> {
         let resp = wallet
             .get_exclusive_address()
+            .await
+            .map_err(SdkApiError::command)?;
+
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(check-address)")]
+    pub(crate) async fn check_address(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<CheckAddressRequest>,
+    ) -> Result<LxJson<CheckAddressResponse>, SdkApiError> {
+        let resp = wallet
+            .check_address(req.address)
             .await
             .map_err(SdkApiError::command)?;
 

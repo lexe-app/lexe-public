@@ -935,7 +935,9 @@ thus be attributed to exactly one caller, which suits per-invoice receives, e.g.
 a payment gateway issuing one address per invoice, or a service giving each
 customer their own deposit address.
 
-The node does not watch exclusive addresses for incoming payments.
+The node does not watch exclusive addresses for incoming payments. Funds sent to
+one are detected only when you call ``check_address``, so poll it for as long as
+you still expect a payment.
 
 If you only want to avoid address reuse, or to receive a one-off payment, use
 ``get_next_unused_address`` instead. It rotates after each payment, and the node
@@ -948,6 +950,26 @@ Example::
 
     resp = wallet.get_exclusive_address()
     print(f"Invoice address: {resp.address}")
+""")
+
+_set_method_doc(LexeWallet, "check_address", """\
+Check an address from ``get_exclusive_address`` for new payments, which the
+node does not otherwise detect. Records any payments to the address, then
+returns those that are unconfirmed, or confirmed at or after the previous
+check's block height (on the first check, all of them). A payment can thus be
+returned more than once.
+
+Args:
+    address: The address to check.
+
+Returns:
+    A :class:`CheckAddressResponse` with the payments received at the address.
+
+Example::
+
+    resp = wallet.check_address(address)
+    for p in resp.payments:
+        print(f"Payment received: {p.index}")
 """)
 
 _set_method_doc(LexeWallet, "pay_onchain", """\
@@ -2017,7 +2039,9 @@ thus be attributed to exactly one caller, which suits per-invoice receives, e.g.
 a payment gateway issuing one address per invoice, or a service giving each
 customer their own deposit address.
 
-The node does not watch exclusive addresses for incoming payments.
+The node does not watch exclusive addresses for incoming payments. Funds sent to
+one are detected only when you call ``check_address``, so poll it for as long as
+you still expect a payment.
 
 If you only want to avoid address reuse, or to receive a one-off payment, use
 ``get_next_unused_address`` instead. It rotates after each payment, and the node
@@ -2030,6 +2054,26 @@ Example::
 
     resp = await wallet.get_exclusive_address()
     print(f"Invoice address: {resp.address}")
+""")
+
+_set_method_doc(AsyncLexeWallet, "check_address", """\
+Check an address from ``get_exclusive_address`` for new payments, which the
+node does not otherwise detect. Records any payments to the address, then
+returns those that are unconfirmed, or confirmed at or after the previous
+check's block height (on the first check, all of them). A payment can thus be
+returned more than once.
+
+Args:
+    address: The address to check.
+
+Returns:
+    A :class:`CheckAddressResponse` with the payments received at the address.
+
+Example::
+
+    resp = await wallet.check_address(address)
+    for p in resp.payments:
+        print(f"Payment received: {p.index}")
 """)
 
 _set_method_doc(AsyncLexeWallet, "pay_onchain", """\
@@ -3114,6 +3158,17 @@ Response from getting an exclusive on-chain Bitcoin address.
 
 Attributes:
     address: A Bitcoin address which has never been issued before.
+"""
+
+lexe.CheckAddressResponse.__doc__ = """\
+Response from checking an exclusive address for new payments.
+
+Attributes:
+    payments: The receives to the address since the previous check, or all of
+        them on the first check. Track their status with the payment APIs.
+    synced_block_height: The block height this address was checked up to.
+        The next check of this address reports payments at or after this
+        height.
 """
 
 lexe.CashAppBuyResponse.__doc__ = """\

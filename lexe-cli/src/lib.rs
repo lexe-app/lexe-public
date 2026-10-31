@@ -9,7 +9,7 @@ use std::{
 use anyhow::{Context, anyhow, ensure};
 use clap::{ArgAction, Parser, Subcommand};
 use lexe::{
-    bitcoin::address::Address,
+    bitcoin::address::{Address, NetworkUnchecked},
     config::{Network, WalletEnvConfig},
     provision,
     types::{
@@ -177,6 +177,7 @@ pub enum LexeCommand {
     PayOffer(PayOfferArgs),
     GetNextUnusedAddress(GetNextUnusedAddressArgs),
     GetExclusiveAddress(GetExclusiveAddressArgs),
+    CheckAddress(CheckAddressArgs),
     PayOnchain(PayOnchainArgs),
     PayOnchainPreflight(PayOnchainPreflightArgs),
     PayLnurl(PayLnurlArgs),
@@ -351,6 +352,7 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::PayOffer(a) => a.run(&wallet).await,
         LexeCommand::GetNextUnusedAddress(a) => a.run(&wallet).await,
         LexeCommand::GetExclusiveAddress(a) => a.run(&wallet).await,
+        LexeCommand::CheckAddress(a) => a.run(&wallet).await,
         LexeCommand::PayOnchain(a) => a.run(&wallet).await,
         LexeCommand::PayOnchainPreflight(a) => a.run(&wallet).await,
         LexeCommand::PayLnurl(a) => a.run(&wallet).await,
@@ -1424,7 +1426,10 @@ impl GetNextUnusedAddressArgs {
         is thus suitable for per-invoice receives, e.g. a payment gateway\n\
         issuing an address for each invoice.\n\
         \n\
-        The node does not watch exclusive addresses for incoming payments.",
+        The node does not watch exclusive addresses for incoming payments.\n\
+        Funds sent to one are detected only when you run\n\
+        `lexe check-address`, so poll it for as long as you still expect\n\
+        a payment.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct GetExclusiveAddressArgs {
@@ -1446,6 +1451,45 @@ impl GetExclusiveAddressArgs {
 
         println!("{}", resp.address.assume_checked_ref());
         Ok(())
+    }
+}
+
+// --- `check-address` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Check an exclusive address for new payments",
+    long_about = "Check an address from `lexe get-exclusive-address` for new\n\
+        payments, which the node does not otherwise detect. Records any\n\
+        payments to the address, then returns those that are unconfirmed,\n\
+        or confirmed at or after the previous check's block height (on the\n\
+        first check, all of them). A payment can thus be returned more\n\
+        than once.",
+    help_template = HELP_TEMPLATE,
+)]
+pub struct CheckAddressArgs {
+    #[arg(help = "The address to check.")]
+    address: Address<NetworkUnchecked>,
+
+    /// Display output as JSON
+    #[arg(long)]
+    json: bool,
+}
+
+impl CheckAddressArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let resp = wallet
+            .check_address(self.address)
+            .await
+            .context("Failed to check address")?;
+
+        if self.json {
+            return helpers::print_json_pretty(&resp);
+        }
+
+        let synced_block_height = resp.synced_block_height;
+        println!("Address checked up to block {synced_block_height}");
+        helpers::print_json_pretty(&resp.payments)
     }
 }
 

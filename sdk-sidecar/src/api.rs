@@ -7,6 +7,7 @@ use std::{borrow::Cow, collections::BTreeSet};
 
 use anyhow::ensure;
 use lexe::{
+    bitcoin::address::{Address, NetworkUnchecked},
     types::{
         auth::{Scope, UserPk},
         bitcoin::Amount,
@@ -231,6 +232,11 @@ impl From<WithdrawLnurlRequest> for SdkWithdrawLnurlRequest {
 #[derive(Serialize, Deserialize)]
 pub struct UpdateHumanBitcoinAddressRequest {
     pub username: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CheckAddressRequest {
+    pub address: Address<NetworkUnchecked>,
 }
 
 #[derive(Serialize, Deserialize)]

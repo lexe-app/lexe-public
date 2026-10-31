@@ -3,10 +3,10 @@ use std::time::Duration;
 use lexe::types::{
     command::{
         AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
-        CashAppBuyResponse, ClientInfoResponse, CloseChannelRequest,
-        CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
-        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-        CreatePayerProofRequest, CreatePayerProofResponse,
+        CashAppBuyResponse, CheckAddressResponse, ClientInfoResponse,
+        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, CreatePayerProofRequest, CreatePayerProofResponse,
         GetClientInfoResponse, GetExclusiveAddressResponse,
         GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
         GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
@@ -28,10 +28,10 @@ use lexe_api::{
 
 use crate::{
     api::{
-        AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest,
-        PayLnurlRequest, PayRequest, SignupRequest, UpdateClientRequest,
-        UpdateHumanBitcoinAddressRequest, WaitForNextPaymentRequest,
-        WaitForPaymentRequest, WithdrawLnurlRequest,
+        AnalyzeResponse, CheckAddressRequest, HealthCheckResponse,
+        ListPaymentsRequest, PayLnurlRequest, PayRequest, SignupRequest,
+        UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
+        WaitForNextPaymentRequest, WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };
@@ -159,6 +159,16 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/get_exclusive_address");
         let http_req = self.rest.post(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn check_address(
+        &self,
+        req: &CheckAddressRequest,
+    ) -> Result<CheckAddressResponse, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/check_address");
+        let http_req = self.rest.post(url, req);
         self.rest.send(http_req).await
     }
 

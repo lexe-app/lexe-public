@@ -10,10 +10,10 @@
 use lexe::types::{
     command::{
         AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
-        CashAppBuyResponse, ClientInfoResponse, CloseChannelRequest,
-        CreateClientRequest, CreateClientResponse, CreateInvoiceRequest,
-        CreateInvoiceResponse, CreateOfferRequest, CreateOfferResponse,
-        CreatePayerProofRequest, CreatePayerProofResponse,
+        CashAppBuyResponse, CheckAddressResponse, ClientInfoResponse,
+        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, CreatePayerProofRequest, CreatePayerProofResponse,
         GetClientInfoResponse, GetExclusiveAddressResponse,
         GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
         GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
@@ -30,10 +30,10 @@ use lexe::types::{
 use lexe_api::{error::SdkApiError, types::Empty};
 
 use crate::api::{
-    AnalyzeResponse, HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest,
-    PayRequest, SignupRequest, UpdateClientRequest,
-    UpdateHumanBitcoinAddressRequest, WaitForNextPaymentRequest,
-    WaitForPaymentRequest, WithdrawLnurlRequest,
+    AnalyzeResponse, CheckAddressRequest, HealthCheckResponse,
+    ListPaymentsRequest, PayLnurlRequest, PayRequest, SignupRequest,
+    UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
+    WaitForNextPaymentRequest, WaitForPaymentRequest, WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -172,7 +172,9 @@ pub trait UserSidecarApi {
     /// per-invoice receives, e.g. a payment gateway issuing one address per
     /// invoice, or a service giving each customer their own deposit address.
     ///
-    /// The node does not watch exclusive addresses for incoming payments.
+    /// The node does not watch exclusive addresses for incoming payments. Funds
+    /// sent to one are detected only when you call `check_address`, so poll it
+    /// for as long as you still expect a payment.
     ///
     /// If you only want to avoid address reuse, or to receive a one-off
     /// payment, use `get_next_unused_address` instead. It rotates after each
@@ -180,6 +182,19 @@ pub trait UserSidecarApi {
     async fn get_exclusive_address(
         &self,
     ) -> Result<GetExclusiveAddressResponse, SdkApiError>;
+
+    /// POST /v2/node/check_address [`CheckAddressRequest`]
+    ///                          -> [`CheckAddressResponse`]
+    ///
+    /// Check an address from `get_exclusive_address` for new payments, which
+    /// the node does not otherwise detect. Records any payments to the
+    /// address, then returns those that are unconfirmed, or confirmed at or
+    /// after the previous check's block height (on the first check, all of
+    /// them). A payment can thus be returned more than once.
+    async fn check_address(
+        &self,
+        req: &CheckAddressRequest,
+    ) -> Result<CheckAddressResponse, SdkApiError>;
 
     /// POST /v2/node/pay_onchain [`PayOnchainRequest`] -> [`Payment`]
     ///
