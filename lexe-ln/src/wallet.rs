@@ -39,13 +39,14 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    iter,
     ops::DerefMut,
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use anyhow::{Context, anyhow, ensure};
 use bdk_chain::{
-    CanonicalizationParams, Merge, TxUpdate,
+    CanonicalizationParams, ChainPosition, Merge, TxUpdate,
     spk_client::{
         FullScanRequest, FullScanResponse, SyncRequest, SyncResponse,
     },
@@ -596,6 +597,101 @@ impl OnchainWallet {
         Ok(sync_stats)
     }
 
+    /// Syncs just the one spk for `address`, whether or not [`Self::sync`]
+    /// would include it.
+    ///
+    /// Used to pick up receives to single-use spks, which the regular sync
+    /// doesn't cover until paid.
+    ///
+    /// Returns the chain tip height after the sync, and the txids of txs
+    /// paying the address that are unconfirmed or confirmed at or after
+    /// `synced_block_height` (all of them if `None`).
+    ///
+    /// Errors if the address is not the wallet's.
+    #[instrument(skip_all, name = "(bdk-check-address)")]
+    pub async fn check_address(
+        &self,
+        esplora: &LexeEsplora,
+        address: &bitcoin::Address,
+        synced_block_height: Option<u32>,
+    ) -> anyhow::Result<(u32, Vec<bitcoin::Txid>)> {
+        let now = TimestampMs::now();
+        let sync_request = self.build_address_sync_request_at(address, now)?;
+
+        let sync_result = esplora
+            .client()
+            .sync(sync_request, Self::BDK_CONCURRENCY)
+            .await
+            .context("`EsploraAsyncExt::sync` failed (address)")?;
+
+        let synced_height = {
+            let mut locked_wallet = self.write();
+            locked_wallet
+                .apply_update(sync_result)
+                .context("Could not apply sync update (address)")?;
+            locked_wallet.local_chain().tip().height()
+        };
+        self.trigger_persist();
+
+        let spk = address.script_pubkey();
+        let txids = self.spk_txids_since(&spk, synced_block_height);
+
+        Ok((synced_height, txids))
+    }
+
+    /// Txids of txs paying `spk` that are unconfirmed, or confirmed at or
+    /// after `since_height` (all of them if `None`).
+    ///
+    /// Esplora's address index may lag its tip, so a tx confirmed at the
+    /// height a check synced to may not have been seen by that check. Thus,
+    /// unlike payment cursors, the bound is inclusive, and a tx in that one
+    /// block may be reported twice.
+    fn spk_txids_since(
+        &self,
+        spk: &bitcoin::Script,
+        since_height: Option<u32>,
+    ) -> Vec<bitcoin::Txid> {
+        self.read()
+            .transactions()
+            .filter(|wtx| {
+                let pays_spk = wtx
+                    .tx_node
+                    .tx
+                    .output
+                    .iter()
+                    .any(|o| o.script_pubkey.as_script() == spk);
+                pays_spk
+                    && match wtx.chain_position {
+                        ChainPosition::Unconfirmed { .. } => true,
+                        ChainPosition::Confirmed { anchor, .. } => since_height
+                            .is_none_or(|h| anchor.block_id.height >= h),
+                    }
+            })
+            .map(|wtx| wtx.tx_node.txid)
+            .collect()
+    }
+
+    /// Builds a sync request for just `address`'s spk. Unlike
+    /// [`Self::build_sync_request_at`], no expected txids are attached, so this
+    /// sync can't detect evictions.
+    fn build_address_sync_request_at(
+        &self,
+        address: &bitcoin::Address,
+        synced_at: TimestampMs,
+    ) -> anyhow::Result<SyncRequest<(KeychainKind, u32)>> {
+        let spk = address.script_pubkey();
+        let locked_wallet = self.read();
+        let keychain_index = locked_wallet
+            .derivation_of_spk(spk.clone())
+            .context("Address does not belong to this wallet")?;
+        let sync_request =
+            SyncRequest::<(KeychainKind, u32)>::builder_at(synced_at.to_secs())
+                .chain_tip(locked_wallet.local_chain().tip())
+                .spks_with_indexes(iter::once((keychain_index, spk)))
+                .build();
+        Ok(sync_request)
+    }
+
     /// Build an incremental sync request to efficiently sync our local BDK
     /// wallet state with a remote esplora REST API blockchain data source.
     ///
@@ -624,6 +720,11 @@ impl OnchainWallet {
     /// OTOH we can't guarantee much about external keychain spks, so we have to
     /// sync every revealed external spk in perpetuity. In the future, we may
     /// optimize this so that ancient external spks are synced less frequently.
+    ///
+    /// A revealed single-use spk may never be paid, so we don't sync it until
+    /// a receive to it is recorded, e.g. by [`Self::check_address`]. Once paid
+    /// it syncs like an internal spk. A payer may also pay a swept spk again
+    /// (e.g. a top-up), which again only [`Self::check_address`] picks up.
     fn build_sync_request_at(
         &self,
         synced_at: TimestampMs,
@@ -666,15 +767,9 @@ impl OnchainWallet {
                 match self {
                     // Sync all external spks
                     SpkInfo::External { .. } => true,
-                    // Sync all (1) unused and (2) used internal and single-use
-                    // spks that have pending spends or have no finalized
-                    // spends at all.
+                    // Sync all (1) unused and (2) used internal spks that have
+                    // pending spends or have no finalized spends at all.
                     SpkInfo::Internal {
-                        num_canonical_spends_to_spk,
-                        num_finalized_spends_from_spk,
-                        ..
-                    }
-                    | SpkInfo::SingleUse {
                         num_canonical_spends_to_spk,
                         num_finalized_spends_from_spk,
                         ..
@@ -682,6 +777,18 @@ impl OnchainWallet {
                         num_canonical_spends_to_spk
                             > num_finalized_spends_from_spk
                             || *num_finalized_spends_from_spk == 0,
+                    // A revealed single-use spk may never be paid, so syncing
+                    // it from reveal could cost us forever. Instead, sync it
+                    // only once paid (its first receive is found on demand via
+                    // check_address), until its funds are spent and finalized.
+                    // TODO(max): Also sync for a bounded window after reveal.
+                    SpkInfo::SingleUse {
+                        num_canonical_spends_to_spk,
+                        num_finalized_spends_from_spk,
+                        ..
+                    } =>
+                        num_canonical_spends_to_spk
+                            > num_finalized_spends_from_spk,
                 }
             }
         }
@@ -984,7 +1091,8 @@ impl OnchainWallet {
     /// keychain.
     ///
     /// Unlike [`Self::get_next_unused_address`], every call reveals a new
-    /// address.
+    /// address. The regular sync only covers it while it holds funds, so
+    /// its receives are found by [`Self::check_address`] (or a full sync).
     pub async fn get_exclusive_address(
         &self,
     ) -> anyhow::Result<bitcoin::Address> {
@@ -2307,12 +2415,13 @@ mod test {
                 })
                 .collect::<BTreeMap<_, _>>();
 
-            // Expect all unused spks
+            // Expect all unused spks, except single-use ones
             expected.extend(
                 self.wr()
                     .spk_index()
                     .inner()
                     .unused_spks(..)
+                    .filter(|((keychain, _), _)| *keychain != SingleUse)
                     .map(|(_, spk)| (spk, BTreeSet::new())),
             );
 
@@ -3188,6 +3297,113 @@ mod test {
 
         wallet.get_exclusive_address().await.unwrap_err();
         assert_eq!(wallet.read().num_revealed_spks(External), 0);
+    }
+
+    /// Single-use spks sync only while paid; a targeted address sync covers
+    /// the rest.
+    #[tokio::test]
+    async fn single_use_sync_predicate() {
+        let mut h = Harness::new(6520253300481);
+
+        // Revealed-but-unpaid spks don't sync.
+        let addr0 = h.reveal_single_use().await;
+        let spk0 = addr0.script_pubkey();
+        h.assert_sync(map! {});
+
+        // Fund spk0 (confirmed): syncs while it holds funds.
+        let (tx0, _, funded_spk) = h.ww().fund(SingleUse, sat!(10_000));
+        assert_eq!(funded_spk, spk0);
+        let txid0 = tx0.compute_txid();
+        h.assert_sync(map! { spk0 => set! { txid0 } });
+
+        // Reveal another (unpaid): only spk0 syncs.
+        let addr1 = h.reveal_single_use().await;
+        let spk1 = addr1.script_pubkey();
+        h.assert_sync(map! { spk0 => set! { txid0 } });
+
+        // Spend spk0's utxo to a third party (unconfirmed): still syncs.
+        let spend_tx = Transaction {
+            input: vec![bitcoin::TxIn {
+                previous_output: bitcoin::OutPoint {
+                    txid: txid0,
+                    vout: 0,
+                },
+                ..Default::default()
+            }],
+            output: vec![TxOut {
+                value: sat!(9_000).into(),
+                script_pubkey: bitcoin::ScriptBuf::from_bytes(vec![0x51]),
+            }],
+            ..new_tx()
+        };
+        let spend_txid = spend_tx.compute_txid();
+        h.ww().add_unconfirmed_tx(&spend_tx);
+        h.assert_sync(map! { spk0 => set! { txid0, spend_txid } });
+
+        // Finalize the spend: spk0 ages out of the sync set.
+        h.ww()
+            .confirm_txids(OnchainWallet::CONFS_TO_FINALIZE, &[spend_txid]);
+        h.assert_sync(map! {});
+
+        // The targeted sync request covers the aged-out spk0 and the unpaid
+        // spk1.
+        for (addr, spk) in [(&addr0, spk0), (&addr1, spk1)] {
+            let mut sync_req = h
+                .wallet
+                .build_address_sync_request_at(addr, h.now())
+                .unwrap();
+            let spks = sync_req
+                .iter_spks_with_expected_txids()
+                .map(|spk_txids| spk_txids.spk)
+                .collect::<Vec<_>>();
+            assert_eq!(spks, vec![spk]);
+        }
+
+        // Foreign addresses are rejected.
+        let address3p = address3p().assume_checked();
+        assert!(
+            h.wallet
+                .build_address_sync_request_at(&address3p, h.now())
+                .is_err()
+        );
+    }
+
+    /// Unconfirmed txs are reported for any bound. Confirmed txs are reported
+    /// only for bounds at or below their confirmation height.
+    #[tokio::test]
+    async fn single_use_spk_txids_since() {
+        let mut h = Harness::new(20261102);
+
+        // An address with no txs reports none.
+        let addr0 = h.reveal_single_use().await;
+        let spk0 = addr0.script_pubkey();
+        let addr1 = h.reveal_single_use().await;
+        let spk1 = addr1.script_pubkey();
+        assert_eq!(h.wallet.spk_txids_since(&spk0, None), vec![]);
+        assert_eq!(h.wallet.spk_txids_since(&spk0, Some(0)), vec![]);
+
+        // An unconfirmed tx is reported for any bound.
+        let (tx0, _, funded_spk) =
+            h.ww().fund_unconfirmed(SingleUse, sat!(10_000));
+        assert_eq!(funded_spk, spk0);
+        let txid0 = tx0.compute_txid();
+        for since_height in [None, Some(0), Some(u32::MAX)] {
+            let txids = h.wallet.spk_txids_since(&spk0, since_height);
+            assert_eq!(txids, vec![txid0]);
+        }
+
+        // Once confirmed at `conf_height`, bounds above it exclude the tx.
+        let conf_height = h.wr().height() + 1;
+        h.ww()
+            .confirm_txids(OnchainWallet::CONFS_TO_FINALIZE, &[txid0]);
+        assert_eq!(h.wallet.spk_txids_since(&spk0, None), vec![txid0]);
+        let txids = h.wallet.spk_txids_since(&spk0, Some(conf_height));
+        assert_eq!(txids, vec![txid0]);
+        let txids = h.wallet.spk_txids_since(&spk0, Some(conf_height + 1));
+        assert_eq!(txids, vec![]);
+
+        // spk0's tx is not reported for spk1.
+        assert_eq!(h.wallet.spk_txids_since(&spk1, None), vec![]);
     }
 
     /// Drift in the single-use descriptor derivation would orphan funds on
