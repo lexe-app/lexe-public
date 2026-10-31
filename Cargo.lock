@@ -726,8 +726,7 @@ dependencies = [
 [[package]]
 name = "bdk_wallet"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f278518ee6f2a17711fd4662dc34ce6153792a7a21575f05a9c8e2cb9ba36245"
+source = "git+https://github.com/lexe-app/bdk_wallet?branch=lexe-v2.0.0-2026_10_31#2fbee52381fb79999d3c2da7584792c305ba161c"
 dependencies = [
  "bdk_chain",
  "bitcoin",

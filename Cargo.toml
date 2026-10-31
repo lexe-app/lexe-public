@@ -377,6 +377,11 @@ bdk_esplora = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.22.2-
 # bdk_core.path = "../../bdk/crates/core"
 # bdk_esplora.path = "../../bdk/crates/esplora"
 
+# * license: Add dual license information
+# * wallet: Add KeychainKind::SingleUse
+bdk_wallet = { git = "https://github.com/lexe-app/bdk_wallet", branch = "lexe-v2.0.0-2026_10_31" }
+# bdk_wallet.path = "../../bdk_wallet/wallet"
+
 # * refactor!: normalize responses into a shared HttpResponse
 # * license: Add dual license information
 # * async: Change HTTP backend from bitreq to reqwest

@@ -507,13 +507,20 @@ impl OnchainWallet {
                 num_canonical_spends_to_spk: u32,
                 num_finalized_spends_from_spk: u32,
             },
+            SingleUse {
+                keychain_index: (KeychainKind, u32),
+                num_canonical_spends_to_spk: u32,
+                num_finalized_spends_from_spk: u32,
+            },
         }
 
         impl SpkInfo {
             fn keychain_index(&self) -> (KeychainKind, u32) {
                 match self {
                     SpkInfo::External { keychain_index } => *keychain_index,
-                    SpkInfo::Internal { keychain_index, .. } => *keychain_index,
+                    SpkInfo::Internal { keychain_index, .. }
+                    | SpkInfo::SingleUse { keychain_index, .. } =>
+                        *keychain_index,
                 }
             }
 
@@ -521,9 +528,15 @@ impl OnchainWallet {
                 match self {
                     // Sync all external spks
                     SpkInfo::External { .. } => true,
-                    // Sync all (1) unused and (2) used internal spks that have
-                    // pending spends or have no finalized spends at all.
+                    // Sync all (1) unused and (2) used internal and single-use
+                    // spks that have pending spends or have no finalized
+                    // spends at all.
                     SpkInfo::Internal {
+                        num_canonical_spends_to_spk,
+                        num_finalized_spends_from_spk,
+                        ..
+                    }
+                    | SpkInfo::SingleUse {
                         num_canonical_spends_to_spk,
                         num_finalized_spends_from_spk,
                         ..
@@ -578,7 +591,7 @@ impl OnchainWallet {
             .iter()
             .map(|(&keychain_index, spk)| {
                 // Number of canonical outputs that spend to this spk (only used
-                // for internal spks)
+                // for internal and single-use spks)
                 let mut num_canonical_spends_to_spk = 0;
 
                 let outputs_to_spk = keychains_inner
@@ -594,15 +607,20 @@ impl OnchainWallet {
                 // TODO(phlip9): optimize this so we sync ancient external spks
                 // less frequently.
                 let (keychain_kind, _index) = keychain_index;
-                let spk_info = if keychain_kind == KeychainKind::External {
-                    SpkInfo::External { keychain_index }
-                } else {
-                    SpkInfo::Internal {
+                let spk_info = match keychain_kind {
+                    KeychainKind::External =>
+                        SpkInfo::External { keychain_index },
+                    KeychainKind::Internal => SpkInfo::Internal {
                         keychain_index,
                         num_canonical_spends_to_spk,
                         // We need to compute this in the next pass
                         num_finalized_spends_from_spk: 0,
-                    }
+                    },
+                    KeychainKind::SingleUse => SpkInfo::SingleUse {
+                        keychain_index,
+                        num_canonical_spends_to_spk,
+                        num_finalized_spends_from_spk: 0,
+                    },
                 };
                 (spk, spk_info)
             })
@@ -626,13 +644,18 @@ impl OnchainWallet {
                         continue;
                     }
 
-                    // If this finalized tx input spends from an internal spk,
-                    // record that
-                    if let Some(SpkInfo::Internal {
-                        keychain_index: _,
-                        num_canonical_spends_to_spk: _,
-                        num_finalized_spends_from_spk,
-                    }) = spk_infos.get_mut(spk)
+                    // If this finalized tx input spends from an internal or
+                    // single-use spk, record that
+                    if let Some(
+                        SpkInfo::Internal {
+                            num_finalized_spends_from_spk,
+                            ..
+                        }
+                        | SpkInfo::SingleUse {
+                            num_finalized_spends_from_spk,
+                            ..
+                        },
+                    ) = spk_infos.get_mut(spk)
                     {
                         *num_finalized_spends_from_spk += 1;
                     }
@@ -1725,10 +1748,18 @@ mod arbitrary_impl {
                 .unwrap();
             descriptor
         });
+        let just_single_use_descriptor = Just({
+            let (descriptor, _, _) =
+                Bip84(master_xprv, KeychainKind::SingleUse)
+                    .build(network.to_bitcoin())
+                    .unwrap();
+            descriptor
+        });
 
         (
             option::of(just_descriptor),
             option::of(just_change_descriptor),
+            option::of(just_single_use_descriptor),
             option::of(any::<Network>().prop_map(Into::into)),
             any_localchain_changeset(),
             any_txgraph_changeset(),
@@ -1738,6 +1769,7 @@ mod arbitrary_impl {
                 |(
                     descriptor,
                     change_descriptor,
+                    single_use_descriptor,
                     network,
                     local_chain,
                     tx_graph,
@@ -1746,6 +1778,7 @@ mod arbitrary_impl {
                     ChangeSet {
                         descriptor,
                         change_descriptor,
+                        single_use_descriptor,
                         network,
                         local_chain,
                         tx_graph,
