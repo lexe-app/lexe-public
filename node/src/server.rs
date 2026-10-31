@@ -35,7 +35,7 @@ use lexe_ln::{
     alias::{NetworkGraphType, RouterType},
     background_processor,
     channel::ChannelEvent,
-    esplora::FeeEstimates,
+    esplora::{FeeEstimates, LexeEsplora},
     keys_manager::LexeKeysManager,
     sync::BdkSyncRequest,
     test_event::TestEventReceiver,
@@ -96,6 +96,7 @@ pub(crate) struct RouterState {
 
     // --- Actors --- //
     pub backend_api: Arc<NodeBackendClient>,
+    pub esplora: Arc<LexeEsplora>,
     pub channel_manager: NodeChannelManager,
     pub peer_manager: NodePeerManager,
     pub keys_manager: Arc<LexeKeysManager>,
@@ -322,6 +323,7 @@ pub(crate) fn lexe_router(state: Arc<RouterState>) -> Router<()> {
     let substantive_routes = Router::new()
         .route("/lexe/create_invoice", post(lexe::create_invoice))
         .route("/lexe/nwc_request", post(lexe::nwc_request))
+        .route("/lexe/check_address", post(lexe::check_address))
         .layer(activity_layer(state.user_pk, state.runner_tx.clone()));
     let maintenance_routes = Router::new()
         .route("/lexe/status", get(lexe::status))

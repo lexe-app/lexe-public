@@ -832,6 +832,7 @@ impl UserNode {
             hba_offer_ids: hba_offer_ids.clone(),
             // --- Actors --- //
             backend_api,
+            esplora: esplora.clone(),
             channel_manager: channel_manager.clone(),
             peer_manager: peer_manager.clone(),
             keys_manager: keys_manager.clone(),

@@ -79,7 +79,8 @@ use crate::{
             GetNewPayments, GetNextUnusedAddressResponse,
             GetUpdatedPaymentMetadata, GetUpdatedPayments,
             HumanBitcoinAddressV1, LatestPaymentUpdateResponse,
-            ListChannelsResponse, NodeInfo, OpenChannelPreflightRequest,
+            ListChannelsResponse, NodeCheckAddressRequest,
+            NodeCheckAddressResponse, NodeInfo, OpenChannelPreflightRequest,
             OpenChannelPreflightResponse, OpenChannelRequest,
             OpenChannelResponse, PayInvoicePreflightRequest,
             PayInvoicePreflightResponse, PayInvoiceRequest, PayInvoiceResponse,
@@ -643,6 +644,20 @@ pub trait LexeNodeRunApi {
     /// Triggers an immediate resync of BDK and LDK. Optionally full sync the
     /// BDK wallet. Returns only once sync has either completed or timed out.
     async fn resync(&self, req: ResyncRequest) -> Result<Empty, NodeApiError>;
+
+    /// POST /lexe/check_address [`NodeCheckAddressRequest`]
+    ///                       -> [`NodeCheckAddressResponse`]
+    ///
+    /// Syncs one of the wallet's addresses, records any new receives to it,
+    /// and returns the ids of the receives since the request's
+    /// `synced_block_height` along with the chain tip height synced to. The
+    /// regular sync does not watch exclusive addresses, so this is how their
+    /// receives are recorded. Errors if the address is not the wallet's.
+    // Added in node-v0.10.9
+    async fn check_address(
+        &self,
+        req: NodeCheckAddressRequest,
+    ) -> Result<NodeCheckAddressResponse, NodeApiError>;
 
     /// POST /lexe/wait_bgp_quiescent [`Empty`] -> [`Empty`]
     ///

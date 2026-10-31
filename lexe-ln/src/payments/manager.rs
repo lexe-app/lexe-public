@@ -1482,7 +1482,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePaymentsPersister>
     ///
     /// This function should be called regularly.
     #[instrument(skip_all, name = "(check-onchain-recvs)")]
-    async fn check_onchain_recvs(
+    pub async fn check_onchain_recvs(
         &self,
         wallet: &OnchainWallet,
     ) -> anyhow::Result<()> {

@@ -6,16 +6,20 @@ use bytes::Bytes;
 use lexe_api::{
     error::NodeApiError,
     models::{
-        command::{CreateInvoiceRequest, CreateInvoiceResponse, ResyncRequest},
+        command::{
+            CreateInvoiceRequest, CreateInvoiceResponse,
+            NodeCheckAddressRequest, NodeCheckAddressResponse, ResyncRequest,
+        },
         nwc::nip47::{
             NwcError, NwcErrorCode, NwcRequestPayload, NwcResponsePayload,
         },
     },
     server::{LxBytes, LxJson, extract::LxQuery},
-    types::Empty,
+    types::{Empty, payments::PaymentId},
 };
 use lexe_common::{
     api::{models::Status, test_event::TestEventOp, user::UserPkStruct},
+    ln::hashes::Txid,
     time::TimestampMs,
 };
 use lexe_crypto::rng::SysRng;
@@ -47,6 +51,39 @@ pub(super) async fn resync(
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)
+}
+
+pub(super) async fn check_address(
+    State(state): State<Arc<RouterState>>,
+    LxJson(req): LxJson<NodeCheckAddressRequest>,
+) -> Result<LxJson<NodeCheckAddressResponse>, NodeApiError> {
+    let address = req
+        .address
+        .require_network(state.network.to_bitcoin())
+        .context("Address is for the wrong network")
+        .map_err(NodeApiError::command)?;
+
+    let (synced_block_height, txids) = state
+        .wallet
+        .check_address(&state.esplora, &address, req.synced_block_height)
+        .await
+        .context("Failed to sync address")
+        .map_err(NodeApiError::command)?;
+    state
+        .payments_manager
+        .check_onchain_recvs(&state.wallet)
+        .await
+        .context("Failed to check onchain recvs")
+        .map_err(NodeApiError::command)?;
+
+    let payment_ids = txids
+        .into_iter()
+        .map(|txid| PaymentId::OnchainRecv(Txid(txid)))
+        .collect();
+    Ok(LxJson(NodeCheckAddressResponse {
+        payment_ids,
+        synced_block_height,
+    }))
 }
 
 pub(super) async fn wait_bgp_quiescent(
