@@ -1,6 +1,6 @@
 [package]
 name = "lexe-logger"
-version = "0.1.27"
+version = "0.1.28"
 license = "MIT"
 description = "Lexe tracing primitives and logger configuration"
 documentation = "https://docs.rs/lexe-logger"
