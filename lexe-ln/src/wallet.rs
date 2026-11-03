@@ -95,13 +95,18 @@ use crate::{
 /// Sweeping legacy on-chain wallets to new BIP39-compatible wallets
 pub mod legacy_sweep;
 
-/// The number of confirmations required to consider a transaction finalized.
-/// This determines when we'll stop syncing an internal spk (script pubkey)
-/// because it has no more pending spends.
-const CONFS_TO_FINALIZE: u32 = 6;
-
-/// Number of parallel requests BDK is permitted to use.
-const BDK_CONCURRENCY: usize = 24;
+/// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
+#[derive(Clone)]
+pub struct OnchainWallet {
+    inner: Arc<std::sync::RwLock<Wallet>>,
+    fee_estimates: Arc<FeeEstimates>,
+    coin_selector: LexeCoinSelector,
+    scan_params: AddressScanParams,
+    /// NOTE: This is the full, *aggregated* changeset, not an intermediate
+    /// state diff, contrary to what the name of "[`ChangeSet`]" might suggest.
+    changeset: Arc<std::sync::Mutex<ChangeSet>>,
+    wallet_persister_tx: notify::Sender,
+}
 
 /// How many script pubkeys BDK derives and scans beyond those known to be used.
 #[derive(Copy, Clone)]
@@ -129,26 +134,6 @@ impl Default for AddressScanParams {
             lookahead: 1,
         }
     }
-}
-
-/// The [`ConfirmationPriority`] for new open_channel funding transactions.
-///
-/// See: [`OnchainWallet::create_and_sign_funding_tx`]
-///  and [`OnchainWallet::preflight_channel_funding_tx`].
-const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
-    ConfirmationPriority::Normal;
-
-/// A newtype wrapper around [`Wallet`]. Can be cloned and used directly.
-#[derive(Clone)]
-pub struct OnchainWallet {
-    inner: Arc<std::sync::RwLock<Wallet>>,
-    fee_estimates: Arc<FeeEstimates>,
-    coin_selector: LexeCoinSelector,
-    scan_params: AddressScanParams,
-    /// NOTE: This is the full, *aggregated* changeset, not an intermediate
-    /// state diff, contrary to what the name of "[`ChangeSet`]" might suggest.
-    changeset: Arc<std::sync::Mutex<ChangeSet>>,
-    wallet_persister_tx: notify::Sender,
 }
 
 /// Counts the total, confirmed, and unconfirmed UTXOs tracked by BDK.
@@ -184,72 +169,24 @@ pub struct SyncStats {
     pub evicted: u32,
 }
 
-/// Derives BIP84 wpkh output descriptors from a master xpriv.
-///
-/// Returns three descriptors (BIP389 multipath, external, internal) and the
-/// account-level xpub at `m/84'/{coin}'/0'`.
-///
-/// Where `coin` is 0 for mainnet, 1 for testnet/signet/regtest.
-pub fn derive_bip84_descriptors(
-    network: Network,
-    master_xprv: bitcoin::bip32::Xpriv,
-) -> OnchainDescriptors {
-    let coin_type = match network {
-        Network::Mainnet => 0,
-        Network::Testnet3
-        | Network::Testnet4
-        | Network::Regtest
-        | Network::Signet => 1,
-    };
-
-    // Master fingerprint for descriptor origin info
-    let master_xpub = Xpub::from_priv(&SECP256K1, &master_xprv);
-    let fingerprint = master_xpub.fingerprint();
-
-    // BIP84 account path: m/84h/{coin}h/0h
-    let account_path = [
-        ChildNumber::from_hardened_idx(84).expect("Checked in tests"),
-        ChildNumber::from_hardened_idx(coin_type).expect("Checked in tests"),
-        ChildNumber::from_hardened_idx(0).expect("Checked in tests"),
-    ];
-    let account_xprv = master_xprv
-        .derive_priv(&SECP256K1, &account_path)
-        .expect("derivation should succeed");
-    let account_xpub = Xpub::from_priv(&SECP256K1, &account_xprv);
-
-    // Build descriptor strings
-    let origin = format!("[{fingerprint}/84'/{coin_type}'/0']");
-
-    // BIP389 multipath: wpkh([fp/84'/coin'/0']xpub/<0;1>/*)
-    let multi_body = format!("wpkh({origin}{account_xpub}/<0;1>/*)");
-    let multi_checksum =
-        miniscript::descriptor::checksum::desc_checksum(&multi_body)
-            .expect("valid descriptor");
-    let multipath_descriptor = format!("{multi_body}#{multi_checksum}");
-
-    // External: wpkh([fp/84'/coin'/0']xpub/0/*)
-    let ext_body = format!("wpkh({origin}{account_xpub}/0/*)");
-    let ext_checksum =
-        miniscript::descriptor::checksum::desc_checksum(&ext_body)
-            .expect("valid descriptor");
-    let external_descriptor = format!("{ext_body}#{ext_checksum}");
-
-    // Internal: wpkh([fp/84'/coin'/0']xpub/1/*)
-    let int_body = format!("wpkh({origin}{account_xpub}/1/*)");
-    let int_checksum =
-        miniscript::descriptor::checksum::desc_checksum(&int_body)
-            .expect("valid descriptor");
-    let internal_descriptor = format!("{int_body}#{int_checksum}");
-
-    OnchainDescriptors {
-        multipath_descriptor,
-        external_descriptor,
-        internal_descriptor,
-        account_xpub,
-    }
-}
+// --- impl OnchainWallet --- //
 
 impl OnchainWallet {
+    /// Number of parallel requests BDK is permitted to use.
+    const BDK_CONCURRENCY: usize = 24;
+
+    /// The [`ConfirmationPriority`] for new open_channel funding transactions.
+    ///
+    /// See: [`OnchainWallet::create_and_sign_funding_tx`]
+    ///  and [`OnchainWallet::preflight_channel_funding_tx`].
+    const CHANNEL_FUNDING_CONF_PRIO: ConfirmationPriority =
+        ConfirmationPriority::Normal;
+
+    /// The number of confirmations required to consider a transaction
+    /// finalized. This determines when we'll stop syncing an internal spk
+    /// (script pubkey) because it has no more pending spends.
+    const CONFS_TO_FINALIZE: u32 = 6;
+
     /// Init a [`OnchainWallet`] from a master extended private key and
     /// [`ChangeSet`]. Wallet addresses are generated according to the
     /// [BIP 84] standard. See also [BIP 44].
@@ -449,6 +386,44 @@ impl OnchainWallet {
         self.wallet_persister_tx.send()
     }
 
+    /// Persist the current BDK wallet state if there are any outstanding
+    /// changes.
+    async fn persist<PS: LexePersister>(
+        &self,
+        persister: &PS,
+        filename: &'static str,
+    ) {
+        // Take any staged changes from the wallet and merge them
+        // into the combined changeset (i.e. our write-back cache),
+        // then serialize + encrypt these to a VFS file.
+        let file = {
+            let new_changes = match self.write().take_staged() {
+                Some(c) => c,
+                None => {
+                    debug!("Skipping persist: no new changes");
+                    return;
+                }
+            };
+
+            let mut locked_changeset = self.changeset.lock().unwrap();
+            locked_changeset.merge(new_changes);
+
+            let file_id = VfsFileId::new(SINGLETON_DIRECTORY, filename);
+            persister.encrypt_json(file_id, &*locked_changeset)
+        };
+
+        // Finish the current persist attempt before responding to
+        // any shutdown signal received in the meantime.
+        let persist_result = persister
+            .persist_file(file, Retries::IMPORTANT_PERSISTS)
+            .await;
+
+        match persist_result {
+            Ok(()) => debug!("Success: persisted wallet db"),
+            Err(e) => warn!("Wallet DB persist error: {e:#}"),
+        }
+    }
+
     /// Syncs the [`Wallet`] using a remote Esplora backend.
     #[instrument(skip_all, name = "(bdk-sync)")]
     pub async fn sync(
@@ -462,7 +437,7 @@ impl OnchainWallet {
         // Check for updates on everything we specified in the SyncRequest.
         let sync_result = esplora
             .client()
-            .sync(sync_request, BDK_CONCURRENCY)
+            .sync(sync_request, Self::BDK_CONCURRENCY)
             .await
             .context("`EsploraAsyncExt::sync` failed")?;
         sync_stats.with_sync_response(&sync_result);
@@ -582,7 +557,7 @@ impl OnchainWallet {
                         Some(height) => {
                             let confs =
                                 (chain_tip.height() + 1).saturating_sub(height);
-                            confs >= CONFS_TO_FINALIZE
+                            confs >= Self::CONFS_TO_FINALIZE
                         }
                         // unconfirmed => not finalized
                         None => false,
@@ -737,7 +712,7 @@ impl OnchainWallet {
             .full_scan::<KeychainKind, _>(
                 full_scan_request,
                 self.scan_params.full_scan_stop_gap,
-                BDK_CONCURRENCY,
+                Self::BDK_CONCURRENCY,
             )
             .await
             .context("EsploraAsyncExt::full_scan failed")?;
@@ -860,7 +835,7 @@ impl OnchainWallet {
     /// transactions, change outputs, etc.... It allows our [`sync`]
     /// implementation to avoid checking the address for updates after it
     /// has been finalized, i.e., outputs in and inputs out are both
-    /// balanced and all input spends have at least `CONFS_TO_FINALIZE`
+    /// balanced and all input spends have at least `Self::CONFS_TO_FINALIZE`
     /// confs.
     ///
     /// NOTE: an address is "used" from BDK's perspective if we've broadcasted a
@@ -1017,7 +992,7 @@ impl OnchainWallet {
         let mut locked_wallet = self.inner.write().unwrap();
 
         // Build
-        let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
+        let conf_prio = Self::CHANNEL_FUNDING_CONF_PRIO;
         let feerate = self.fee_estimates.conf_prio_to_feerate(conf_prio);
         let mut tx_builder = Self::default_tx_builder(
             &mut locked_wallet,
@@ -1028,7 +1003,7 @@ impl OnchainWallet {
             .add_recipient(fake_output_script, channel_value.into())
             // We're just estimating fees, use a fake drain script to prevent
             // creating and tracking new internal change outputs.
-            .drain_to(fake_drain_script());
+            .drain_to(helpers::fake_drain_script());
         let psbt = tx_builder
             // This possibly 'uses' a change address.
             .finish()
@@ -1055,7 +1030,7 @@ impl OnchainWallet {
         let mut locked_wallet = self.inner.write().unwrap();
 
         // Build
-        let conf_prio = CHANNEL_FUNDING_CONF_PRIO;
+        let conf_prio = Self::CHANNEL_FUNDING_CONF_PRIO;
         let feerate = self.fee_estimates.conf_prio_to_feerate(conf_prio);
         let mut tx_builder = Self::default_tx_builder(
             &mut locked_wallet,
@@ -1153,14 +1128,11 @@ impl OnchainWallet {
         let fee = Amount::try_from(fee).context("Bad sweep fee amount")?;
 
         // Sign the transaction
-        let sign_opts = bdk_wallet::SignOptions::default();
+        let sign_opts = SignOptions::default();
         let finalized = locked_wallet
             .sign(&mut psbt, sign_opts)
             .context("Failed to sign sweep tx")?;
-        anyhow::ensure!(
-            finalized,
-            "Sweep tx signing did not finalize all inputs"
-        );
+        ensure!(finalized, "Sweep tx signing did not finalize all inputs");
         let tx = psbt
             .extract_tx()
             .context("Failed to extract signed sweep tx")?;
@@ -1240,7 +1212,7 @@ impl OnchainWallet {
             .add_recipient(address.script_pubkey(), amount.into())
             // We're just estimating fees, use a fake drain script to prevent
             // creating and tracking new internal change outputs.
-            .drain_to(fake_drain_script());
+            .drain_to(helpers::fake_drain_script());
         let psbt = tx_builder
             .finish()
             .context("Failed to build onchain send tx")?;
@@ -1286,7 +1258,7 @@ impl OnchainWallet {
                 if !output.chain_position.is_confirmed() {
                     return None;
                 }
-                bdk_utxo_to_ldk_utxo(&output).transpose()
+                helpers::bdk_utxo_to_ldk_utxo(&output).transpose()
             })
             .collect::<anyhow::Result<Vec<_>>>()
             .map_err(|err| {
@@ -1315,13 +1287,13 @@ impl OnchainWallet {
         &self,
         mut psbt: bitcoin::Psbt,
     ) -> Result<bitcoin::Transaction, ()> {
-        let sign_options = bdk_wallet::SignOptions {
+        let sign_options = SignOptions {
             // While BDK populates both `witness_utxo` and `non_witness_utxo`
             // fields, LDK does not. As BDK by default doesn't trust the witness
             // UTXO to account for the Segwit bug, we must disable it here as
             // otherwise we fail to sign.
             trust_witness_utxo: true,
-            ..bdk_wallet::SignOptions::default()
+            ..SignOptions::default()
         };
 
         self.read()
@@ -1368,64 +1340,7 @@ impl wallet_utils::WalletSource for OnchainWallet {
     }
 }
 
-/// Convert a BDK UTXO into an LDK UTXO. Returns `None` for non-witness outputs.
-fn bdk_utxo_to_ldk_utxo(
-    output: &bdk_wallet::LocalOutput,
-) -> anyhow::Result<Option<wallet_utils::Utxo>> {
-    let spk = &output.txout.script_pubkey;
-    match spk.witness_version() {
-        Some(version @ bitcoin::WitnessVersion::V0) => {
-            // See: bitcoin::Script::p2wpkh_script_code
-            let witness_bytes = &spk.as_bytes()[2..];
-            let witness_program =
-                bitcoin::WitnessProgram::new(version, witness_bytes)?;
-            let wpkh = bitcoin::WPubkeyHash::from_slice(
-                witness_program.program().as_bytes(),
-            )?;
-            let utxo = wallet_utils::Utxo::new_v0_p2wpkh(
-                output.outpoint,
-                output.txout.value,
-                &wpkh,
-            );
-            Ok(Some(utxo))
-        }
-        Some(version @ bitcoin::WitnessVersion::V1) => {
-            // See: bitcoin::Script::p2wpkh_script_code
-            let witness_bytes = &spk.as_bytes()[2..];
-            let witness_program =
-                bitcoin::WitnessProgram::new(version, witness_bytes)?;
-
-            // Should be XOnlyPublicKey
-            let _ = bitcoin::XOnlyPublicKey::from_slice(
-                witness_program.program().as_bytes(),
-            )?;
-
-            // See: ldk-node/src/wallet/mod.rs
-            let utxo = wallet_utils::Utxo {
-                outpoint: output.outpoint,
-                output: bitcoin::TxOut {
-                    value: output.txout.value,
-                    script_pubkey: bitcoin::ScriptBuf::new_witness_program(
-                        &witness_program,
-                    ),
-                },
-                #[rustfmt::skip]
-                #[allow(clippy::identity_op)] // Improve readability
-                satisfaction_weight:
-                    1 /* empty script_sig */ * bitcoin::blockdata::weight::WITNESS_SCALE_FACTOR as u64
-                    + 1 /* witness items */
-                    + 1 /* schnorr sig len */ + 64, /* schnorr sig */
-                sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
-            };
-            Ok(Some(utxo))
-        }
-        // Unrecognized witness version
-        Some(_version) => Ok(None),
-        // Skip non-P2WPKH outputs. Our on-chain wallet doesn't
-        // currently have Taproot or legacy keychains.
-        None => Ok(None),
-    }
-}
+// --- Wallet persister task --- //
 
 /// Spawns a task that (re-)persists the total wallet [`ChangeSet`] whenever
 /// it receives a notification (via the `wallet_persister_rx` channel).
@@ -1442,11 +1357,9 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
             tokio::select! {
                 biased;
                 () = wallet_persister_rx.recv() => {
-                    do_wallet_persist(
-                        &persister,
-                        &wallet,
-                        WALLET_CHANGESET_V2_FILENAME,
-                    ).await;
+                    wallet
+                        .persist(&persister, WALLET_CHANGESET_V2_FILENAME)
+                        .await;
                 }
                 () = shutdown.recv() => break,
             }
@@ -1455,42 +1368,125 @@ pub fn spawn_wallet_persister_task<PS: LexePersister>(
     })
 }
 
-/// Persist the current BDK wallet state if there are any outstanding changes.
-async fn do_wallet_persist<PS: LexePersister>(
-    persister: &PS,
-    wallet: &OnchainWallet,
-    filename: &'static str,
-) {
-    // Take any staged changes from the wallet and merge them
-    // into the combined changeset (i.e. our write-back cache),
-    // then serialize + encrypt these to a VFS file.
-    let file = {
-        let new_changes = match wallet.write().take_staged() {
-            Some(c) => c,
-            None => {
-                debug!("Skipping persist: no new changes");
-                return;
-            }
-        };
+// --- Descriptor derivation --- //
 
-        let mut locked_changeset = wallet.changeset.lock().unwrap();
-        locked_changeset.merge(new_changes);
-
-        let file_id = VfsFileId::new(SINGLETON_DIRECTORY, filename);
-        persister.encrypt_json(file_id, &*locked_changeset)
+/// Derives BIP84 wpkh output descriptors from a master xpriv.
+///
+/// Returns three descriptors (BIP389 multipath, external, internal) and the
+/// account-level xpub at `m/84'/{coin}'/0'`.
+///
+/// Where `coin` is 0 for mainnet, 1 for testnet/signet/regtest.
+pub fn derive_bip84_descriptors(
+    network: Network,
+    master_xprv: bitcoin::bip32::Xpriv,
+) -> OnchainDescriptors {
+    let coin_type = match network {
+        Network::Mainnet => 0,
+        Network::Testnet3
+        | Network::Testnet4
+        | Network::Regtest
+        | Network::Signet => 1,
     };
 
-    // Finish the current persist attempt before responding to
-    // any shutdown signal received in the meantime.
-    let persist_result = persister
-        .persist_file(file, Retries::IMPORTANT_PERSISTS)
-        .await;
+    // Master fingerprint for descriptor origin info
+    let master_xpub = Xpub::from_priv(&SECP256K1, &master_xprv);
+    let fingerprint = master_xpub.fingerprint();
 
-    match persist_result {
-        Ok(()) => debug!("Success: persisted wallet db"),
-        Err(e) => warn!("Wallet DB persist error: {e:#}"),
+    // BIP84 account path: m/84h/{coin}h/0h
+    let account_path = [
+        ChildNumber::from_hardened_idx(84).expect("Checked in tests"),
+        ChildNumber::from_hardened_idx(coin_type).expect("Checked in tests"),
+        ChildNumber::from_hardened_idx(0).expect("Checked in tests"),
+    ];
+    let account_xprv = master_xprv
+        .derive_priv(&SECP256K1, &account_path)
+        .expect("derivation should succeed");
+    let account_xpub = Xpub::from_priv(&SECP256K1, &account_xprv);
+
+    // Build descriptor strings
+    let origin = format!("[{fingerprint}/84'/{coin_type}'/0']");
+
+    // BIP389 multipath: wpkh([fp/84'/coin'/0']xpub/<0;1>/*)
+    let multi_body = format!("wpkh({origin}{account_xpub}/<0;1>/*)");
+    let multi_checksum =
+        miniscript::descriptor::checksum::desc_checksum(&multi_body)
+            .expect("valid descriptor");
+    let multipath_descriptor = format!("{multi_body}#{multi_checksum}");
+
+    // External: wpkh([fp/84'/coin'/0']xpub/0/*)
+    let ext_body = format!("wpkh({origin}{account_xpub}/0/*)");
+    let ext_checksum =
+        miniscript::descriptor::checksum::desc_checksum(&ext_body)
+            .expect("valid descriptor");
+    let external_descriptor = format!("{ext_body}#{ext_checksum}");
+
+    // Internal: wpkh([fp/84'/coin'/0']xpub/1/*)
+    let int_body = format!("wpkh({origin}{account_xpub}/1/*)");
+    let int_checksum =
+        miniscript::descriptor::checksum::desc_checksum(&int_body)
+            .expect("valid descriptor");
+    let internal_descriptor = format!("{int_body}#{int_checksum}");
+
+    OnchainDescriptors {
+        multipath_descriptor,
+        external_descriptor,
+        internal_descriptor,
+        account_xpub,
     }
 }
+
+// --- impl SyncStats --- //
+
+impl SyncStats {
+    fn with_sync_response(&mut self, resp: &SyncResponse) {
+        self.with_tx_update(&resp.tx_update);
+    }
+
+    fn with_full_scan_response(
+        &mut self,
+        resp: &FullScanResponse<KeychainKind>,
+    ) {
+        self.with_tx_update(&resp.tx_update);
+    }
+
+    fn with_tx_update<A>(&mut self, tx: &TxUpdate<A>) {
+        self.txs += tx.txs.len() as u32;
+        self.txouts += tx.txouts.len() as u32;
+        self.anchors += tx.anchors.len() as u32;
+        self.seen += tx.seen_ats.len() as u32;
+        self.evicted += tx.evicted_ats.len() as u32;
+    }
+
+    pub(crate) fn log_sync_complete(&self, is_legacy: bool, elapsed_ms: u128) {
+        let kind = if is_legacy { "Legacy " } else { "" };
+        let num_ext = self.total_external;
+        let sync_ext = self.syncing_external;
+        let num_int = self.total_internal;
+        let sync_int = self.syncing_internal;
+        let txs = self.txs;
+        let txouts = self.txouts;
+        let anchors = self.anchors;
+        let seen = self.seen;
+        let evicted = self.evicted;
+        if self.is_full_sync {
+            info!(
+                "{kind}BDK full sync complete <{elapsed_ms}ms> | \
+                 {num_int} int, {num_ext} ext | \
+                 resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
+                 seen={seen}, evicted={evicted}",
+            );
+        } else {
+            info!(
+                "{kind}BDK sync complete <{elapsed_ms}ms> | \
+                 req: {sync_int}/{num_int} int, {sync_ext}/{num_ext} ext | \
+                 resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
+                 seen={seen}, evicted={evicted}",
+            );
+        }
+    }
+}
+
+// --- LexeCoinSelector --- //
 
 /// A [`CoinSelectionAlgorithm`] impl which spends the oldest UTXOs first,
 /// i.e. it prioritizes confirmed UTXOds over unconfirmed UTXOs.
@@ -1565,6 +1561,8 @@ impl CoinSelectionAlgorithm for LexeCoinSelector {
     }
 }
 
+// --- BdkWalletExt --- //
+
 /// An extension trait on the (locked) BDK `Wallet`.
 trait BdkWalletExt {
     /// Returns `true` if we have at least one revealed but unused spk in the
@@ -1617,63 +1615,76 @@ impl BdkWalletExt for Wallet {
     }
 }
 
-// --- impl SyncStats --- //
+mod helpers {
+    use super::*;
 
-impl SyncStats {
-    fn with_sync_response(&mut self, resp: &SyncResponse) {
-        self.with_tx_update(&resp.tx_update);
-    }
+    /// Convert a BDK UTXO into an LDK UTXO. Returns `None` for non-witness
+    /// outputs.
+    pub fn bdk_utxo_to_ldk_utxo(
+        output: &bdk_wallet::LocalOutput,
+    ) -> anyhow::Result<Option<wallet_utils::Utxo>> {
+        let spk = &output.txout.script_pubkey;
+        match spk.witness_version() {
+            Some(version @ bitcoin::WitnessVersion::V0) => {
+                // See: bitcoin::Script::p2wpkh_script_code
+                let witness_bytes = &spk.as_bytes()[2..];
+                let witness_program =
+                    bitcoin::WitnessProgram::new(version, witness_bytes)?;
+                let wpkh = bitcoin::WPubkeyHash::from_slice(
+                    witness_program.program().as_bytes(),
+                )?;
+                let utxo = wallet_utils::Utxo::new_v0_p2wpkh(
+                    output.outpoint,
+                    output.txout.value,
+                    &wpkh,
+                );
+                Ok(Some(utxo))
+            }
+            Some(version @ bitcoin::WitnessVersion::V1) => {
+                // See: bitcoin::Script::p2wpkh_script_code
+                let witness_bytes = &spk.as_bytes()[2..];
+                let witness_program =
+                    bitcoin::WitnessProgram::new(version, witness_bytes)?;
 
-    fn with_full_scan_response(
-        &mut self,
-        resp: &FullScanResponse<KeychainKind>,
-    ) {
-        self.with_tx_update(&resp.tx_update);
-    }
+                // Should be XOnlyPublicKey
+                let _ = bitcoin::XOnlyPublicKey::from_slice(
+                    witness_program.program().as_bytes(),
+                )?;
 
-    fn with_tx_update<A>(&mut self, tx: &TxUpdate<A>) {
-        self.txs += tx.txs.len() as u32;
-        self.txouts += tx.txouts.len() as u32;
-        self.anchors += tx.anchors.len() as u32;
-        self.seen += tx.seen_ats.len() as u32;
-        self.evicted += tx.evicted_ats.len() as u32;
-    }
-
-    pub(crate) fn log_sync_complete(&self, is_legacy: bool, elapsed_ms: u128) {
-        let kind = if is_legacy { "Legacy " } else { "" };
-        let num_ext = self.total_external;
-        let sync_ext = self.syncing_external;
-        let num_int = self.total_internal;
-        let sync_int = self.syncing_internal;
-        let txs = self.txs;
-        let txouts = self.txouts;
-        let anchors = self.anchors;
-        let seen = self.seen;
-        let evicted = self.evicted;
-        if self.is_full_sync {
-            info!(
-                "{kind}BDK full sync complete <{elapsed_ms}ms> | \
-                 {num_int} int, {num_ext} ext | \
-                 resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
-                 seen={seen}, evicted={evicted}",
-            );
-        } else {
-            info!(
-                "{kind}BDK sync complete <{elapsed_ms}ms> | \
-                 req: {sync_int}/{num_int} int, {sync_ext}/{num_ext} ext | \
-                 resp: txs={txs}, txouts={txouts}, anchors={anchors}, \
-                 seen={seen}, evicted={evicted}",
-            );
+                // See: ldk-node/src/wallet/mod.rs
+                let utxo = wallet_utils::Utxo {
+                    outpoint: output.outpoint,
+                    output: bitcoin::TxOut {
+                        value: output.txout.value,
+                        script_pubkey: bitcoin::ScriptBuf::new_witness_program(
+                            &witness_program,
+                        ),
+                    },
+                    #[rustfmt::skip]
+                    #[allow(clippy::identity_op)] // Improve readability
+                    satisfaction_weight:
+                        1 /* empty script_sig */ * bitcoin::blockdata::weight::WITNESS_SCALE_FACTOR as u64
+                        + 1 /* witness items */
+                        + 1 /* schnorr sig len */ + 64, /* schnorr sig */
+                    sequence: bitcoin::Sequence::ENABLE_RBF_NO_LOCKTIME,
+                };
+                Ok(Some(utxo))
+            }
+            // Unrecognized witness version
+            Some(_version) => Ok(None),
+            // Skip non-P2WPKH outputs. Our on-chain wallet doesn't
+            // currently have Taproot or legacy keychains.
+            None => Ok(None),
         }
     }
-}
 
-/// Use this fake TXO drain script to prevent the BDK wallet from modifying its
-/// internal state when building fake txs, like the ones used to estimate fees
-/// during preflight.
-fn fake_drain_script() -> bitcoin::ScriptBuf {
-    let wpkh = bitcoin::WPubkeyHash::from_byte_array([0xaa; 20]);
-    bitcoin::ScriptBuf::new_p2wpkh(&wpkh)
+    /// Use this fake TXO drain script to prevent the BDK wallet from modifying
+    /// its internal state when building fake txs, like the ones used to
+    /// estimate fees during preflight.
+    pub fn fake_drain_script() -> bitcoin::ScriptBuf {
+        let wpkh = bitcoin::WPubkeyHash::from_byte_array([0xaa; 20]);
+        bitcoin::ScriptBuf::new_p2wpkh(&wpkh)
+    }
 }
 
 #[cfg(test)]
@@ -2107,7 +2118,10 @@ mod test {
         ) -> (Transaction, AddressInfo, bitcoin::ScriptBuf) {
             let (tx, address_info, spks) =
                 self.fund_unconfirmed(keychain, amount);
-            self.confirm_txids(CONFS_TO_FINALIZE, &[tx.compute_txid()]);
+            self.confirm_txids(
+                OnchainWallet::CONFS_TO_FINALIZE,
+                &[tx.compute_txid()],
+            );
             (tx, address_info, spks)
         }
 
@@ -2174,6 +2188,14 @@ mod test {
             input: Vec::new(),
             output: Vec::new(),
         }
+    }
+
+    /// A third-party regtest address.
+    fn address3p() -> bitcoin::Address<bitcoin::address::NetworkUnchecked> {
+        bitcoin::Address::from_str(
+            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
+        )
+        .unwrap()
     }
 
     trait BlockHashExt {
@@ -2331,12 +2353,12 @@ mod test {
         let spk = address.script_pubkey();
         assert_eq!(
             spk.len(),
-            fake_drain_script().len(),
+            helpers::fake_drain_script().len(),
             "Drain script ({spk:?}) has unexpected length"
         );
         assert_eq!(
             spk.minimal_non_dust(),
-            fake_drain_script().minimal_non_dust(),
+            helpers::fake_drain_script().minimal_non_dust(),
             "Drain script ({spk:?}) has unexpected dust threshold"
         );
     }
@@ -2432,10 +2454,7 @@ mod test {
         h.assert_spend_ok(18_000);
 
         // 5. but we should prefer the confirmed tx
-        let address = bitcoin::Address::from_str(
-            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
-        )
-        .unwrap();
+        let address = address3p();
         let req = PayOnchainRequest {
             client_payment_id: ClientPaymentId([42; 32]),
             address,
@@ -2517,10 +2536,7 @@ mod test {
 
         // Spend 1,000 sats to an external address (unconfirmed)
         // -> Balance: ~4,375 sats (w/ unconfirmed)
-        let address = bitcoin::Address::from_str(
-            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
-        )
-        .unwrap();
+        let address = address3p();
         let oswm = h.spend_unconfirmed(address, sat!(1_000));
         let txidi1_1 = oswm.payment.txid.0;
         // Change output spk
@@ -2576,10 +2592,7 @@ mod test {
         h.assert_sync(map! { spki0 => set! { txidi0_1 } });
 
         // Spend the 1,000 sats to some third party address (unconfirmed).
-        let address3p = bitcoin::Address::from_str(
-            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
-        )
-        .unwrap();
+        let address3p = address3p();
         let oswm = h.spend_unconfirmed(address3p.clone(), sat!(775));
 
         trace!("=== unconfirmed spend ===");
@@ -2764,11 +2777,7 @@ mod test {
     fn test_sweep_tx() {
         let mut h = Harness::new(2869818889840);
 
-        let address3p = bitcoin::Address::from_str(
-            "bcrt1qxvnuxcz5j64y7sgkcdyxag8c9y4uxagj2u02fk",
-        )
-        .unwrap()
-        .assume_checked();
+        let address3p = address3p().assume_checked();
         let prio = ConfirmationPriority::Background;
 
         // sweep should fail with no funds

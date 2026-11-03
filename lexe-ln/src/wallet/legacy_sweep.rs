@@ -125,12 +125,9 @@ async fn do_legacy_sweep<
     }
 
     // Persist the legacy wallet changeset
-    super::do_wallet_persist(
-        &ctx.persister,
-        &legacy_wallet,
-        WALLET_CHANGESET_LEGACY_FILENAME,
-    )
-    .await;
+    legacy_wallet
+        .persist(&ctx.persister, WALLET_CHANGESET_LEGACY_FILENAME)
+        .await;
 }
 
 /// Attempts to sync and then sweep the legacy wallet.
