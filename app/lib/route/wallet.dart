@@ -788,6 +788,7 @@ class WalletPageState extends State<WalletPage> {
         builder: (context) => DebugPage(
           config: this.widget.config,
           app: this.widget.app,
+          appData: this.widget.appData,
           settings: this.widget.settings,
           gdriveAuth: this.widget.gdriveAuth,
         ),

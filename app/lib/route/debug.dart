@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/debug.dart' as debug;
 import 'package:app_rs_dart/ffi/secret_store.dart' show SecretStore;
 import 'package:app_rs_dart/ffi/types.dart' show Config;
 import 'package:flutter/material.dart';
+import 'package:lexeapp/app_data.dart' show LxAppData;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
@@ -29,12 +30,14 @@ class DebugPage extends StatefulWidget {
     super.key,
     required this.config,
     required this.app,
+    required this.appData,
     required this.settings,
     required this.gdriveAuth,
   });
 
   final Config config;
   final AppHandle app;
+  final LxAppData appData;
   final LxSettings settings;
   final GDriveAuth gdriveAuth;
 
@@ -64,6 +67,11 @@ class _DebugPageState extends State<DebugPage> {
   void doResetSettingsDb() {
     info("Resetting SettingsDb");
     this.widget.settings.reset();
+  }
+
+  void doResetAppDataDb() {
+    info("Resetting AppDataDb");
+    this.widget.appData.reset();
   }
 
   Future<void> copyRootSeed() async {
@@ -163,6 +171,17 @@ class _DebugPageState extends State<DebugPage> {
               ),
             ),
             onTap: this.doResetSettingsDb,
+          ),
+
+          // Reset AppDataDb
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text("Reset app data"),
+            subtitle: const Text(
+              "Resets all app data to its default values.",
+              style: TextStyle(color: LxColors.fgTertiary),
+            ),
+            onTap: this.doResetAppDataDb,
           ),
 
           // Delete PaymentDb
