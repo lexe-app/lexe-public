@@ -1,0 +1,4 @@
+- More reliable Lightning payments: routing now uses Lexe's live channel liquidity, so larger and multi-part payments succeed more often
+- Comments included in payment links are now saved with the payment
+- Fixed an error when paying LNURL recipients that don't accept comments
+- Lexe's fee is still 0.5% but with a 100 msat minimum per payment
