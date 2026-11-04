@@ -352,9 +352,18 @@ impl NodePkProof {
             .map_err(|_| InvalidNodePkProofSignature)
     }
 
-    /// Dump this `NodePkProof` to a hex-encoded string. Please don't use this.
+    /// The hex-encoded BCS form which the app shows for account deletion
+    /// requests, and which [`FromStr`] parses. Not for anything else.
     pub fn to_hex_string(&self) -> String {
         hex::encode(&bcs::to_bytes(self).expect("Failed to serialize"))
+    }
+}
+
+impl FromStr for NodePkProof {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = hex::decode(s).context("Invalid hex")?;
+        bcs::from_bytes(&bytes).context("Invalid NodePkProof")
     }
 }
 
@@ -438,7 +447,7 @@ impl From<Scid> for i64 {
 
 #[cfg(test)]
 mod test {
-    use proptest::{prop_assume, proptest};
+    use proptest::{prop_assert_eq, prop_assume, proptest};
 
     use super::*;
     use crate::test_utils::roundtrip;
@@ -500,6 +509,14 @@ mod test {
     #[test]
     fn node_pk_proof_bcs() {
         roundtrip::bcs_roundtrip_proptest::<NodePkProof>();
+    }
+
+    #[test]
+    fn node_pk_proof_hex_roundtrip() {
+        proptest!(|(proof: NodePkProof)| {
+            let parsed = NodePkProof::from_str(&proof.to_hex_string()).unwrap();
+            prop_assert_eq!(parsed, proof);
+        });
     }
 
     #[test]
