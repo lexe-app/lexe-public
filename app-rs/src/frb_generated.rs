@@ -3435,6 +3435,9 @@ impl SseDecode for crate::ffi::types::PaymentKind {
                 return crate::ffi::types::PaymentKind::HumanBitcoinAddress;
             }
             9 => {
+                return crate::ffi::types::PaymentKind::PartnerFeePayout;
+            }
+            10 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
                 return crate::ffi::types::PaymentKind::Unknown(var_field0);
             }
@@ -5631,8 +5634,11 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::PaymentKind {
                 [7.into_dart()].into_dart(),
             crate::ffi::types::PaymentKind::HumanBitcoinAddress =>
                 [8.into_dart()].into_dart(),
+            crate::ffi::types::PaymentKind::PartnerFeePayout =>
+                [9.into_dart()].into_dart(),
             crate::ffi::types::PaymentKind::Unknown(field0) =>
-                [9.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+                [10.into_dart(), field0.into_into_dart().into_dart()]
+                    .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -7816,8 +7822,11 @@ impl SseEncode for crate::ffi::types::PaymentKind {
             crate::ffi::types::PaymentKind::HumanBitcoinAddress => {
                 <i32>::sse_encode(8, serializer);
             }
-            crate::ffi::types::PaymentKind::Unknown(field0) => {
+            crate::ffi::types::PaymentKind::PartnerFeePayout => {
                 <i32>::sse_encode(9, serializer);
+            }
+            crate::ffi::types::PaymentKind::Unknown(field0) => {
+                <i32>::sse_encode(10, serializer);
                 <String>::sse_encode(field0, serializer);
             }
             _ => {

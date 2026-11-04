@@ -564,6 +564,9 @@ pub enum PaymentKind {
     /// A payment to or from a BIP353 Human Bitcoin Address.
     HumanBitcoinAddress, // rail: Offer
 
+    /// Revenue share paid out to a partner for the partner fees they charged.
+    PartnerFeePayout, // rail: Invoice
+
     // /// A routing fee that would have been paid but was waived.
     // WaivedRoutingFee, // rail: WaivedFee
 
@@ -582,11 +585,8 @@ pub enum PaymentKind {
     // /// - We want to decrease our inbound liquidity (LSP splices out)
     // LiquidityAdjustmentPayment, // rail: Spontaneous
 
-    // /// Revshare earnings from a partner fee we levied.
-    // PartnerFeeRevenue, // rail: Spontaneous
-
     // /// Referral fees earned from users we referred.
-    // ReferralFeeRevenue, // rail: Spontaneous
+    // ReferralFeePayout, // rail: Spontaneous
 
     // --- Fallback --- //
 
@@ -1457,6 +1457,7 @@ impl PaymentKind {
             | Self::BuyCashApp
             | Self::LightningAddress
             | Self::HumanBitcoinAddress
+            | Self::PartnerFeePayout
             | Self::Unknown(_) => (),
         }
 
@@ -1470,6 +1471,7 @@ impl PaymentKind {
             Self::BuyCashApp,
             Self::LightningAddress,
             Self::HumanBitcoinAddress,
+            Self::PartnerFeePayout,
         ]
     };
 
@@ -1484,6 +1486,7 @@ impl PaymentKind {
             Self::BuyCashApp => Cow::Borrowed("buy_cash_app"),
             Self::LightningAddress => Cow::Borrowed("lightning_address"),
             Self::HumanBitcoinAddress => Cow::Borrowed("human_bitcoin_address"),
+            Self::PartnerFeePayout => Cow::Borrowed("partner_fee_payout"),
             Self::Unknown(s) => Cow::Owned(s.to_string()),
         }
     }
@@ -1499,6 +1502,7 @@ impl PaymentKind {
             Self::BuyCashApp => PaymentRail::Invoice,
             Self::LightningAddress => PaymentRail::Invoice,
             Self::HumanBitcoinAddress => PaymentRail::Offer,
+            Self::PartnerFeePayout => PaymentRail::Invoice,
             Self::Unknown(s) => PaymentRail::Unknown(Box::from(format!(
                 "(Unknown: parent of '{s}')"
             ))),
@@ -1543,6 +1547,7 @@ impl FromStr for PaymentKind {
             "buy_cash_app" => Self::BuyCashApp,
             "lightning_address" => Self::LightningAddress,
             "human_bitcoin_address" => Self::HumanBitcoinAddress,
+            "partner_fee_payout" => Self::PartnerFeePayout,
             unknown => {
                 let len = unknown.len();
                 let max = Self::MAX_UNKNOWN_LEN;
@@ -1867,7 +1872,7 @@ mod test {
             PaymentRail::KNOWN_VARIANTS,
             expected_ser,
         );
-        let expected_ser = r#"["onchain","invoice","offer","spontaneous","waived_channel_fee","waived_liquidity_fee","buy_cash_app","lightning_address","human_bitcoin_address"]"#;
+        let expected_ser = r#"["onchain","invoice","offer","spontaneous","waived_channel_fee","waived_liquidity_fee","buy_cash_app","lightning_address","human_bitcoin_address","partner_fee_payout"]"#;
         roundtrip::json_unit_enum_backwards_compat_with_unknown(
             PaymentKind::KNOWN_VARIANTS,
             expected_ser,

@@ -2674,6 +2674,8 @@ Application-level kind for a payment.
 - **LIGHTNING_ADDRESS** -- A payment to or from a Lightning Address.
 - **HUMAN_BITCOIN_ADDRESS** -- A payment to or from a BIP353 Human Bitcoin
   Address.
+- **PARTNER_FEE_PAYOUT** -- Revenue share paid out to a partner for the
+  partner fees they charged.
 - **UNKNOWN** -- Unknown kind from a newer node version.
 """
 

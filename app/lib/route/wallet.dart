@@ -23,6 +23,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_LightningAddress,
         PaymentKind_Offer,
         PaymentKind_Onchain,
+        PaymentKind_PartnerFeePayout,
         PaymentKind_Spontaneous,
         PaymentKind_Unknown,
         PaymentKind_WaivedChannelFee,
@@ -2552,6 +2553,7 @@ class PaymentsListEntry extends StatelessWidget {
         PaymentKind_BuyCashApp() ||
         PaymentKind_LightningAddress() ||
         PaymentKind_HumanBitcoinAddress() ||
+        PaymentKind_PartnerFeePayout() ||
         PaymentKind_Unknown() => "(invalid)",
       },
     };

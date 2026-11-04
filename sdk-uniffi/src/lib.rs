@@ -3285,6 +3285,8 @@ pub enum PaymentKind {
     LightningAddress,
     /// A payment to or from a BIP353 Human Bitcoin Address.
     HumanBitcoinAddress,
+    /// Revenue share paid out to a partner for the partner fees they charged.
+    PartnerFeePayout,
     /// Unknown kind from a newer version of node.
     Unknown { inner: String },
 }
@@ -3301,6 +3303,7 @@ impl From<SdkPaymentKind> for PaymentKind {
             SdkPaymentKind::BuyCashApp => Self::BuyCashApp,
             SdkPaymentKind::LightningAddress => Self::LightningAddress,
             SdkPaymentKind::HumanBitcoinAddress => Self::HumanBitcoinAddress,
+            SdkPaymentKind::PartnerFeePayout => Self::PartnerFeePayout,
             SdkPaymentKind::Unknown(s) => Self::Unknown {
                 inner: String::from(s),
             },

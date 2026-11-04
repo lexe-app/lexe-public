@@ -16,6 +16,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         PaymentKind_LightningAddress,
         PaymentKind_Offer,
         PaymentKind_Onchain,
+        PaymentKind_PartnerFeePayout,
         PaymentKind_Spontaneous,
         PaymentKind_Unknown,
         PaymentKind_WaivedChannelFee,
@@ -729,6 +730,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       PaymentKind_WaivedChannelFee() ||
       PaymentKind_WaivedLiquidityFee() ||
       PaymentKind_BuyCashApp() ||
+      PaymentKind_PartnerFeePayout() ||
       PaymentKind_Unknown() => "(invalid)",
     };
 
