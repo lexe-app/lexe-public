@@ -491,13 +491,13 @@ impl NodeBackendApi for NodeBackendClient {
 
     async fn get_payments_by_ids(
         &self,
-        req: VecPaymentId,
+        req: &VecPaymentId,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/node/v1/payments/ids"), &req)
+            .post(format!("{backend}/node/v1/payments/ids"), req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

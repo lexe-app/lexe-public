@@ -592,6 +592,10 @@ impl NodePersister {
                     maybe_metadata,
                 )
                 .context("Could not decrypt payment")?;
+                ensure!(
+                    pwm.payment.id() == id,
+                    "ID of returned payment doesn't match requested ID",
+                );
                 let basic_payment =
                     pwm.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
@@ -607,12 +611,16 @@ impl NodePersister {
     ) -> anyhow::Result<Vec<BasicPaymentV2>> {
         let token = self.get_token().await?;
 
-        let payments = self
+        let mut req = VecPaymentId { ids };
+        let db_payments = self
             .backend_api
-            .get_payments_by_ids(VecPaymentId { ids }, token)
+            .get_payments_by_ids(&req, token)
             .await
             .context("Could not fetch payments")?
-            .payments
+            .payments;
+        req.ids.sort_unstable();
+
+        let payments = db_payments
             .into_iter()
             .map(|payment| {
                 let created_at = TimestampMs::try_from(payment.created_at)
@@ -625,6 +633,10 @@ impl NodePersister {
                     None,
                 )
                 .context("Could not decrypt payment")?;
+                ensure!(
+                    req.ids.binary_search(&pwm.payment.id()).is_ok(),
+                    "ID of returned payment wasn't requested",
+                );
                 let basic_payment =
                     pwm.into_basic_payment(created_at, updated_at);
                 Ok::<_, anyhow::Error>(basic_payment)
@@ -1032,12 +1044,21 @@ impl PaymentsPersisterMethods for NodePersister {
 
         let token = &self.get_token().await?;
         persister::fetch_by_ids_chunked(ids, move |ids| async move {
-            let req = VecPaymentId { ids };
+            let mut req = VecPaymentId { ids };
             let resp = self
                 .backend_api
-                .get_payments_by_ids(req, token.clone())
+                .get_payments_by_ids(&req, token.clone())
                 .await
                 .context("Could not fetch payments by IDs")?;
+            req.ids.sort_unstable();
+            for payment in &resp.payments {
+                let id = PaymentId::from_str(&payment.id)
+                    .context("Invalid payment id")?;
+                ensure!(
+                    req.ids.binary_search(&id).is_ok(),
+                    "ID of returned payment wasn't requested",
+                );
+            }
             Ok(resp.payments)
         })
         .await

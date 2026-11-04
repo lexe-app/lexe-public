@@ -869,7 +869,7 @@ pub trait NodeBackendApi {
     // which might be too large to fit inside query params.
     async fn get_payments_by_ids(
         &self,
-        req: VecPaymentId,
+        req: &VecPaymentId,
         auth: BearerAuthToken,
     ) -> Result<VecDbPaymentV2, BackendApiError>;
 
