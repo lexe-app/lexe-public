@@ -1882,7 +1882,7 @@ impl LexeWallet {
             WalletStore::Cache(cache) => cache
                 .write()
                 .await
-                .get_with_fallback(req.id, &self.node_client)
+                .get_or_fetch(req.id, &self.node_client)
                 .await?
                 .cloned(),
         };
@@ -2248,9 +2248,9 @@ mod payment_cache {
             }
         }
 
-        /// Update the cache if stale, and then get the payment with node
-        /// fallback and cache insertion if needed.
-        pub async fn get_with_fallback(
+        /// Get the payment, fetching it from the node if not cached. Clears
+        /// the cache first if the node has newer updates.
+        pub async fn get_or_fetch(
             &mut self,
             payment_id: PaymentId,
             node_client: &NodeClient,
