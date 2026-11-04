@@ -69,24 +69,122 @@ pub enum ParseError {
     BadCharacter,
 }
 
+/// Defines supported fiat currencies.
+///
+/// ```ignore
+/// supported_fiat_currencies! {
+///     pub const SUPPORTED_FIAT_CURRENCIES: &[(IsoCurrencyCode, &str)] = &[
+///         (IsoCurrencyCode::EUR, "Euro"),
+///         (IsoCurrencyCode::USD, "US Dollar"),
+///     ];
+/// }
+/// ```
+///
+/// emits the const as written, plus
+///
+/// ```ignore
+/// impl IsoCurrencyCode {
+///     pub const EUR: Self = /* "EUR" */;
+///     pub const USD: Self = /* "USD" */;
+/// }
+/// ```
+macro_rules! supported_fiat_currencies {
+    (
+        $(#[$meta:meta])*
+        $vis:vis const $name:ident: &[(IsoCurrencyCode, &str)] = &[
+            $((IsoCurrencyCode::$code:ident, $cname:literal)),* $(,)?
+        ];
+    ) => {
+        impl IsoCurrencyCode {
+            $(pub const $code: Self =
+                const_result_unwrap(Self::try_from_str(stringify!($code)));)*
+        }
+
+        $(#[$meta])*
+        $vis const $name: &[(IsoCurrencyCode, &str)] =
+            &[$((IsoCurrencyCode::$code, $cname)),*];
+    };
+}
+
+supported_fiat_currencies! {
+    /// The fiat currencies Lexe supports, with their English names,
+    /// sorted by code.
+    pub const SUPPORTED_FIAT_CURRENCIES: &[(IsoCurrencyCode, &str)] = &[
+        (IsoCurrencyCode::AED, "United Arab Emirates Dirham"),
+        (IsoCurrencyCode::ARS, "Argentine Peso"),
+        (IsoCurrencyCode::AUD, "Australian Dollar"),
+        (IsoCurrencyCode::BRL, "Brazilian Real"),
+        (IsoCurrencyCode::CAD, "Canadian Dollar"),
+        (IsoCurrencyCode::CHF, "Swiss Franc"),
+        (IsoCurrencyCode::CLP, "Chilean Peso"),
+        (IsoCurrencyCode::CNY, "Chinese Yuan"),
+        (IsoCurrencyCode::COP, "Colombian Peso"),
+        (IsoCurrencyCode::CZK, "Czech Koruna"),
+        (IsoCurrencyCode::DKK, "Danish Krone"),
+        (IsoCurrencyCode::EGP, "Egyptian Pound"),
+        (IsoCurrencyCode::EUR, "Euro"),
+        (IsoCurrencyCode::GBP, "British Pound"),
+        (IsoCurrencyCode::HKD, "Hong Kong Dollar"),
+        (IsoCurrencyCode::HUF, "Hungarian Forint"),
+        (IsoCurrencyCode::IDR, "Indonesian Rupiah"),
+        (IsoCurrencyCode::ILS, "Israeli New Shekel"),
+        (IsoCurrencyCode::INR, "Indian Rupee"),
+        (IsoCurrencyCode::IQD, "Iraqi Dinar"),
+        (IsoCurrencyCode::JPY, "Japanese Yen"),
+        (IsoCurrencyCode::KRW, "South Korean Won"),
+        (IsoCurrencyCode::KWD, "Kuwaiti Dinar"),
+        (IsoCurrencyCode::KZT, "Kazakhstani Tenge"),
+        (IsoCurrencyCode::LBP, "Lebanese Pound"),
+        (IsoCurrencyCode::MAD, "Moroccan Dirham"),
+        (IsoCurrencyCode::MOP, "Macanese Pataca"),
+        (IsoCurrencyCode::MXN, "Mexican Peso"),
+        (IsoCurrencyCode::MYR, "Malaysian Ringgit"),
+        (IsoCurrencyCode::NGN, "Nigerian Naira"),
+        (IsoCurrencyCode::NOK, "Norwegian Krone"),
+        (IsoCurrencyCode::NZD, "New Zealand Dollar"),
+        (IsoCurrencyCode::PEN, "Peruvian Sol"),
+        (IsoCurrencyCode::PHP, "Philippine Peso"),
+        (IsoCurrencyCode::PKR, "Pakistani Rupee"),
+        (IsoCurrencyCode::PLN, "Polish Zloty"),
+        (IsoCurrencyCode::QAR, "Qatari Riyal"),
+        (IsoCurrencyCode::RON, "Romanian Leu"),
+        (IsoCurrencyCode::RUB, "Russian Ruble"),
+        (IsoCurrencyCode::SAR, "Saudi Riyal"),
+        (IsoCurrencyCode::SEK, "Swedish Krona"),
+        (IsoCurrencyCode::SGD, "Singapore Dollar"),
+        (IsoCurrencyCode::THB, "Thai Baht"),
+        (IsoCurrencyCode::TRY, "Turkish Lira"),
+        (IsoCurrencyCode::TWD, "New Taiwan Dollar"),
+        (IsoCurrencyCode::UAH, "Ukrainian Hryvnia"),
+        (IsoCurrencyCode::USD, "US Dollar"),
+        (IsoCurrencyCode::VND, "Vietnamese Dong"),
+        (IsoCurrencyCode::ZAR, "South African Rand"),
+    ];
+}
+
 // --- impl FiatRates --- //
 
 impl FiatRates {
     pub fn dummy() -> Self {
+        // One price per `SUPPORTED_FIAT_CURRENCIES` entry, in order.
+        const PRICES: [f64; SUPPORTED_FIAT_CURRENCIES.len()] = [
+            287962.69, 8.43e7, 131111.68, 463258.84, 111606.89, 67245.95,
+            7.77e7, 573199.42, 3.36e8, 1.81e6, 535854.74, 4.03e6, 62965.98,
+            61606.08, 609091.49, 2.92e7, 1.32e9, 296262.29, 6.74e6, 1.03e8,
+            1.16e7, 1.15e8, 24141.14, 4.11e7, 7.03e9, 747744.64, 627681.03,
+            1.62e6, 351232.82, 1.21e8, 860716.48, 141700.73, 288661.55, 4.49e6,
+            2.20e7, 308179.20, 285908.85, 357167.71, 6.75e6, 294387.04,
+            789538.13, 106025.19, 2.72e6, 2.98e6, 2.59e6, 3.22e6, 67086.57,
+            2.02e9, 1.54e6,
+        ];
+        let rates = SUPPORTED_FIAT_CURRENCIES
+            .iter()
+            .zip(PRICES)
+            .map(|((code, _name), price)| (*code, FiatBtcPrice(price)))
+            .collect();
         Self {
             timestamp_ms: TimestampMs::now(),
-            rates: BTreeMap::from_iter([
-                (IsoCurrencyCode::AUD, FiatBtcPrice(131111.68301688813)),
-                (IsoCurrencyCode::CAD, FiatBtcPrice(111606.89358163814)),
-                (IsoCurrencyCode::CHF, FiatBtcPrice(67245.95344545957)),
-                (IsoCurrencyCode::EUR, FiatBtcPrice(62965.97545915064)),
-                (IsoCurrencyCode::GBP, FiatBtcPrice(61606.07950770778)),
-                (IsoCurrencyCode::JPY, FiatBtcPrice(11596697.414154712)),
-                (IsoCurrencyCode::NOK, FiatBtcPrice(860716.4833879912)),
-                (IsoCurrencyCode::NZD, FiatBtcPrice(141700.72528343397)),
-                (IsoCurrencyCode::SEK, FiatBtcPrice(789538.1335822475)),
-                (IsoCurrencyCode::USD, FiatBtcPrice(67086.56654977065)),
-            ]),
+            rates,
         }
     }
 }
@@ -94,16 +192,6 @@ impl FiatRates {
 // --- impl IsoCurrencyCode --- //
 
 impl IsoCurrencyCode {
-    pub const AUD: Self = const_result_unwrap(Self::try_from_bytes(*b"AUD"));
-    pub const CAD: Self = const_result_unwrap(Self::try_from_bytes(*b"CAD"));
-    pub const CHF: Self = const_result_unwrap(Self::try_from_bytes(*b"CHF"));
-    pub const EUR: Self = const_result_unwrap(Self::try_from_bytes(*b"EUR"));
-    pub const GBP: Self = const_result_unwrap(Self::try_from_bytes(*b"GBP"));
-    pub const JPY: Self = const_result_unwrap(Self::try_from_bytes(*b"JPY"));
-    pub const NOK: Self = const_result_unwrap(Self::try_from_bytes(*b"NOK"));
-    pub const NZD: Self = const_result_unwrap(Self::try_from_bytes(*b"NZD"));
-    pub const SEK: Self = const_result_unwrap(Self::try_from_bytes(*b"SEK"));
-    pub const USD: Self = const_result_unwrap(Self::try_from_bytes(*b"USD"));
     // technically not a fiat, but useful
     pub const BTC: Self = const_result_unwrap(Self::try_from_bytes(*b"BTC"));
 
@@ -111,6 +199,14 @@ impl IsoCurrencyCode {
     pub fn as_str(&self) -> &str {
         // SAFETY: we guarantee that IsoCurrencyCode is always uppercase ASCII.
         unsafe { std::str::from_utf8_unchecked(self.0.as_slice()) }
+    }
+
+    /// [`FromStr::from_str`], but `const`.
+    const fn try_from_str(s: &str) -> Result<Self, ParseError> {
+        match s.as_bytes() {
+            &[c0, c1, c2] => Self::try_from_bytes([c0, c1, c2]),
+            _ => Err(ParseError::BadLength),
+        }
     }
 
     #[inline]
@@ -131,9 +227,7 @@ impl IsoCurrencyCode {
 impl FromStr for IsoCurrencyCode {
     type Err = ParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let inner = <[u8; 3]>::try_from(s.as_bytes())
-            .map_err(|_| ParseError::BadLength)?;
-        Self::try_from_bytes(inner)
+        Self::try_from_str(s)
     }
 }
 
