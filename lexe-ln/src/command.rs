@@ -2503,10 +2503,6 @@ pub async fn create_revocable_client(
     revocable_clients: &RwLock<RevocableClients>,
     req: CreateRevocableClientRequest,
 ) -> Result<CreateRevocableClientResponse, CommonApiError> {
-    // Enforce client scope + expiration attenuation
-    authz.require_permissions_covered(&req.permissions)?;
-    authz.require_expiration_covered(req.expires_at)?;
-
     // TODO(max): Implement budget attenuation: If the credential calling this
     // endpoint has a budget, it cannot create another client with no budget.
     // Furthermore, any budget assigned to the new credential must match the
@@ -2556,6 +2552,8 @@ pub async fn create_revocable_client(
 
     let updated_file = {
         let mut revocable_clients = revocable_clients.write().unwrap();
+
+        authz.require_create_covered(&revocable_client, &revocable_clients)?;
 
         // We don't allow more than `MAX_LEN` clients for DoS reasons. We also
         // don't delete revoked clients immediately. If we're above the limit,
@@ -2650,9 +2648,6 @@ pub async fn update_revocable_client(
     revocable_clients: &RevocableClientsHandle,
     req: UpdateClientRequest,
 ) -> Result<UpdateClientResponse, CommonApiError> {
-    // Enforce client scope + expiration attenuation
-    authz.require_update_covered(&req, revocable_clients)?;
-
     // TODO(max): Implement budget attenuation: If the credential calling this
     // endpoint has a budget, it cannot create another client with no budget.
     // Furthermore, any budget assigned to the new credential must match the
@@ -2667,6 +2662,8 @@ pub async fn update_revocable_client(
 
     let (updated_file, response) = {
         let mut revocable_clients = revocable_clients.0.write().unwrap();
+
+        authz.require_update_covered(&req, &revocable_clients)?;
 
         // Get the client
         let pubkey = req.pubkey;
