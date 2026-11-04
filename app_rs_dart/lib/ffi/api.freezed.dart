@@ -692,6 +692,67 @@ String toString() {
 
 
 /// @nodoc
+mixin _$FiatCurrency {
+
+ String get code; String get name;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FiatCurrency&&(identical(other.code, code) || other.code == code)&&(identical(other.name, name) || other.name == name));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,code,name);
+
+@override
+String toString() {
+  return 'FiatCurrency(code: $code, name: $name)';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class _FiatCurrency implements FiatCurrency {
+  const _FiatCurrency({required this.code, required this.name});
+  
+
+@override final  String code;
+@override final  String name;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FiatCurrency&&(identical(other.code, code) || other.code == code)&&(identical(other.name, name) || other.name == name));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,code,name);
+
+@override
+String toString() {
+  return 'FiatCurrency(code: $code, name: $name)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$FiatRate {
 
  String get fiat; double get rate;

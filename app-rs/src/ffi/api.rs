@@ -60,7 +60,9 @@ use lexe_api::{
     },
 };
 use lexe_common::{
-    api::fiat_rates::{FiatRates as FiatRatesRs, IsoCurrencyCode},
+    api::fiat_rates::{
+        FiatRates as FiatRatesRs, IsoCurrencyCode, SUPPORTED_FIAT_CURRENCIES,
+    },
     ln::{
         amount::Amount,
         channel::{ChannelId, UserChannelId as UserChannelIdRs},
@@ -69,10 +71,13 @@ use lexe_common::{
 };
 use lexe_crypto::ed25519;
 
-use crate::ffi::types::{
-    ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
-    LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind,
-    PaymentUpdatedIndex, Scope, UserChannelId,
+use crate::{
+    ffi::types::{
+        ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
+        LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind,
+        PaymentUpdatedIndex, Scope, UserChannelId,
+    },
+    fiat_currency,
 };
 
 /// flutter_rust_bridge:dart_metadata=("freezed")
@@ -352,6 +357,35 @@ pub struct FiatRates {
 pub struct FiatRate {
     pub fiat: String,
     pub rate: f64,
+}
+
+/// A fiat currency the user can pick.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+pub struct FiatCurrency {
+    pub code: String,
+    pub name: String,
+}
+
+/// The fiat currencies Lexe supports, sorted by code.
+///
+/// flutter_rust_bridge:sync
+pub fn supported_fiat_currencies() -> Vec<FiatCurrency> {
+    SUPPORTED_FIAT_CURRENCIES
+        .iter()
+        .map(|(code, name)| FiatCurrency {
+            code: code.as_str().to_owned(),
+            name: (*name).to_owned(),
+        })
+        .collect()
+}
+
+/// The fiat currency of a region (ISO 3166-1 alpha-2), if Lexe supports it.
+///
+/// flutter_rust_bridge:sync
+pub fn region_fiat_currency(region: &str) -> Option<String> {
+    fiat_currency::region_fiat_currency(region)
+        .map(|code| code.as_str().to_owned())
 }
 
 impl From<FiatRatesRs> for FiatRates {

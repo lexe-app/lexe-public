@@ -398,6 +398,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   FeeEstimate dco_decode_fee_estimate(dynamic raw);
 
   @protected
+  FiatCurrency dco_decode_fiat_currency(dynamic raw);
+
+  @protected
   FiatRate dco_decode_fiat_rate(dynamic raw);
 
   @protected
@@ -440,6 +443,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ListChannelsResponse dco_decode_list_channels_response(dynamic raw);
+
+  @protected
+  List<FiatCurrency> dco_decode_list_fiat_currency(dynamic raw);
 
   @protected
   List<FiatRate> dco_decode_list_fiat_rate(dynamic raw);
@@ -1175,6 +1181,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   FeeEstimate sse_decode_fee_estimate(SseDeserializer deserializer);
 
   @protected
+  FiatCurrency sse_decode_fiat_currency(SseDeserializer deserializer);
+
+  @protected
   FiatRate sse_decode_fiat_rate(SseDeserializer deserializer);
 
   @protected
@@ -1225,6 +1234,11 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   ListChannelsResponse sse_decode_list_channels_response(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FiatCurrency> sse_decode_list_fiat_currency(
     SseDeserializer deserializer,
   );
 
@@ -2118,6 +2132,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   void sse_encode_fee_estimate(FeeEstimate self, SseSerializer serializer);
 
   @protected
+  void sse_encode_fiat_currency(FiatCurrency self, SseSerializer serializer);
+
+  @protected
   void sse_encode_fiat_rate(FiatRate self, SseSerializer serializer);
 
   @protected
@@ -2174,6 +2191,12 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_list_channels_response(
     ListChannelsResponse self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_fiat_currency(
+    List<FiatCurrency> self,
     SseSerializer serializer,
   );
 

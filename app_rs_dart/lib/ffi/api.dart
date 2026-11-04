@@ -19,6 +19,18 @@ part 'api.freezed.dart';
 // These functions are ignored because they are not marked as `pub`: `from_client_payment_id_and_response`, `from_id_and_response`, `from_id_and_response`, `validate_note`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 
+/// The fiat currencies Lexe supports, sorted by code.
+///
+/// flutter_rust_bridge:sync
+List<FiatCurrency> supportedFiatCurrencies() =>
+    AppRs.instance.api.crateFfiApiSupportedFiatCurrencies();
+
+/// The fiat currency of a region (ISO 3166-1 alpha-2), if Lexe supports it.
+///
+/// flutter_rust_bridge:sync
+String? regionFiatCurrency({required String region}) =>
+    AppRs.instance.api.crateFfiApiRegionFiatCurrency(region: region);
+
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class Balance with _$Balance {
@@ -129,6 +141,15 @@ sealed class CreateOfferResponse with _$CreateOfferResponse {
 @freezed
 sealed class FeeEstimate with _$FeeEstimate {
   const factory FeeEstimate({required int amountSats}) = _FeeEstimate;
+}
+
+/// A fiat currency the user can pick.
+///
+/// flutter_rust_bridge:dart_metadata=("freezed")
+@freezed
+sealed class FiatCurrency with _$FiatCurrency {
+  const factory FiatCurrency({required String code, required String name}) =
+      _FiatCurrency;
 }
 
 /// flutter_rust_bridge:dart_metadata=("freezed")

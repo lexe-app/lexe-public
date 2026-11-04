@@ -26,6 +26,9 @@ pub mod db;
 /// The flutter/rust FFI bindings.
 #[cfg(feature = "flutter")]
 pub(crate) mod ffi;
+/// Fiat currency defaults by device region.
+#[cfg(feature = "flutter")]
+mod fiat_currency;
 /// Flutter/rust ffi bindings generated from `ffi` by `just app rs-codegen`.
 #[cfg(feature = "flutter")]
 pub(crate) mod frb_generated;
