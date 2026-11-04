@@ -125,17 +125,19 @@ impl TopLevelCommand for Args {}
 
 #[allow(dead_code)]
 fn run_cmd(mut cmd: Command) -> Result<()> {
-    // run the command and collect its status
-    let status = cmd
-        .status()
-        .with_context(|| format!("Failed to run command: '{cmd:?}'"))?;
+    // Run the command and get the status. Only include the program name in
+    // errors to avoid leaking secrets in the args or envs.
+    let status = cmd.status().with_context(|| {
+        let program = cmd.get_program().display();
+        format!("Failed to run command: '{program}'")
+    })?;
 
     if status.success() {
         Ok(())
     } else {
+        let program = cmd.get_program().display();
         Err(format_err!(
-            "Command exited with a non-zero status: {}, cmd: '{cmd:?}'",
-            status
+            "Command exited with a non-zero status: {status}, cmd: '{program}'"
         ))
     }
 }
