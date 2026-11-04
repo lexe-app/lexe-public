@@ -546,6 +546,8 @@ impl SgxQuoteVerifier {
         // verification methods directly.
 
         let key_usage = webpki::KeyUsage::server_auth();
+        // We intentionally skip PCK cert revocation lookups and checks to
+        // prioritize operational reliability.
         let revocation = None;
         let verify_path = None;
         pck_cert
