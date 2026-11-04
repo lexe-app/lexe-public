@@ -1,7 +1,13 @@
 import 'dart:async' show Timer, unawaited;
 
 import 'package:app_rs_dart/ffi/api.dart'
-    show FiatRate, FiatRates, UserSettings;
+    show
+        FiatCurrency,
+        FiatRate,
+        FiatRates,
+        UserSettings,
+        regionFiatCurrency,
+        supportedFiatCurrencies;
 import 'package:app_rs_dart/ffi/api.ext.dart' show FiatRatesExt;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:flutter/foundation.dart';
@@ -45,9 +51,10 @@ class FiatRateService {
   /// the Region setting: e.g. English (US) with Region = France gives USD.
   // TODO(nicole): get currency from OS directly
   static String? get deviceFiatCurrency {
-    final region = WidgetsBinding.instance.platformDispatcher.locale.countryCode
-        ?.toUpperCase();
-    return _regionFiatCurrencies[region];
+    final region =
+        WidgetsBinding.instance.platformDispatcher.locale.countryCode;
+    if (region == null) return null;
+    return regionFiatCurrency(region: region);
   }
 
   late final Timer _ticker;
@@ -56,7 +63,7 @@ class FiatRateService {
   final ValueNotifier<FiatRate?> fiatRate = ValueNotifier(null);
 
   /// The [_fiatCurrencies] we have a rate for, or `null` until the first fetch.
-  List<({String code, String name})>? get supportedFiatCurrencies {
+  List<FiatCurrency>? get supportedFiatCurrencies {
     final fiatRates = this.fiatRates.value;
     if (fiatRates == null) return null;
     return _fiatCurrencies
@@ -126,27 +133,5 @@ Future<Result<FiatRates, void>?> _fetchWithRetries({
 Future<Result<FiatRates, FfiError>> _fetch(AppHandle app) async =>
     Result.tryFfiAsync(app.fiatRates);
 
-/// Fiat currencies the user can pick, if we have a rate for them.
-const List<({String code, String name})> _fiatCurrencies = [
-  (code: "CAD", name: "Canadian dollar"),
-  (code: "EUR", name: "Euro"),
-  (code: "USD", name: "US dollar"),
-];
-
-/// A region (ISO 3166-1 alpha-2) to fiat currency map. A user who hasn't
-/// picked a currency starts with their device region's, if available.
-const Map<String, String> _regionFiatCurrencies = {
-  // CAD
-  "CA": "CAD",
-  // EUR
-  "AT": "EUR", "BE": "EUR", "BG": "EUR", "CY": "EUR", "DE": "EUR",
-  "EE": "EUR", "ES": "EUR", "FI": "EUR", "FR": "EUR", "GR": "EUR",
-  "HR": "EUR", "IE": "EUR", "IT": "EUR", "LT": "EUR", "LU": "EUR",
-  "LV": "EUR", "MT": "EUR", "NL": "EUR", "PT": "EUR", "SI": "EUR",
-  "SK": "EUR",
-  // USD
-  "AS": "USD", "BQ": "USD", "DG": "USD", "EC": "USD", "FM": "USD",
-  "GU": "USD", "IO": "USD", "MH": "USD", "MP": "USD", "PR": "USD",
-  "PW": "USD", "SV": "USD", "TC": "USD", "TL": "USD", "UM": "USD",
-  "US": "USD", "VG": "USD", "VI": "USD",
-};
+/// The fiat currencies Lexe supports.
+final List<FiatCurrency> _fiatCurrencies = supportedFiatCurrencies();
