@@ -172,8 +172,6 @@ rec {
       "sha256-D7kt5WB/Kq/OMH7N6EtCx565zIY3+ZV88sk2NnlXW3Y=";
     "git+https://github.com/lexe-app/bdk_wallet?branch=lexe-v2.0.0-2026_10_31#2fbee52381fb79999d3c2da7584792c305ba161c" =
       "sha256-xLU7Qs4fwqFAeL9/H0m/LnOW2QtukZGaYMPFEjJoifk=";
-    "git+https://github.com/lexe-app/corepc?branch=lexe-bitreq-v0.3.7-2026_07_27#f5e54fb4f0bb8a9cdd19c2b4949673ae112e65da" =
-      "sha256-rH1OIha3ohr4lO4yBHwQc6ZzHMvJRyNzHmgXB+qfvnc=";
     "git+https://github.com/lexe-app/hyper-util?branch=lexe-v0.1.19-2026_07_23#f16a50dccaa3dfe353a85bcc301bc7d4ca94b96f" =
       "sha256-OCnNr7IsDeFEz+5ZkTnV0YRo1lBmpA/wjKoWuI8Wh5w=";
     "git+https://github.com/lexe-app/minreq?branch=lexe-v2.12.0-2026_03_21#99ab2ae4a8b3e00521cf9a621d621298650e1563" =
