@@ -218,9 +218,8 @@ impl TryFrom<HeaderValue> for TraceId {
             bail!("Source header value had wrong length");
         }
 
-        let all_alphanumeric = src_bytes
-            .iter()
-            .all(|byte| char::is_alphanumeric(*byte as char));
+        let all_alphanumeric =
+            src_bytes.iter().all(|byte| byte.is_ascii_alphanumeric());
         ensure!(
             all_alphanumeric,
             "Source header value contained non-alphanumeric bytes"
@@ -364,5 +363,15 @@ mod test {
             let id2 = TraceId::try_from(id1.to_header_value()).unwrap();
             prop_assert_eq!(&id1, &id2);
         });
+    }
+
+    #[test]
+    fn trace_id_rejects_non_ascii() {
+        // Latin-1 alphanumerics, which aren't valid UTF-8 on their own
+        for byte in [0xb2, 0xe9, 0xff] {
+            let value =
+                HeaderValue::from_bytes(&[byte; TraceId::LENGTH]).unwrap();
+            assert!(TraceId::try_from(value).is_err());
+        }
     }
 }
