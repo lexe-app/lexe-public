@@ -1492,7 +1492,10 @@ where
     ) -> anyhow::Result<()> {
         // if we completed a BDK sync, check wallet for any new onchain recvs
         if check_new {
-            self.check_onchain_recvs(wallet).await.context("recvs")?;
+            let synced_txids = &[];
+            self.check_onchain_recvs(wallet, synced_txids)
+                .await
+                .context("recvs")?;
         }
 
         // query the conf status of our known, pending onchain payments, both
@@ -1703,23 +1706,29 @@ where
     /// the [`OnchainReceiveV2`] is constructed and registered with the
     /// [`PaymentsManager`].
     ///
+    /// Only unspent receives are found this way, so a caller that just synced
+    /// specific txs passes their `synced_txids` to have them registered even
+    /// if already spent.
+    ///
     /// This function should be called regularly.
     #[instrument(skip_all, name = "(check-onchain-recvs)")]
     pub async fn check_onchain_recvs(
         &self,
         wallet: &OnchainWallet,
+        synced_txids: &[bitcoin::Txid],
     ) -> anyhow::Result<()> {
         debug!("Checking for onchain recvs");
         let mut locked_data = self.data.lock().await;
 
-        // List the txids of receive UTXOs owned by us (from BDK's
-        // perspective).
-        let unspent_txids = wallet.get_recv_txids();
+        // The txids of receive UTXOs owned by us (from BDK's perspective),
+        // plus the ones the caller just synced, which may already be spent.
+        let mut recv_txids = wallet.get_recv_txids();
+        recv_txids.extend(synced_txids);
 
         // Filter out txids we've already seen (already registered).
         let unseen_txids = {
             let mut unseen = Vec::new();
-            for txid in &unspent_txids {
+            for txid in &recv_txids {
                 let id = PaymentId::OnchainRecv(Txid(*txid));
                 let is_unseen_txid = self
                     .get_cow_payment(&mut locked_data, &id)

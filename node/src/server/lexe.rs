@@ -71,7 +71,7 @@ pub(super) async fn check_address(
         .map_err(NodeApiError::command)?;
     state
         .payments_manager
-        .check_onchain_recvs(&state.wallet)
+        .check_onchain_recvs(&state.wallet, &txids)
         .await
         .context("Failed to check onchain recvs")
         .map_err(NodeApiError::command)?;
