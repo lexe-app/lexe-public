@@ -49,7 +49,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -510772363;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -291735777;
 
 // Section: executor
 
@@ -1054,6 +1054,19 @@ fn wire__crate__ffi__qr__encoded_pixels_per_side_impl(
             let api_data_len_bytes = <usize>::sse_decode(&mut deserializer);deserializer.end();
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>((move || {
                      let output_ok = crate::ffi::qr::encoded_pixels_per_side(api_data_len_bytes)?;   std::result::Result::Ok(output_ok)
+                })()) })
+}
+fn wire__crate__ffi__api__fiat_rates_dummy_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "fiat_rates_dummy", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Ok::<_, ()>(crate::ffi::api::FiatRates::dummy())?;   std::result::Result::Ok(output_ok)
                 })()) })
 }
 fn wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(
@@ -4044,13 +4057,13 @@ fn pde_ffi_dispatcher_primary_impl(
 59 => wire__crate__ffi__app__app_handle_withdraw_lnurl_impl(port, ptr, rust_vec_len, data_len),
 61 => wire__crate__ffi__types__config_validate_impl(port, ptr, rust_vec_len, data_len),
 66 => wire__crate__ffi__qr__encode_impl(port, ptr, rust_vec_len, data_len),
-68 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
-71 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
-75 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
-76 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
-77 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-99 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-100 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+69 => wire__crate__ffi__gdrive__g_drive_client_dump_state_impl(port, ptr, rust_vec_len, data_len),
+72 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_exchange_impl(port, ptr, rust_vec_len, data_len),
+76 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
+77 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
+78 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
+100 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+101 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -4087,36 +4100,37 @@ fn pde_ffi_dispatcher_sync_impl(
 64 => wire__crate__ffi__types__deploy_env_from_str_impl(ptr, rust_vec_len, data_len),
 65 => wire__crate__ffi__types__deploy_env_gateway_url_impl(ptr, rust_vec_len, data_len),
 67 => wire__crate__ffi__qr__encoded_pixels_per_side_impl(ptr, rust_vec_len, data_len),
-69 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
-70 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
-72 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
-73 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
-74 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
-78 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
-79 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
-80 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
-81 => wire__crate__ffi__types__payment_kind_rail_impl(ptr, rust_vec_len, data_len),
-82 => wire__crate__ffi__types__payment_updated_index_impl(ptr, rust_vec_len, data_len),
-83 => wire__crate__ffi__api__region_fiat_currency_impl(ptr, rust_vec_len, data_len),
-84 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
-85 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
-86 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
-87 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-88 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
-89 => wire__crate__ffi__types__scope_from_string_id_impl(ptr, rust_vec_len, data_len),
-90 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
-91 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
-92 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-93 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-94 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-95 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-96 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-97 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
-98 => wire__crate__ffi__api__supported_fiat_currencies_impl(ptr, rust_vec_len, data_len),
-101 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-102 => wire__crate__ffi__api__user_settings_default_fiat_currency_impl(ptr, rust_vec_len, data_len),
-103 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-104 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+68 => wire__crate__ffi__api__fiat_rates_dummy_impl(ptr, rust_vec_len, data_len),
+70 => wire__crate__ffi__gdrive__g_drive_client_into_restore_client_impl(ptr, rust_vec_len, data_len),
+71 => wire__crate__ffi__gdrive__g_drive_client_server_code_impl(ptr, rust_vec_len, data_len),
+73 => wire__crate__ffi__gdrive__g_drive_o_auth_2_flow_init_impl(ptr, rust_vec_len, data_len),
+74 => wire__crate__ffi__gdrive__g_drive_restore_candidate_try_decrypt_impl(ptr, rust_vec_len, data_len),
+75 => wire__crate__ffi__gdrive__g_drive_restore_candidate_user_pk_impl(ptr, rust_vec_len, data_len),
+79 => wire__crate__ffi__form__is_mnemonic_word_impl(ptr, rust_vec_len, data_len),
+80 => wire__crate__ffi__types__network_from_str_impl(ptr, rust_vec_len, data_len),
+81 => wire__crate__ffi__form__parse_mnemonic_phrase_impl(ptr, rust_vec_len, data_len),
+82 => wire__crate__ffi__types__payment_kind_rail_impl(ptr, rust_vec_len, data_len),
+83 => wire__crate__ffi__types__payment_updated_index_impl(ptr, rust_vec_len, data_len),
+84 => wire__crate__ffi__api__region_fiat_currency_impl(ptr, rust_vec_len, data_len),
+85 => wire__crate__ffi__types__root_seed_expose_secret_hex_impl(ptr, rust_vec_len, data_len),
+86 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
+87 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
+88 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
+89 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
+90 => wire__crate__ffi__types__scope_from_string_id_impl(ptr, rust_vec_len, data_len),
+91 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
+92 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
+93 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+94 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+95 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+96 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+97 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+98 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
+99 => wire__crate__ffi__api__supported_fiat_currencies_impl(ptr, rust_vec_len, data_len),
+102 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+103 => wire__crate__ffi__api__user_settings_default_fiat_currency_impl(ptr, rust_vec_len, data_len),
+104 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+105 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

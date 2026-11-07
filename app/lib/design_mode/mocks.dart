@@ -226,19 +226,8 @@ class MockAppHandle extends AppHandle {
   );
 
   @override
-  Future<FiatRates> fiatRates() => Future.delayed(
-    const Duration(milliseconds: 2000),
-    () => const FiatRates(
-      timestampMs: 1732136733,
-      rates: [
-        FiatRate(fiat: "USD", rate: 94385.79 /* USD/BTC */),
-        FiatRate(
-          fiat: "EUR",
-          rate: 94385.79 /* USD/BTC */ * 1.10 /* EUR/USD */,
-        ),
-      ],
-    ),
-  );
+  Future<FiatRates> fiatRates() =>
+      Future.delayed(const Duration(milliseconds: 2000), FiatRates.dummy);
 
   @override
   Future<PayOnchainResponse> payOnchain({

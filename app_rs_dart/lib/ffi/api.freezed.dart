@@ -844,8 +844,8 @@ String toString() {
 /// @nodoc
 
 
-class _FiatRates implements FiatRates {
-  const _FiatRates({required this.timestampMs, required final  List<FiatRate> rates}): _rates = rates;
+class _FiatRates extends FiatRates {
+  const _FiatRates({required this.timestampMs, required final  List<FiatRate> rates}): _rates = rates,super._();
   
 
 @override final  int timestampMs;

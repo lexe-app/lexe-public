@@ -162,10 +162,16 @@ sealed class FiatRate with _$FiatRate {
 /// flutter_rust_bridge:dart_metadata=("freezed")
 @freezed
 sealed class FiatRates with _$FiatRates {
+  const FiatRates._();
   const factory FiatRates({
     required int timestampMs,
     required List<FiatRate> rates,
   }) = _FiatRates;
+
+  /// See [`FiatRatesRs::dummy`].
+  ///
+  /// flutter_rust_bridge:sync
+  static FiatRates dummy() => AppRs.instance.api.crateFfiApiFiatRatesDummy();
 }
 
 /// The user's Human Bitcoin Address.

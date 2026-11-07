@@ -353,6 +353,15 @@ pub struct FiatRates {
     pub rates: Vec<FiatRate>,
 }
 
+impl FiatRates {
+    /// See [`FiatRatesRs::dummy`].
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn dummy() -> Self {
+        Self::from(FiatRatesRs::dummy())
+    }
+}
+
 /// flutter_rust_bridge:dart_metadata=("freezed")
 pub struct FiatRate {
     pub fiat: String,
