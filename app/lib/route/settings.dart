@@ -1,4 +1,4 @@
-import 'package:app_rs_dart/ffi/api.dart' show UserSettings;
+import 'package:app_rs_dart/ffi/api.dart' show FiatCurrency, UserSettings;
 import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
@@ -93,6 +93,10 @@ class _FiatCurrencyPicker extends StatefulWidget {
 class _FiatCurrencyPickerState extends State<_FiatCurrencyPicker> {
   final ValueNotifier<String> query = ValueNotifier("");
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
+
+  /// The currencies in display order, fixed once they are known so that
+  /// picking one doesn't reorder the list.
+  List<FiatCurrency>? ordered;
 
   @override
   void dispose() {
@@ -193,28 +197,30 @@ class _FiatCurrencyPickerState extends State<_FiatCurrencyPicker> {
                     ]),
                     builder: (context, child) {
                       final query = this.query.value.trim().toLowerCase();
-                      final preferredFiatCurrency =
-                          userSettingsService.preferredFiatCurrency.value;
+                      final selected =
+                          userSettingsService.preferredFiatCurrency.value ??
+                          UserSettings.defaultFiatCurrency();
 
                       final currencies =
                           fiatRateService.supportedFiatCurrencies;
-                      final matches = (currencies ?? const [])
+                      if (currencies != null) {
+                        this.ordered ??= _orderCurrencies(currencies, selected);
+                      }
+                      final matches = (this.ordered ?? const [])
                           .where(
                             (currency) =>
                                 currency.code.toLowerCase().contains(query) ||
                                 currency.name.toLowerCase().contains(query),
                           )
                           .toList();
-                      final status = (currencies == null)
+                      final status = (this.ordered == null)
                           ? "Loading currencies..."
                           : (matches.isEmpty)
                           ? "No matching currencies"
                           : null;
 
                       return RadioGroup<String>(
-                        groupValue:
-                            preferredFiatCurrency ??
-                            UserSettings.defaultFiatCurrency(),
+                        groupValue: selected,
                         onChanged: this.onFiatCurrencySelected,
                         child: _ScrollEdgeFade(
                           child: ListView(
@@ -324,3 +330,26 @@ class _ScrollEdgeFadeState extends State<_ScrollEdgeFade> {
     ),
   );
 }
+
+/// [currencies] with [selected] first, then [_pinnedFiatCurrencies] in order,
+/// then the rest by code.
+List<FiatCurrency> _orderCurrencies(
+  List<FiatCurrency> currencies,
+  String selected,
+) {
+  int rank(FiatCurrency currency) {
+    if (currency.code == selected) return 0;
+    final pinned = _pinnedFiatCurrencies.indexOf(currency.code);
+    return (pinned < 0) ? _pinnedFiatCurrencies.length + 1 : pinned + 1;
+  }
+
+  return List.of(currencies)..sort((a, b) {
+    final byRank = rank(a).compareTo(rank(b));
+    return (byRank != 0) ? byRank : a.code.compareTo(b.code);
+  });
+}
+
+/// Currencies pinned to the top of the picker, below the selected one.
+// The app is English-only, so most users are likely in the US, the eurozone,
+// the UK, Canada, or Australia.
+const List<String> _pinnedFiatCurrencies = ["USD", "EUR", "GBP", "CAD", "AUD"];
