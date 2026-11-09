@@ -36,14 +36,15 @@
           <string>LNURLP</string>
           <string>LEXE</string>
           <string>LNURLW</string>
+          <string>KEYAUTH</string>
           <string>bitcoin</string>
           <string>lightning</string>
           <string>lnurlp</string>
           <string>lexe</string>
           <string>lnurlw</string>
-          <!-- Uncomment if we support these someday -->
+          <string>keyauth</string>
+          <!-- Uncomment if we support this someday -->
           <!-- <string>lnurlc</string> -->
-          <!-- <string>keyauth</string> -->
           </array>
         </dict>
     </array>
