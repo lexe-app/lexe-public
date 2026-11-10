@@ -182,6 +182,8 @@ pub enum BudgetCurrency {
 }
 
 /// How often a budget's limit resets.
+//
+// NOTE: This is exposed in the Rust SDK.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]

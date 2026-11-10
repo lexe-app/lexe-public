@@ -720,11 +720,11 @@ impl BlockingLexeWallet {
         block_on(self.inner.create_client(req))
     }
 
-    /// Update a client's label, expiration, scopes, or permissions.
+    /// Update a client's label, expiration, scopes, permissions, or budget.
     ///
-    /// Omitted label and expiration fields are unchanged. If `new_scopes` or
-    /// `new_permissions` is provided, together they replace the client's
-    /// complete grant; an omitted set is treated as empty.
+    /// Omitted label, expiration, and budget fields are unchanged. If
+    /// `new_scopes` or `new_permissions` is provided, together they replace
+    /// the client's complete grant; an omitted set is treated as empty.
     pub fn update_client(
         &self,
         req: UpdateClientRequest,

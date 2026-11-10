@@ -49,7 +49,7 @@ use crate::{
     types::{
         auth::{ClientCredentials, CredentialsRef, RootSeed, UserPk},
         command::{
-            AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
+            AnalyzeRequest, AnalyzeResponse, BudgetInfo, CancelPaymentRequest,
             CashAppBuyRequest, CashAppBuyResponse, ChannelDetails,
             CheckAddressResponse, ClaimableDetails, ClientInfo,
             ClientInfoResponse, CloseChannelRequest, CreateClientRequest,
@@ -2329,7 +2329,7 @@ impl LexeWallet {
     #[instrument(skip_all, name = "(client-info)")]
     pub async fn client_info(&self) -> anyhow::Result<GetClientInfoResponse> {
         let resp = self.node_client.client_info().await?;
-        Ok(GetClientInfoResponse::from(resp))
+        GetClientInfoResponse::try_from(resp)
     }
 
     /// List the active clients for this node.
@@ -2346,8 +2346,8 @@ impl LexeWallet {
             .await?
             .clients
             .into_iter()
-            .map(|(pk, rc)| (pk, ClientInfo::from(rc)))
-            .collect();
+            .map(|(pk, rc)| ClientInfo::try_from(rc).map(|info| (pk, info)))
+            .collect::<anyhow::Result<_>>()?;
 
         Ok(ListClientsResponse { clients })
     }
@@ -2366,22 +2366,27 @@ impl LexeWallet {
             !req.permissions.is_empty(),
             "Must grant at least one scope or permission"
         );
-        let (rev_client, client_creds, effective_permissions) =
+        let (client_with_budget, client_creds, effective_permissions) =
             self.node_client.create_client_credentials(req).await?;
+        let budget = client_with_budget
+            .budget
+            .map(BudgetInfo::try_from)
+            .transpose()?;
 
         Ok(CreateClientResponse {
             client_pk: client_creds.client_pk,
             client_credentials: ClientCredentials::from_unstable(client_creds),
-            created_at: rev_client.created_at,
+            created_at: client_with_budget.client.created_at,
             effective_permissions,
+            budget,
         })
     }
 
-    /// Update a client's label, expiration, scopes, or permissions.
+    /// Update a client's label, expiration, scopes, permissions, or budget.
     ///
-    /// Omitted label and expiration fields are unchanged. If `new_scopes` or
-    /// `new_permissions` is provided, together they replace the client's
-    /// complete grant; an omitted set is treated as empty.
+    /// Omitted label, expiration, and budget fields are unchanged. If
+    /// `new_scopes` or `new_permissions` is provided, together they replace
+    /// the client's complete grant; an omitted set is treated as empty.
     #[instrument(skip_all, name = "(update-client)")]
     pub async fn update_client(
         &self,
@@ -2398,14 +2403,13 @@ impl LexeWallet {
             );
         }
         let req =
-            revocable_clients::models::UpdateClientRequest::try_from(req)?;
-        // TODO(nicole): wire budgets through the SDK
-        let req =
-            revocable_clients::models::UpdateClientWithBudgetRequest::from(req);
+            revocable_clients::models::UpdateClientWithBudgetRequest::try_from(
+                req,
+            )?;
         let client =
             self.node_client.update_revocable_client(req).await?.client;
         Ok(ClientInfoResponse {
-            client: ClientInfo::from(client),
+            client: ClientInfo::try_from(client)?,
         })
     }
 
@@ -2428,7 +2432,7 @@ impl LexeWallet {
         let client =
             self.node_client.update_revocable_client(req).await?.client;
         Ok(ClientInfoResponse {
-            client: ClientInfo::from(client),
+            client: ClientInfo::try_from(client)?,
         })
     }
 }

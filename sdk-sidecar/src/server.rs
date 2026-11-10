@@ -937,12 +937,21 @@ mod node {
         WalletExtractor(wallet): WalletExtractor,
         LxJson(req): LxJson<UpdateClientRequest>,
     ) -> Result<LxJson<ClientInfoResponse>, SdkApiError> {
+        // TODO(nicole): propagate budgets to the sidecar
+        let budget_limit = None;
+        let clear_budget = false;
+        let budget_reset = None;
+        let clear_budget_reset = false;
         let req = SdkUpdateClientRequest::new(
             req.client_pk,
             req.label,
             req.clear_label,
             req.expires_at,
             req.clear_expiration,
+            budget_limit,
+            clear_budget,
+            budget_reset,
+            clear_budget_reset,
             req.scopes,
             req.permissions,
         )

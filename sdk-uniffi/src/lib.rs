@@ -1870,6 +1870,7 @@ impl AsyncLexeWallet {
             label,
             scopes,
             permissions: permissions.unwrap_or_default(),
+            budget: None,
         };
         let resp = self.inner.create_client(req).await?;
         Ok(CreateClientResponse::from(resp))
@@ -1919,12 +1920,21 @@ impl AsyncLexeWallet {
             permissions.into_iter().collect::<BTreeSet<_>>()
         });
 
+        // TODO(nicole): propagate budgets to UniFFI
+        let budget_limit = None;
+        let clear_budget = false;
+        let budget_reset = None;
+        let clear_budget_reset = false;
         let req = SdkUpdateClientRequest::new(
             client_pk,
             label,
             clear_label,
             expires_at,
             clear_expiration,
+            budget_limit,
+            clear_budget,
+            budget_reset,
+            clear_budget_reset,
             scopes,
             permissions,
         )?;
@@ -3091,6 +3101,7 @@ impl BlockingLexeWallet {
             label,
             scopes,
             permissions: permissions.unwrap_or_default(),
+            budget: None,
         };
         let resp = self.inner.create_client(req)?;
         Ok(CreateClientResponse::from(resp))
@@ -3140,12 +3151,21 @@ impl BlockingLexeWallet {
             permissions.into_iter().collect::<BTreeSet<_>>()
         });
 
+        // TODO(nicole): propagate budgets to UniFFI
+        let budget_limit = None;
+        let clear_budget = false;
+        let budget_reset = None;
+        let clear_budget_reset = false;
         let req = SdkUpdateClientRequest::new(
             client_pk,
             label,
             clear_label,
             expires_at,
             clear_expiration,
+            budget_limit,
+            clear_budget,
+            budget_reset,
+            clear_budget_reset,
             scopes,
             permissions,
         )?;

@@ -53,8 +53,8 @@ use lexe_api::{
         models::{
             CreateRevocableClientRequest, CreateRevocableClientResponse,
             GetClientInfoResponse, ListRevocableClients,
-            ListRevocableClientsResponse, UpdateClientResponse,
-            UpdateClientWithBudgetRequest,
+            ListRevocableClientsResponse, RevocableClientWithBudget,
+            UpdateClientResponse, UpdateClientWithBudgetRequest,
         },
     },
     types::{
@@ -463,17 +463,24 @@ impl NodeClient {
     pub async fn create_client_credentials(
         &self,
         req: CreateRevocableClientRequest,
-    ) -> anyhow::Result<(RevocableClient, ClientCredentials, Vec<String>)> {
+    ) -> anyhow::Result<(
+        RevocableClientWithBudget,
+        ClientCredentials,
+        Vec<String>,
+    )> {
         // Register a new revocable client.
         let mut resp = self.create_revocable_client(req.clone()).await?;
 
-        let client = RevocableClient {
-            pubkey: resp.pubkey,
-            created_at: resp.created_at,
-            label: req.label,
-            permissions: req.permissions,
-            expires_at: req.expires_at,
-            is_revoked: false,
+        let client = RevocableClientWithBudget {
+            client: RevocableClient {
+                pubkey: resp.pubkey,
+                created_at: resp.created_at,
+                label: req.label,
+                permissions: req.permissions,
+                expires_at: req.expires_at,
+                is_revoked: false,
+            },
+            budget: resp.budget.take(),
         };
 
         let effective_permissions =

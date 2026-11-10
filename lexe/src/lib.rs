@@ -54,6 +54,7 @@ pub use anyhow;
 pub use bip39;
 pub use bitcoin;
 pub use lightning;
+pub use rust_decimal;
 pub use semver;
 
 /// Initialize the Lexe logger with the given default log level.

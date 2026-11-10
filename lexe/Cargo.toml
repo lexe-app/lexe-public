@@ -46,7 +46,9 @@ anyhow = { workspace = true }
 bip39 = { workspace = true }
 bitcoin = { workspace = true }
 cfg-if = { workspace = true }
+chrono = { workspace = true }
 lightning = { workspace = true }
+rust_decimal = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

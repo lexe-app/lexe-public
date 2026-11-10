@@ -2904,6 +2904,7 @@ impl CreateClientArgs {
             label: self.label.clone(),
             scopes,
             permissions: permissions.iter().cloned().collect(),
+            budget: None,
         };
         let resp = wallet
             .create_client(req)
@@ -2936,6 +2937,7 @@ impl CreateClientArgs {
             scopes: scope_names.iter().map(ToString::to_string).collect(),
             permissions: permissions.into_iter().collect(),
             effective_permissions: resp.effective_permissions,
+            budget: resp.budget,
         };
 
         // Human-readable response
@@ -3024,12 +3026,21 @@ impl UpdateClientArgs {
             scopes.into_iter().map(Scope::from).collect::<BTreeSet<_>>()
         });
         let permissions = self.permissions.map(BTreeSet::from_iter);
+        // TODO(nicole): propagate budgets to the CLI
+        let budget_limit = None;
+        let clear_budget = false;
+        let budget_reset = None;
+        let clear_budget_reset = false;
         let req = UpdateClientRequest::new(
             self.client_pk,
             self.label,
             self.clear_label,
             expires_at,
             self.clear_expiration,
+            budget_limit,
+            clear_budget,
+            budget_reset,
+            clear_budget_reset,
             scopes,
             permissions,
         )?;

@@ -957,6 +957,7 @@ impl TryFrom<CreateClientRequest> for CreateClientRequestRs {
             label: value.label,
             scopes: value.scopes.into_iter().map(ScopeRs::from).collect(),
             permissions: Vec::new(),
+            budget: None,
         })
     }
 }

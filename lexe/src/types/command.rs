@@ -3,13 +3,16 @@
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashMap},
+    num::NonZeroU8,
+    str::FromStr,
     time::Duration,
 };
 
-use anyhow::{Context, ensure};
+use anyhow::{Context, anyhow, bail, ensure};
 use bitcoin::address::NetworkUnchecked;
+use chrono::Local;
 use lexe_api::{
-    budget::models::BudgetParams,
+    budget::models::{BudgetCurrency, BudgetParams, UpdateBudgetParams},
     models::command,
     revocable_clients,
     revocable_clients::scopes::{self, ClientPermissions},
@@ -24,6 +27,7 @@ use lexe_api::{
     },
 };
 use lexe_common::{
+    api::fiat_rates::IsoCurrencyCode,
     constants,
     ln::{amount::Amount, channel::LxChannelDetails},
     ppm::Ppm,
@@ -31,6 +35,7 @@ use lexe_common::{
 };
 use lexe_payment_uri::{ClaimMethod, LnurlWithdrawRequest, PaymentMethod};
 use lexe_std::const_assert_usize_eq;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -48,7 +53,10 @@ use crate::{
 /// Re-exports that are part of the SDK's public API.
 /// Wrapped in a module so `rustfmt` doesn't merge them with regular imports.
 mod reexports {
-    pub use lexe_api::models::command::PayerProofDisclosures;
+    pub use lexe_api::{
+        budget::models::BudgetResetInterval,
+        models::command::PayerProofDisclosures,
+    };
 }
 pub use reexports::*;
 
@@ -1218,12 +1226,21 @@ pub struct GetClientInfoResponse {
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effective_permissions: Vec<String>,
+    /// The client's budget.
+    ///
+    /// [`None`] means no spending limit. Root seed clients never have a
+    /// spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
-impl From<revocable_clients::models::GetClientInfoResponse>
+impl TryFrom<revocable_clients::models::GetClientInfoResponse>
     for GetClientInfoResponse
 {
-    fn from(value: revocable_clients::models::GetClientInfoResponse) -> Self {
+    type Error = anyhow::Error;
+
+    fn try_from(
+        value: revocable_clients::models::GetClientInfoResponse,
+    ) -> anyhow::Result<Self> {
         let revocable_clients::models::GetClientInfoResponse {
             kind,
             pubkey,
@@ -1232,15 +1249,14 @@ impl From<revocable_clients::models::GetClientInfoResponse>
             label,
             permissions,
             effective_permissions,
-            // TODO(nicole): wire budgets through the SDK
-            budget: _,
+            budget,
         } = value;
         let ClientPermissions {
             scopes,
             permissions,
         } = permissions;
 
-        Self {
+        Ok(Self {
             kind: CredentialKind::from(kind),
             client_pk: pubkey,
             created_at,
@@ -1255,7 +1271,8 @@ impl From<revocable_clients::models::GetClientInfoResponse>
                 .into_iter()
                 .map(Cow::into_owned)
                 .collect(),
-        }
+            budget: budget.map(BudgetInfo::try_from).transpose()?,
+        })
     }
 }
 
@@ -1312,13 +1329,21 @@ pub struct ClientInfo {
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effective_permissions: Vec<String>,
+    /// The client's budget.
+    ///
+    /// [`None`] means no spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
-impl From<revocable_clients::models::RevocableClientWithBudget> for ClientInfo {
-    fn from(
+impl TryFrom<revocable_clients::models::RevocableClientWithBudget>
+    for ClientInfo
+{
+    type Error = anyhow::Error;
+
+    fn try_from(
         value: revocable_clients::models::RevocableClientWithBudget,
-    ) -> Self {
-        // TODO(nicole): surface the budget in `ClientInfo`
+    ) -> anyhow::Result<Self> {
+        let budget = value.budget.map(BudgetInfo::try_from).transpose()?;
         let value = value.client;
         let effective_permissions = value
             .permissions
@@ -1331,7 +1356,7 @@ impl From<revocable_clients::models::RevocableClientWithBudget> for ClientInfo {
             permissions,
         } = value.permissions;
 
-        Self {
+        Ok(Self {
             client_pk: value.pubkey,
             created_at: value.created_at,
             expires_at: value.expires_at,
@@ -1342,7 +1367,82 @@ impl From<revocable_clients::models::RevocableClientWithBudget> for ClientInfo {
                 .map(|p| p.as_str().to_owned())
                 .collect(),
             effective_permissions,
-        }
+            budget,
+        })
+    }
+}
+
+/// Info about a client's budget.
+#[derive(Serialize, Deserialize)]
+pub struct BudgetInfo {
+    /// The client's spending limit, including fees.
+    pub limit: BitcoinOrFiat,
+    /// When the limit resets.
+    ///
+    /// [`None`] means the limit never resets, so the limit applies to the
+    /// client's total spending.
+    pub reset: Option<BudgetResetInfo>,
+    /// How much the client can still spend before the next reset, or in total
+    /// if the limit never resets. Uses the same denomination as `limit`.
+    pub spendable: BitcoinOrFiat,
+}
+
+/// Info about a budget's reset schedule.
+#[derive(Serialize, Deserialize)]
+pub struct BudgetResetInfo {
+    /// How often the limit resets. Resets happen at the start of each day,
+    /// week, month, or year; weeks start on Sunday.
+    pub interval: BudgetResetInterval,
+    /// The number of days, weeks, months, or years between resets, whichever
+    /// `interval` specifies. Always >= 1.
+    pub interval_count: u8,
+    /// The timezone in which resets are computed, as a UTC offset in minutes,
+    /// e.g. `-300` for UTC-05:00.
+    pub utc_offset_mins: i32,
+    /// When the limit next resets, in milliseconds since the UNIX epoch.
+    pub next_reset: TimestampMs,
+}
+
+impl TryFrom<lexe_api::budget::models::BudgetInfo> for BudgetInfo {
+    type Error = anyhow::Error;
+
+    fn try_from(
+        info: lexe_api::budget::models::BudgetInfo,
+    ) -> anyhow::Result<Self> {
+        let lexe_api::budget::models::BudgetInfo {
+            limit,
+            currency,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+            spendable,
+            next_reset,
+        } = info;
+        let limit = BitcoinOrFiat::try_from_flattened(limit, currency)?;
+        let spendable = BitcoinOrFiat::try_from_flattened(spendable, currency)?;
+        let reset =
+            match (reset_interval, interval_count, utc_offset_mins, next_reset)
+            {
+                (None, None, None, None) => None,
+                (
+                    Some(interval),
+                    Some(interval_count),
+                    Some(utc_offset_mins),
+                    Some(next_reset),
+                ) => Some(BudgetResetInfo {
+                    interval,
+                    interval_count: interval_count.get(),
+                    utc_offset_mins,
+                    next_reset,
+                }),
+                // Should be unreachable.
+                _ => bail!("Node returned a partial budget reset schedule"),
+            };
+        Ok(Self {
+            limit,
+            reset,
+            spendable,
+        })
     }
 }
 
@@ -1385,6 +1485,13 @@ pub struct CreateClientRequest {
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     #[serde(default)]
     pub permissions: Vec<String>,
+    /// An optional spending budget for the client.
+    ///
+    /// [`None`] indicates that the client can spend without limit.
+    ///
+    /// If the budget has a reset schedule, the first reset is at the start of
+    /// the next day, week, month, or year.
+    pub budget: Option<Budget>,
 }
 
 // If this breaks, update the docs above.
@@ -1407,8 +1514,11 @@ impl TryFrom<CreateClientRequest>
         Ok(Self {
             expires_at: req.expires_at,
             label: req.label,
-            // TODO(nicole): wire budgets through the SDK
-            budget: BudgetParams::UNLIMITED,
+            budget: req
+                .budget
+                .map(BudgetParams::try_from)
+                .transpose()?
+                .unwrap_or(BudgetParams::UNLIMITED),
             permissions: ClientPermissions {
                 scopes,
                 permissions,
@@ -1433,10 +1543,13 @@ pub struct CreateClientResponse {
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effective_permissions: Vec<String>,
+    /// The client's budget.
+    ///
+    /// [`None`] means no spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
 /// A request to update the properties of an existing client.
-#[derive(Serialize, Deserialize)]
 pub struct UpdateClientRequest {
     /// The public key of the client to update.
     pub client_pk: ed25519::PublicKey,
@@ -1458,7 +1571,6 @@ pub struct UpdateClientRequest {
     /// replace the client's complete grant; an omitted set is treated as
     /// empty. The resulting grant must contain at least one scope or
     /// permission.
-    #[serde(default)]
     pub new_scopes: Option<BTreeSet<Scope>>,
     /// The updated extra permissions for the client, by string id
     /// (e.g. `"create_invoice"`).
@@ -1470,8 +1582,22 @@ pub struct UpdateClientRequest {
     ///
     /// **Unstable**: permission ids are not part of the stable API and may be
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
-    #[serde(default)]
     pub new_permissions: Option<BTreeSet<String>>,
+    /// The updated spending limit for the client.
+    ///
+    /// - `None`: leave the limit unchanged.
+    /// - `Some(None)`: remove the limit, and with it any reset schedule.
+    /// - `Some(Some(limit))`: set the limit. Any reset schedule is kept.
+    ///
+    /// A limit can't switch between different fiat currencies.
+    pub new_budget_limit: Option<Option<BitcoinOrFiat>>,
+    /// The updated reset schedule for the client's spending limit.
+    ///
+    /// - `None`: leave the reset schedule unchanged.
+    /// - `Some(None)`: stop the limit from resetting.
+    /// - `Some(Some(reset))`: set the reset schedule. The first reset is at
+    ///   the start of the next day, week, month, or year. Requires a limit.
+    pub new_budget_reset: Option<Option<BudgetReset>>,
 }
 
 impl UpdateClientRequest {
@@ -1479,51 +1605,70 @@ impl UpdateClientRequest {
     /// serialization can't express the `Option<Option<_>>` fields, such as the
     /// Sidecar's JSON API, UniFFI, and the CLI.
     ///
-    /// - At most one of `clear_label` or `label` can be set.
-    /// - At most one of `clear_expiration` or `expires_at` can be set.
+    /// - A value and its `clear_*` flag can't both be set, e.g. `expires_at`
+    ///   and `clear_expiration`.
     /// - `new_scopes` and `new_permissions` follow the field semantics above.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         client_pk: ed25519::PublicKey,
         label: Option<String>,
         clear_label: bool,
         expires_at: Option<TimestampMs>,
         clear_expiration: bool,
+        budget_limit: Option<BitcoinOrFiat>,
+        clear_budget: bool,
+        budget_reset: Option<BudgetReset>,
+        clear_budget_reset: bool,
         new_scopes: Option<BTreeSet<Scope>>,
         new_permissions: Option<BTreeSet<String>>,
     ) -> anyhow::Result<Self> {
-        ensure!(
-            !(clear_label && label.is_some()),
-            "Set only one of `label`, `clear_label`",
-        );
-        ensure!(
-            !(clear_expiration && expires_at.is_some()),
-            "Set only one of the expiration and `clear_expiration`",
-        );
-
-        // `Some(None)` clears the field; `None` leaves it unchanged.
-        let new_label = if clear_label {
-            Some(None)
-        } else {
-            label.map(Some)
-        };
-        let new_expires_at = if clear_expiration {
-            Some(None)
-        } else {
-            expires_at.map(Some)
-        };
+        let new_label = Self::set_or_clear(
+            label,
+            clear_label,
+            "`label` and `clear_label`",
+        )?;
+        let new_expires_at = Self::set_or_clear(
+            expires_at,
+            clear_expiration,
+            "the expiration and `clear_expiration`",
+        )?;
+        let new_budget_limit = Self::set_or_clear(
+            budget_limit,
+            clear_budget,
+            "`budget_limit` and `clear_budget`",
+        )?;
+        let new_budget_reset = Self::set_or_clear(
+            budget_reset,
+            clear_budget_reset,
+            "`budget_reset` and `clear_budget_reset`",
+        )?;
 
         Ok(Self {
             client_pk,
             new_label,
             new_expires_at,
-            new_permissions,
             new_scopes,
+            new_permissions,
+            new_budget_limit,
+            new_budget_reset,
         })
+    }
+
+    /// The `Option<Option<_>>` for a `value` and its `clear` flag:
+    /// `Some(None)` clears the field and `None` leaves it unchanged. Errors if
+    /// both are set, naming them `what`.
+    fn set_or_clear<T>(
+        value: Option<T>,
+        clear: bool,
+        what: &str,
+    ) -> anyhow::Result<Option<Option<T>>> {
+        ensure!(!(clear && value.is_some()), "Set only one of {what}");
+        Ok(if clear { Some(None) } else { value.map(Some) })
     }
 }
 
 impl TryFrom<UpdateClientRequest>
-    for revocable_clients::models::UpdateClientRequest
+    for revocable_clients::models::UpdateClientWithBudgetRequest
 {
     type Error = anyhow::Error;
 
@@ -1544,12 +1689,54 @@ impl TryFrom<UpdateClientRequest>
                     .map_err(anyhow::Error::msg)?,
             }),
         };
+        let budget = match (req.new_budget_limit, req.new_budget_reset) {
+            (Some(None), Some(Some(_))) => bail!(
+                "Can't set a budget reset schedule while clearing the limit"
+            ),
+            // Clearing the limit clears its reset schedule too.
+            (Some(None), _) => UpdateBudgetParams::CLEAR_BUDGET,
+            (new_limit, new_reset) => {
+                let (limit, currency) = match new_limit {
+                    None => (None, None),
+                    Some(Some(limit)) => {
+                        let (limit, currency) = limit.try_flatten()?;
+                        (Some(Some(limit)), Some(Some(currency)))
+                    }
+                    // Handled above.
+                    Some(None) => unreachable!(),
+                };
+                let (reset_interval, interval_count, utc_offset_mins) =
+                    match new_reset {
+                        None => (None, None, None),
+                        Some(None) => (Some(None), Some(None), Some(None)),
+                        Some(Some(reset)) => {
+                            let (interval, count, utc_offset_mins) =
+                                reset.try_flatten()?;
+                            (
+                                Some(Some(interval)),
+                                Some(Some(count)),
+                                Some(Some(utc_offset_mins)),
+                            )
+                        }
+                    };
+                UpdateBudgetParams {
+                    limit,
+                    currency,
+                    reset_interval,
+                    interval_count,
+                    utc_offset_mins,
+                }
+            }
+        };
         Ok(Self {
-            pubkey: req.client_pk,
-            expires_at: req.new_expires_at,
-            label: req.new_label,
-            permissions,
-            is_revoked: None,
+            client: revocable_clients::models::UpdateClientRequest {
+                pubkey: req.client_pk,
+                expires_at: req.new_expires_at,
+                label: req.new_label,
+                permissions,
+                is_revoked: None,
+            },
+            budget,
         })
     }
 }
@@ -1562,10 +1749,134 @@ pub struct RevokeClientRequest {
     pub client_pk: ed25519::PublicKey,
 }
 
+/// A client's spending limit, including fees.
+#[derive(Serialize, Deserialize)]
+pub struct Budget {
+    /// How much the client may spend before the limit resets.
+    pub limit: BitcoinOrFiat,
+    /// When the limit resets.
+    ///
+    /// [`None`] means the limit never resets, so the limit applies to the
+    /// client's total spending.
+    pub reset: Option<BudgetReset>,
+}
+
+/// An amount, in either bitcoin or a fiat currency.
+#[derive(Serialize, Deserialize)]
+pub enum BitcoinOrFiat {
+    /// An amount of bitcoin.
+    Bitcoin(Amount),
+    /// A fiat amount.
+    Fiat {
+        /// The amount, e.g. `20.50`.
+        amount: Decimal,
+        /// The ISO 4217 currency code, e.g. `USD`. Must be uppercase.
+        currency: String,
+    },
+}
+
+/// A budget's reset schedule.
+#[derive(Serialize, Deserialize)]
+pub struct BudgetReset {
+    /// How often the limit resets. Resets happen at the start of each day,
+    /// week, month, or year; weeks start on Sunday.
+    pub interval: BudgetResetInterval,
+    /// The number of days, weeks, months, or years between resets, whichever
+    /// `interval` specifies. Must be >= 1. For example, pass 2 with a
+    /// `Weekly` `interval` to reset every other Sunday.
+    ///
+    /// Pass [`None`] to ignore this field, so that the limit resets every
+    /// day, week, month, or year.
+    pub interval_count: Option<u8>,
+    /// The timezone in which resets are computed, as a UTC offset in minutes,
+    /// e.g. `-300` for UTC-05:00.
+    ///
+    /// Pass [`None`] to use this machine's timezone.
+    pub utc_offset_mins: Option<i32>,
+}
+
+impl BudgetReset {
+    /// Flattens into the unstable reset interval, interval count, and UTC
+    /// offset, applying the defaults.
+    fn try_flatten(
+        self,
+    ) -> anyhow::Result<(BudgetResetInterval, NonZeroU8, i32)> {
+        let interval_count =
+            NonZeroU8::new(self.interval_count.unwrap_or(1))
+                .context("Budget interval count must be at least 1")?;
+        let utc_offset_mins = self
+            .utc_offset_mins
+            .unwrap_or_else(|| Local::now().offset().local_minus_utc() / 60);
+        Ok((self.interval, interval_count, utc_offset_mins))
+    }
+}
+
+impl BitcoinOrFiat {
+    /// Flattens into a decimal and a [`BudgetCurrency`]. Bitcoin amounts are
+    /// in BTC, not sats.
+    fn try_flatten(self) -> anyhow::Result<(Decimal, BudgetCurrency)> {
+        match self {
+            Self::Bitcoin(amount) =>
+                Ok((amount.btc(), BudgetCurrency::Bitcoin)),
+            Self::Fiat { amount, currency } => {
+                let code =
+                    IsoCurrencyCode::from_str(&currency).map_err(|e| {
+                        anyhow!("Invalid fiat currency {currency:?}: {e}")
+                    })?;
+                ensure!(
+                    code != IsoCurrencyCode::BTC,
+                    "Bitcoin amounts use `BitcoinOrFiat::Bitcoin`"
+                );
+                Ok((amount, BudgetCurrency::Fiat(code)))
+            }
+        }
+    }
+
+    /// The inverse of [`Self::try_flatten`].
+    fn try_from_flattened(
+        amount: Decimal,
+        currency: BudgetCurrency,
+    ) -> anyhow::Result<Self> {
+        match currency {
+            BudgetCurrency::Bitcoin => {
+                let amount = Amount::try_from_btc(amount)
+                    .context("Node returned an invalid BTC amount")?;
+                Ok(Self::Bitcoin(amount))
+            }
+            BudgetCurrency::Fiat(currency) => Ok(Self::Fiat {
+                amount,
+                currency: currency.to_string(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<Budget> for BudgetParams {
+    type Error = anyhow::Error;
+
+    fn try_from(budget: Budget) -> anyhow::Result<Self> {
+        let (limit, currency) = budget.limit.try_flatten()?;
+        let (reset_interval, interval_count, utc_offset_mins) = match budget
+            .reset
+        {
+            Some(reset) => {
+                let (interval, count, utc_offset_mins) = reset.try_flatten()?;
+                (Some(interval), Some(count), Some(utc_offset_mins))
+            }
+            None => (None, None, None),
+        };
+        Ok(Self {
+            limit: Some(limit),
+            currency: Some(currency),
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
@@ -1577,7 +1888,8 @@ mod test {
         let ts = TimestampMs::from_millis(1_772_349_163_000).unwrap();
         let build = |label, clear, expires_at, never| {
             UpdateClientRequest::new(
-                pk, label, clear, expires_at, never, None, None,
+                pk, label, clear, expires_at, never, None, false, None, false,
+                None, None,
             )
         };
 
@@ -1611,12 +1923,17 @@ mod test {
             new_label: None,
             new_permissions,
             new_scopes,
+            new_budget_limit: None,
+            new_budget_reset: None,
         };
         let convert = |req| {
-            revocable_clients::models::UpdateClientRequest::try_from(req)
-                .unwrap()
-                .permissions
-                .unwrap()
+            revocable_clients::models::UpdateClientWithBudgetRequest::try_from(
+                req,
+            )
+            .unwrap()
+            .client
+            .permissions
+            .unwrap()
         };
 
         let req =
@@ -1644,8 +1961,10 @@ mod test {
 
         let req = build(Some(BTreeSet::from(["invalid".to_owned()])), None);
         assert!(
-            revocable_clients::models::UpdateClientRequest::try_from(req)
-                .is_err()
+            revocable_clients::models::UpdateClientWithBudgetRequest::try_from(
+                req
+            )
+            .is_err()
         );
     }
 
