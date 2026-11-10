@@ -1539,13 +1539,24 @@ Args:
     label: An optional label of at most 64 UTF-8 bytes.
     permissions: Optional explicit permission ids beyond ``scopes``.
         Permission ids are unstable and may be renamed; prefer ``scopes``.
+    budget_limit: The client's spending limit, including fees, denominated
+        in ``budget_currency``, as a decimal string. ``None`` means no
+        spending limit.
+    budget_currency: ``"sats"``, or an uppercase ISO 4217 code like ``"USD"``.
+    budget_reset_interval: How often the limit resets, at the start of the
+        next day, week, month, or year. ``None`` applies the limit to the
+        client's total spending.
+    budget_interval_count: The number of days, weeks, months, or years
+        between resets. Defaults to 1.
+    budget_utc_offset_mins: The timezone the resets are computed in, as a UTC
+        offset in minutes. Defaults to this machine's timezone.
 
 Returns:
     A :class:`CreateClientResponse` with the new client's public key and
     credentials.
 
 Raises:
-    FfiError: If the request fails.
+    FfiError: If the budget arguments are invalid or the request fails.
 
 Example::
 
@@ -1555,10 +1566,20 @@ Example::
     # ClientCredentials.from_string(...).
     creds_str = resp.client_credentials.export_string()
 
+    # A spending client limited to 20 USD per month. The limit first resets
+    # at the start of next month, in this machine's timezone.
+    resp = wallet.create_client(
+        [Scope.SPEND],
+        expires_at_ms=None,
+        budget_limit="20",
+        budget_currency="USD",
+        budget_reset_interval=BudgetResetInterval.MONTHLY,
+    )
+
 """)
 
 _set_method_doc(LexeWallet, "update_client", """\
-Update a client's label, expiration, scopes, or permissions.
+Update a client's label, expiration, scopes, permissions, or budget.
 
 If either ``scopes`` or ``permissions`` is provided, together they replace
 the client's complete grant; an omitted set is treated as empty. The resulting
@@ -1577,6 +1598,22 @@ Args:
     permissions: Replacement explicit permission ids, or ``None`` to leave
         the grant unchanged when ``scopes`` is also ``None``. Permission ids
         are unstable and may be renamed; prefer ``scopes``.
+    budget_limit: A new spending limit, including fees, denominated in
+        ``budget_currency``, as a decimal string. Keeps the client's existing
+        reset schedule, if any. ``None`` leaves the limit unchanged.
+    budget_currency: ``"sats"``, or an uppercase ISO 4217 code like ``"USD"``.
+        A limit can't switch between different fiat currencies.
+    budget_reset_interval: How often the limit resets, at the start of the
+        next day, week, month, or year, or ``None`` to leave the reset
+        schedule unchanged.
+    budget_interval_count: The number of days, weeks, months, or years
+        between resets. Defaults to 1.
+    budget_utc_offset_mins: The timezone the resets are computed in, as a UTC
+        offset in minutes. Defaults to this machine's timezone.
+    clear_budget: Remove the client's spending limit and any reset schedule.
+        Conflicts with every ``budget_*`` argument.
+    clear_budget_reset: Stop the client's spending limit from resetting.
+        Conflicts with ``budget_reset_interval``.
 
 Returns:
     The updated :class:`ClientInfo`.
@@ -2643,13 +2680,24 @@ Args:
     label: An optional label of at most 64 UTF-8 bytes.
     permissions: Optional explicit permission ids beyond ``scopes``.
         Permission ids are unstable and may be renamed; prefer ``scopes``.
+    budget_limit: The client's spending limit, including fees, denominated
+        in ``budget_currency``, as a decimal string. ``None`` means no
+        spending limit.
+    budget_currency: ``"sats"``, or an uppercase ISO 4217 code like ``"USD"``.
+    budget_reset_interval: How often the limit resets, at the start of the
+        next day, week, month, or year. ``None`` applies the limit to the
+        client's total spending.
+    budget_interval_count: The number of days, weeks, months, or years
+        between resets. Defaults to 1.
+    budget_utc_offset_mins: The timezone the resets are computed in, as a UTC
+        offset in minutes. Defaults to this machine's timezone.
 
 Returns:
     A :class:`CreateClientResponse` with the new client's public key and
     credentials.
 
 Raises:
-    FfiError: If the request fails.
+    FfiError: If the budget arguments are invalid or the request fails.
 
 Example::
 
@@ -2659,10 +2707,20 @@ Example::
     # ClientCredentials.from_string(...).
     creds_str = resp.client_credentials.export_string()
 
+    # A spending client limited to 20 USD per month. The limit first resets
+    # at the start of next month, in this machine's timezone.
+    resp = await wallet.create_client(
+        [Scope.SPEND],
+        expires_at_ms=None,
+        budget_limit="20",
+        budget_currency="USD",
+        budget_reset_interval=BudgetResetInterval.MONTHLY,
+    )
+
 """)
 
 _set_method_doc(AsyncLexeWallet, "update_client", """\
-Update a client's label, expiration, scopes, or permissions.
+Update a client's label, expiration, scopes, permissions, or budget.
 
 If either ``scopes`` or ``permissions`` is provided, together they replace
 the client's complete grant; an omitted set is treated as empty. The resulting
@@ -2681,6 +2739,22 @@ Args:
     permissions: Replacement explicit permission ids, or ``None`` to leave
         the grant unchanged when ``scopes`` is also ``None``. Permission ids
         are unstable and may be renamed; prefer ``scopes``.
+    budget_limit: A new spending limit, including fees, denominated in
+        ``budget_currency``, as a decimal string. Keeps the client's existing
+        reset schedule, if any. ``None`` leaves the limit unchanged.
+    budget_currency: ``"sats"``, or an uppercase ISO 4217 code like ``"USD"``.
+        A limit can't switch between different fiat currencies.
+    budget_reset_interval: How often the limit resets, at the start of the
+        next day, week, month, or year, or ``None`` to leave the reset
+        schedule unchanged.
+    budget_interval_count: The number of days, weeks, months, or years
+        between resets. Defaults to 1.
+    budget_utc_offset_mins: The timezone the resets are computed in, as a UTC
+        offset in minutes. Defaults to this machine's timezone.
+    clear_budget: Remove the client's spending limit and any reset schedule.
+        Conflicts with every ``budget_*`` argument.
+    clear_budget_reset: Stop the client's spending limit from resetting.
+        Conflicts with ``budget_reset_interval``.
 
 Returns:
     The updated :class:`ClientInfo`.
@@ -3322,6 +3396,9 @@ Attributes:
     effective_permissions: Every permission this client currently holds:
         the union of all ``scopes``' permissions plus the explicit
         ``permissions``.
+    budget: The client's budget, as a :class:`BudgetInfo`, or ``None`` if
+        the client has no spending limit. Root seed clients never have a
+        spending limit.
 
 **Unstable**: permission ids are not part of the stable API and may be renamed.
 Avoid matching on specific ids; prefer ``scopes`` instead.
@@ -3351,6 +3428,8 @@ Attributes:
     effective_permissions: Every permission this client currently holds:
         the union of all ``scopes``' permissions plus the explicit
         ``permissions``.
+    budget: The client's budget, as a :class:`BudgetInfo`, or ``None`` if
+        the client has no spending limit.
 
 **Unstable**: permission ids are not part of the stable API and may be renamed.
 Avoid matching on specific ids; prefer ``scopes`` instead.
@@ -3365,9 +3444,45 @@ Attributes:
     client_credentials: The :class:`ClientCredentials` granting the
         selected access to the node.
     effective_permissions: Every permission the client currently holds.
+    budget: The client's budget, as a :class:`BudgetInfo`, or ``None`` if
+        the client has no spending limit.
 
 **Unstable**: permission ids are not part of the stable API and may be renamed.
 Avoid matching on specific ids; prefer ``scopes`` instead.
+"""
+
+lexe.BudgetInfo.__doc__ = """\
+Info about a client's budget.
+
+Attributes:
+    limit: The client's spending limit, including fees, denominated in
+        ``currency``, as a decimal string.
+    currency: The currency of ``limit`` and ``spendable``: ``"sats"`` for
+        bitcoin, or an ISO 4217 code like ``"USD"``.
+    reset_interval: How often the limit resets, as a
+        :class:`BudgetResetInterval`. Resets happen at the start of each day,
+        week, month, or year, and weeks start on Sunday. ``None`` means the
+        limit never resets, so the limit applies to the client's total
+        spending.
+    interval_count: The number of days, weeks, months, or years between
+        resets, whichever ``reset_interval`` specifies. Always >= 1. ``None``
+        means the limit never resets.
+    utc_offset_mins: The timezone in which resets are computed, as a UTC
+        offset in minutes, e.g. ``-300`` for UTC-05:00. ``None`` means the
+        limit never resets.
+    next_reset_ms: When the limit next resets (ms since UNIX epoch).
+        ``None`` means the limit never resets.
+    spendable: How much the client can spend right now, denominated in
+        ``currency``, as a decimal string.
+"""
+
+lexe.BudgetResetInterval.__doc__ = """\
+How often a budget's limit resets.
+
+- **DAILY** -- At the start of each day.
+- **WEEKLY** -- At the start of each week, on Sunday.
+- **MONTHLY** -- At the start of each month.
+- **YEARLY** -- At the start of each year.
 """
 
 # ================= #

@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail, ensure};
 use lexe::{
     bip39::Mnemonic,
     bitcoin::address::Address as SdkAddress,
@@ -25,6 +25,7 @@ use lexe::{
         DeployEnv as SdkDeployEnv, Network as SdkNetwork,
         WalletEnvConfig as SdkWalletEnvConfig,
     },
+    rust_decimal::Decimal,
     types::{
         auth::{
             ClientCredentials as SdkClientCredentials,
@@ -44,6 +45,9 @@ use lexe::{
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
             AnalyzeResponse as SdkAnalyzeResponse,
+            BitcoinOrFiat as SdkBitcoinOrFiat, Budget as SdkBudget,
+            BudgetInfo as SdkBudgetInfo, BudgetReset as SdkBudgetReset,
+            BudgetResetInterval as SdkBudgetResetInterval,
             CancelPaymentRequest as SdkCancelPaymentRequest,
             CashAppBuyRequest as SdkCashAppBuyRequest,
             CashAppBuyResponse as SdkCashAppBuyResponse,
@@ -1848,14 +1852,40 @@ impl AsyncLexeWallet {
     /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
     /// epoch); `None` means the client never expires. Use carefully! `label`
     /// is an optional label of at most 64 UTF-8 bytes.
+    ///
+    /// `budget_limit` is the client's spending limit, including fees,
+    /// denominated in `budget_currency`, as a decimal string. `budget_currency`
+    /// is `"sats"`, or an uppercase ISO 4217 code like `"USD"`. `None` for both
+    /// means the client can spend without limit.
+    ///
+    /// `budget_reset_interval` is how often the limit resets, at the start of
+    /// the next day, week, month, or year; `None` means the limit applies to
+    /// the client's total spending. `budget_interval_count` is the number of
+    /// days, weeks, months, or years between resets (default 1), and
+    /// `budget_utc_offset_mins` is the timezone the resets are computed in, as
+    /// a UTC offset in minutes (default: this machine's).
     // Explicitly omit default expiration to force opting into no expiration
-    #[uniffi::method(default(label = None, permissions = None))]
+    #[allow(clippy::too_many_arguments)]
+    #[uniffi::method(default(
+        label = None,
+        permissions = None,
+        budget_limit = None,
+        budget_currency = None,
+        budget_reset_interval = None,
+        budget_interval_count = None,
+        budget_utc_offset_mins = None,
+    ))]
     pub async fn create_client(
         &self,
         scopes: Vec<Scope>,
         expires_at_ms: Option<u64>,
         label: Option<String>,
         permissions: Option<Vec<String>>,
+        budget_limit: Option<String>,
+        budget_currency: Option<String>,
+        budget_reset_interval: Option<BudgetResetInterval>,
+        budget_interval_count: Option<u8>,
+        budget_utc_offset_mins: Option<i32>,
     ) -> Result<CreateClientResponse, FfiError> {
         let scopes = scopes
             .into_iter()
@@ -1865,18 +1895,26 @@ impl AsyncLexeWallet {
             .map(TimestampMs::from_millis)
             .transpose()
             .context("expires_at_ms is too large")?;
+        let budget = BudgetArgs {
+            limit: budget_limit,
+            currency: budget_currency,
+            reset_interval: budget_reset_interval,
+            interval_count: budget_interval_count,
+            utc_offset_mins: budget_utc_offset_mins,
+        }
+        .budget()?;
         let req = SdkCreateClientRequest {
             expires_at,
             label,
             scopes,
             permissions: permissions.unwrap_or_default(),
-            budget: None,
+            budget,
         };
         let resp = self.inner.create_client(req).await?;
         Ok(CreateClientResponse::from(resp))
     }
 
-    /// Update a client's label, expiration, scopes, or permissions.
+    /// Update a client's label, expiration, scopes, permissions, or budget.
     ///
     /// Set `clear_label` to remove an existing label (conflicts with `label`).
     /// Set `clear_expiration` to remove an existing expiration (conflicts with
@@ -1886,6 +1924,15 @@ impl AsyncLexeWallet {
     /// the client's complete grant; an omitted set is treated as empty. The
     /// resulting grant must contain at least one scope or permission.
     /// Permission ids are unstable and may be renamed; prefer `scopes`.
+    ///
+    /// The `budget_*` params are as in `create_client`; omitted ones are left
+    /// unchanged. Changing the limit keeps the client's existing reset
+    /// schedule, if any, and a limit can't switch between different fiat
+    /// currencies. Set `clear_budget` to remove the limit and any reset
+    /// schedule (conflicts with every `budget_*` param). Set
+    /// `clear_budget_reset` to stop the limit from resetting (conflicts with
+    /// `budget_reset_interval`).
+    #[allow(clippy::too_many_arguments)]
     #[uniffi::method(default(
         label = None,
         clear_label = false,
@@ -1893,6 +1940,13 @@ impl AsyncLexeWallet {
         clear_expiration = false,
         scopes = None,
         permissions = None,
+        budget_limit = None,
+        budget_currency = None,
+        budget_reset_interval = None,
+        budget_interval_count = None,
+        budget_utc_offset_mins = None,
+        clear_budget = false,
+        clear_budget_reset = false,
     ))]
     pub async fn update_client(
         &self,
@@ -1903,6 +1957,13 @@ impl AsyncLexeWallet {
         clear_expiration: bool,
         scopes: Option<Vec<Scope>>,
         permissions: Option<Vec<String>>,
+        budget_limit: Option<String>,
+        budget_currency: Option<String>,
+        budget_reset_interval: Option<BudgetResetInterval>,
+        budget_interval_count: Option<u8>,
+        budget_utc_offset_mins: Option<i32>,
+        clear_budget: bool,
+        clear_budget_reset: bool,
     ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
@@ -1920,20 +1981,22 @@ impl AsyncLexeWallet {
             permissions.into_iter().collect::<BTreeSet<_>>()
         });
 
-        // TODO(nicole): propagate budgets to UniFFI
-        let budget_limit = None;
-        let clear_budget = false;
-        let budget_reset = None;
-        let clear_budget_reset = false;
+        let budget = BudgetArgs {
+            limit: budget_limit,
+            currency: budget_currency,
+            reset_interval: budget_reset_interval,
+            interval_count: budget_interval_count,
+            utc_offset_mins: budget_utc_offset_mins,
+        };
         let req = SdkUpdateClientRequest::new(
             client_pk,
             label,
             clear_label,
             expires_at,
             clear_expiration,
-            budget_limit,
+            budget.limit()?,
             clear_budget,
-            budget_reset,
+            budget.reset()?,
             clear_budget_reset,
             scopes,
             permissions,
@@ -3079,14 +3142,40 @@ impl BlockingLexeWallet {
     /// `expires_at_ms` is the client's expiration (milliseconds since the UNIX
     /// epoch); `None` means the client never expires. Use carefully! `label`
     /// is an optional label of at most 64 UTF-8 bytes.
+    ///
+    /// `budget_limit` is the client's spending limit, including fees,
+    /// denominated in `budget_currency`, as a decimal string. `budget_currency`
+    /// is `"sats"`, or an uppercase ISO 4217 code like `"USD"`. `None` for both
+    /// means the client can spend without limit.
+    ///
+    /// `budget_reset_interval` is how often the limit resets, at the start of
+    /// the next day, week, month, or year; `None` means the limit applies to
+    /// the client's total spending. `budget_interval_count` is the number of
+    /// days, weeks, months, or years between resets (default 1), and
+    /// `budget_utc_offset_mins` is the timezone the resets are computed in, as
+    /// a UTC offset in minutes (default: this machine's).
     // Explicitly omit default expiration to force opting into no expiration
-    #[uniffi::method(default(label = None, permissions = None))]
+    #[allow(clippy::too_many_arguments)]
+    #[uniffi::method(default(
+        label = None,
+        permissions = None,
+        budget_limit = None,
+        budget_currency = None,
+        budget_reset_interval = None,
+        budget_interval_count = None,
+        budget_utc_offset_mins = None,
+    ))]
     pub fn create_client(
         &self,
         scopes: Vec<Scope>,
         expires_at_ms: Option<u64>,
         label: Option<String>,
         permissions: Option<Vec<String>>,
+        budget_limit: Option<String>,
+        budget_currency: Option<String>,
+        budget_reset_interval: Option<BudgetResetInterval>,
+        budget_interval_count: Option<u8>,
+        budget_utc_offset_mins: Option<i32>,
     ) -> Result<CreateClientResponse, FfiError> {
         let scopes = scopes
             .into_iter()
@@ -3096,18 +3185,26 @@ impl BlockingLexeWallet {
             .map(TimestampMs::from_millis)
             .transpose()
             .context("expires_at_ms is too large")?;
+        let budget = BudgetArgs {
+            limit: budget_limit,
+            currency: budget_currency,
+            reset_interval: budget_reset_interval,
+            interval_count: budget_interval_count,
+            utc_offset_mins: budget_utc_offset_mins,
+        }
+        .budget()?;
         let req = SdkCreateClientRequest {
             expires_at,
             label,
             scopes,
             permissions: permissions.unwrap_or_default(),
-            budget: None,
+            budget,
         };
         let resp = self.inner.create_client(req)?;
         Ok(CreateClientResponse::from(resp))
     }
 
-    /// Update a client's label, expiration, scopes, or permissions.
+    /// Update a client's label, expiration, scopes, permissions, or budget.
     ///
     /// Set `clear_label` to remove an existing label (conflicts with `label`).
     /// Set `clear_expiration` to remove an existing expiration (conflicts with
@@ -3117,6 +3214,15 @@ impl BlockingLexeWallet {
     /// the client's complete grant; an omitted set is treated as empty. The
     /// resulting grant must contain at least one scope or permission.
     /// Permission ids are unstable and may be renamed; prefer `scopes`.
+    ///
+    /// The `budget_*` params are as in `create_client`; omitted ones are left
+    /// unchanged. Changing the limit keeps the client's existing reset
+    /// schedule, if any, and a limit can't switch between different fiat
+    /// currencies. Set `clear_budget` to remove the limit and any reset
+    /// schedule (conflicts with every `budget_*` param). Set
+    /// `clear_budget_reset` to stop the limit from resetting (conflicts with
+    /// `budget_reset_interval`).
+    #[allow(clippy::too_many_arguments)]
     #[uniffi::method(default(
         label = None,
         clear_label = false,
@@ -3124,6 +3230,13 @@ impl BlockingLexeWallet {
         clear_expiration = false,
         scopes = None,
         permissions = None,
+        budget_limit = None,
+        budget_currency = None,
+        budget_reset_interval = None,
+        budget_interval_count = None,
+        budget_utc_offset_mins = None,
+        clear_budget = false,
+        clear_budget_reset = false,
     ))]
     pub fn update_client(
         &self,
@@ -3134,6 +3247,13 @@ impl BlockingLexeWallet {
         clear_expiration: bool,
         scopes: Option<Vec<Scope>>,
         permissions: Option<Vec<String>>,
+        budget_limit: Option<String>,
+        budget_currency: Option<String>,
+        budget_reset_interval: Option<BudgetResetInterval>,
+        budget_interval_count: Option<u8>,
+        budget_utc_offset_mins: Option<i32>,
+        clear_budget: bool,
+        clear_budget_reset: bool,
     ) -> Result<ClientInfo, FfiError> {
         let client_pk = ed25519::PublicKey::from_str(&client_pk)
             .context("Invalid client_pk")?;
@@ -3151,20 +3271,22 @@ impl BlockingLexeWallet {
             permissions.into_iter().collect::<BTreeSet<_>>()
         });
 
-        // TODO(nicole): propagate budgets to UniFFI
-        let budget_limit = None;
-        let clear_budget = false;
-        let budget_reset = None;
-        let clear_budget_reset = false;
+        let budget = BudgetArgs {
+            limit: budget_limit,
+            currency: budget_currency,
+            reset_interval: budget_reset_interval,
+            interval_count: budget_interval_count,
+            utc_offset_mins: budget_utc_offset_mins,
+        };
         let req = SdkUpdateClientRequest::new(
             client_pk,
             label,
             clear_label,
             expires_at,
             clear_expiration,
-            budget_limit,
+            budget.limit()?,
             clear_budget,
-            budget_reset,
+            budget.reset()?,
             clear_budget_reset,
             scopes,
             permissions,
@@ -4528,6 +4650,9 @@ pub struct GetClientInfoResponse {
     /// **Unstable**: permission ids are not part of the stable API and may be
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     pub effective_permissions: Vec<String>,
+    /// The client's budget. `None` means no spending limit. Root seed clients
+    /// never have a spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
 impl From<SdkGetClientInfoResponse> for GetClientInfoResponse {
@@ -4541,6 +4666,7 @@ impl From<SdkGetClientInfoResponse> for GetClientInfoResponse {
             scopes: resp.scopes,
             permissions: resp.permissions,
             effective_permissions: resp.effective_permissions,
+            budget: resp.budget.map(BudgetInfo::from),
         }
     }
 }
@@ -4590,6 +4716,8 @@ pub struct ClientInfo {
     /// **Unstable**: permission ids are not part of the stable API and may be
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     pub effective_permissions: Vec<String>,
+    /// The client's budget. `None` means no spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
 impl From<SdkClientInfo> for ClientInfo {
@@ -4602,6 +4730,7 @@ impl From<SdkClientInfo> for ClientInfo {
             scopes: info.scopes,
             permissions: info.permissions,
             effective_permissions: info.effective_permissions,
+            budget: info.budget.map(BudgetInfo::from),
         }
     }
 }
@@ -4620,6 +4749,8 @@ pub struct CreateClientResponse {
     /// **Unstable**: permission ids are not part of the stable API and may be
     /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     pub effective_permissions: Vec<String>,
+    /// The client's budget. `None` means no spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
 impl From<SdkCreateClientResponse> for CreateClientResponse {
@@ -4631,6 +4762,164 @@ impl From<SdkCreateClientResponse> for CreateClientResponse {
                 sdk: resp.client_credentials,
             }),
             effective_permissions: resp.effective_permissions,
+            budget: resp.budget.map(BudgetInfo::from),
         }
+    }
+}
+
+/// Info about a client's budget.
+#[derive(Clone, uniffi::Record)]
+pub struct BudgetInfo {
+    /// The client's spending limit, including fees, denominated in `currency`,
+    /// as a decimal string.
+    pub limit: String,
+    /// The currency of `limit` and `spendable`: `"sats"` for bitcoin, or an
+    /// ISO 4217 code like `"USD"`.
+    pub currency: String,
+    /// How often the limit resets. Resets happen at the start of each day,
+    /// week, month, or year, and weeks start on Sunday. `None` means the
+    /// limit never resets, so the limit applies to the client's total
+    /// spending.
+    pub reset_interval: Option<BudgetResetInterval>,
+    /// The number of days, weeks, months, or years between resets, whichever
+    /// `reset_interval` specifies. Always >= 1. `None` means the limit never
+    /// resets.
+    pub interval_count: Option<u8>,
+    /// The timezone in which resets are computed, as a UTC offset in minutes,
+    /// e.g. `-300` for UTC-05:00. `None` means the limit never resets.
+    pub utc_offset_mins: Option<i32>,
+    /// When the limit next resets (milliseconds since the UNIX epoch).
+    /// `None` means the limit never resets.
+    pub next_reset_ms: Option<u64>,
+    /// How much the client can spend right now, denominated in `currency`, as
+    /// a decimal string.
+    pub spendable: String,
+}
+
+impl From<SdkBudgetInfo> for BudgetInfo {
+    fn from(info: SdkBudgetInfo) -> Self {
+        let (limit, currency) = flat_amount(info.limit);
+        let (spendable, _) = flat_amount(info.spendable);
+        let (reset_interval, interval_count, utc_offset_mins, next_reset_ms) =
+            match info.reset {
+                Some(reset) => (
+                    Some(BudgetResetInterval::from(reset.interval)),
+                    Some(reset.interval_count),
+                    Some(reset.utc_offset_mins),
+                    Some(reset.next_reset.to_millis()),
+                ),
+                None => (None, None, None, None),
+            };
+        Self {
+            limit,
+            currency,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+            next_reset_ms,
+            spendable,
+        }
+    }
+}
+
+/// A budget amount as a decimal string and its currency.
+fn flat_amount(amount: SdkBitcoinOrFiat) -> (String, String) {
+    match amount {
+        SdkBitcoinOrFiat::Bitcoin(amount) =>
+            (amount.sats().normalize().to_string(), "sats".to_owned()),
+        SdkBitcoinOrFiat::Fiat { amount, currency } =>
+            (amount.to_string(), currency),
+    }
+}
+
+/// How often a budget's limit resets.
+#[derive(Clone, uniffi::Enum)]
+pub enum BudgetResetInterval {
+    Daily,
+    /// Weeks start on Sunday.
+    Weekly,
+    Monthly,
+    Yearly,
+}
+
+impl From<BudgetResetInterval> for SdkBudgetResetInterval {
+    fn from(interval: BudgetResetInterval) -> Self {
+        match interval {
+            BudgetResetInterval::Daily => Self::Daily,
+            BudgetResetInterval::Weekly => Self::Weekly,
+            BudgetResetInterval::Monthly => Self::Monthly,
+            BudgetResetInterval::Yearly => Self::Yearly,
+        }
+    }
+}
+
+impl From<SdkBudgetResetInterval> for BudgetResetInterval {
+    fn from(interval: SdkBudgetResetInterval) -> Self {
+        match interval {
+            SdkBudgetResetInterval::Daily => Self::Daily,
+            SdkBudgetResetInterval::Weekly => Self::Weekly,
+            SdkBudgetResetInterval::Monthly => Self::Monthly,
+            SdkBudgetResetInterval::Yearly => Self::Yearly,
+        }
+    }
+}
+
+/// A budget as flat FFI params.
+struct BudgetArgs {
+    limit: Option<String>,
+    currency: Option<String>,
+    reset_interval: Option<BudgetResetInterval>,
+    interval_count: Option<u8>,
+    utc_offset_mins: Option<i32>,
+}
+
+impl BudgetArgs {
+    fn budget(self) -> anyhow::Result<Option<SdkBudget>> {
+        match (self.limit()?, self.reset()?) {
+            (Some(limit), reset) => Ok(Some(SdkBudget { limit, reset })),
+            (None, None) => Ok(None),
+            (None, Some(_)) =>
+                Err(anyhow!("budget_reset_interval requires budget_limit")),
+        }
+    }
+
+    fn limit(&self) -> anyhow::Result<Option<SdkBitcoinOrFiat>> {
+        let (limit, currency) = match (&self.limit, &self.currency) {
+            (None, None) => return Ok(None),
+            (Some(limit), Some(currency)) => (limit, currency),
+            _ => bail!("Set budget_limit and budget_currency together"),
+        };
+        let limit = Decimal::from_str(limit)
+            .map_err(|e| anyhow!("Invalid budget_limit: {e}"))?;
+        if currency == "sats" {
+            let sats = SdkAmount::try_from_sats(limit)
+                .context("Invalid sats budget_limit")?;
+            return Ok(Some(SdkBitcoinOrFiat::Bitcoin(sats)));
+        }
+        ensure!(
+            currency != "BTC",
+            "Bitcoin budgets are denominated in sats; pass budget_currency \
+             \"sats\""
+        );
+        Ok(Some(SdkBitcoinOrFiat::Fiat {
+            amount: limit,
+            currency: currency.clone(),
+        }))
+    }
+
+    fn reset(&self) -> anyhow::Result<Option<SdkBudgetReset>> {
+        let Some(interval) = self.reset_interval.clone() else {
+            ensure!(
+                self.interval_count.is_none() && self.utc_offset_mins.is_none(),
+                "budget_interval_count and budget_utc_offset_mins require \
+                 budget_reset_interval"
+            );
+            return Ok(None);
+        };
+        Ok(Some(SdkBudgetReset {
+            interval: SdkBudgetResetInterval::from(interval),
+            interval_count: self.interval_count,
+            utc_offset_mins: self.utc_offset_mins,
+        }))
     }
 }
