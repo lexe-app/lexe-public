@@ -1,5 +1,6 @@
+import 'dart:math' show min;
+
 import 'package:app_rs_dart/ffi/api.dart' show FiatCurrency, UserSettings;
-import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show
@@ -179,79 +180,91 @@ class _FiatCurrencyPickerState extends State<_FiatCurrencyPicker> {
         Flexible(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: Space.s200),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 450.0),
-              // Not an `InfoCard`, whose children can't shrink to fit.
-              child: Card(
-                clipBehavior: Clip.hardEdge,
-                color: LxColors.grey1000,
-                elevation: 0.0,
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
-                  child: ListenableBuilder(
-                    listenable: Listenable.merge([
-                      this.query,
-                      fiatRateService.fiatRates,
-                      userSettingsService.preferredFiatCurrency,
-                    ]),
-                    builder: (context, child) {
-                      final query = this.query.value.trim().toLowerCase();
-                      final selected =
-                          userSettingsService.preferredFiatCurrency.value ??
-                          UserSettings.defaultFiatCurrency();
+            // Not an `InfoCard`, whose children can't shrink to fit.
+            child: Card(
+              clipBehavior: Clip.hardEdge,
+              color: LxColors.grey1000,
+              elevation: 0.0,
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
+                child: ListenableBuilder(
+                  listenable: Listenable.merge([
+                    this.query,
+                    fiatRateService.fiatRates,
+                    userSettingsService.preferredFiatCurrency,
+                  ]),
+                  builder: (context, child) {
+                    final query = this.query.value.trim().toLowerCase();
+                    final selected =
+                        userSettingsService.preferredFiatCurrency.value ??
+                        UserSettings.defaultFiatCurrency();
 
-                      final currencies =
-                          fiatRateService.supportedFiatCurrencies;
-                      if (currencies != null) {
-                        this.ordered ??= _orderCurrencies(currencies, selected);
-                      }
-                      final matches = (this.ordered ?? const [])
-                          .where(
-                            (currency) =>
-                                currency.code.toLowerCase().contains(query) ||
-                                currency.name.toLowerCase().contains(query),
-                          )
-                          .toList();
-                      final status = (this.ordered == null)
-                          ? "Loading currencies..."
-                          : (matches.isEmpty)
-                          ? "No matching currencies"
-                          : null;
-
-                      return RadioGroup<String>(
-                        groupValue: selected,
-                        onChanged: this.onFiatCurrencySelected,
-                        child: _ScrollEdgeFade(
-                          child: ListView(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            children: [
-                              if (status != null)
-                                Padding(
-                                  padding: const EdgeInsets.all(Space.s400),
-                                  child: Text(
-                                    status,
-                                    style: const TextStyle(
-                                      color: LxColors.fgTertiary,
-                                    ),
-                                  ),
-                                ),
-                              for (final currency in matches)
-                                RadioListTile<String>(
-                                  value: currency.code,
-                                  title: Text(currency.code),
-                                  subtitle: Text(currency.name),
-                                  visualDensity: const VisualDensity(
-                                    vertical: VisualDensity.minimumDensity,
-                                  ),
-                                ),
-                            ],
-                          ),
+                    final currencies = fiatRateService.supportedFiatCurrencies;
+                    if (currencies != null) {
+                      this.ordered ??= _orderCurrencies(currencies, selected);
+                    }
+                    final matches = (this.ordered ?? const [])
+                        .where(
+                          (currency) =>
+                              currency.code.toLowerCase().contains(query) ||
+                              currency.name.toLowerCase().contains(query),
+                        )
+                        .toList();
+                    final status = (this.ordered == null)
+                        ? "Loading currencies..."
+                        : (matches.isEmpty)
+                        ? "No matching currencies"
+                        : null;
+                    if (status != null) {
+                      return Padding(
+                        padding: const EdgeInsets.all(Space.s400),
+                        child: Text(
+                          status,
+                          style: const TextStyle(color: LxColors.fgTertiary),
                         ),
                       );
-                    },
-                  ),
+                    }
+
+                    return RadioGroup<String>(
+                      groupValue: selected,
+                      onChanged: this.onFiatCurrencySelected,
+                      // Constrains the `ListView` below precisely to avoid
+                      // `shrinkWrap: true`, which sizes the list by its
+                      // content. Since scrolling changes which rows are laid
+                      // out, the list and the page above it would re-lay out
+                      // on every scroll.
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: min(
+                            450.0,
+                            matches.length * _currencyRowHeight,
+                          ),
+                        ),
+                        child: _ScrollEdgeFade(
+                          color: LxColors.grey1000,
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemExtent: _currencyRowHeight,
+                            itemCount: matches.length,
+                            // Each row paints its own ink; on the card's
+                            // Material it would repaint the card per frame.
+                            itemBuilder: (context, index) => Material(
+                              type: MaterialType.transparency,
+                              child: RadioListTile<String>(
+                                value: matches[index].code,
+                                title: Text(matches[index].code),
+                                subtitle: Text(matches[index].name),
+                                visualDensity: const VisualDensity(
+                                  vertical: VisualDensity.minimumDensity,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -262,11 +275,12 @@ class _FiatCurrencyPickerState extends State<_FiatCurrencyPicker> {
   }
 }
 
-/// Fades out each edge of a vertical scrollable [child] that has more content
-/// beyond it, hinting that the content scrolls.
+/// Fades each edge of a vertical scrollable [child] into [color] when there is
+/// more content beyond it, hinting that the content scrolls.
 class _ScrollEdgeFade extends StatefulWidget {
-  const _ScrollEdgeFade({required this.child});
+  const _ScrollEdgeFade({required this.color, required this.child});
 
+  final Color color;
   final Widget child;
 
   @override
@@ -305,28 +319,59 @@ class _ScrollEdgeFadeState extends State<_ScrollEdgeFade> {
     onNotification: this.onNotification,
     child: ValueListenableBuilder(
       valueListenable: this.overflow,
-      builder: (context, overflow, child) => ShaderMask(
-        blendMode: BlendMode.dstIn,
-        shaderCallback: (bounds) {
-          final edge = (bounds.height <= 0.0)
-              ? 0.0
-              : clampDouble(Space.s600 / bounds.height, 0.0, 0.5);
-          return LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              overflow.above ? LxColors.clearW0 : LxColors.grey1000,
-              LxColors.grey1000,
-              LxColors.grey1000,
-              overflow.below ? LxColors.clearW0 : LxColors.grey1000,
-            ],
-            stops: [0.0, edge, 1.0 - edge, 1.0],
-          ).createShader(bounds);
-        },
-        child: child,
+      builder: (context, overflow, child) => Stack(
+        children: [
+          child!,
+          if (overflow.above)
+            Positioned(
+              top: 0.0,
+              left: 0.0,
+              right: 0.0,
+              child: _EdgeFade(
+                edge: Alignment.topCenter,
+                color: this.widget.color,
+              ),
+            ),
+          if (overflow.below)
+            Positioned(
+              bottom: 0.0,
+              left: 0.0,
+              right: 0.0,
+              child: _EdgeFade(
+                edge: Alignment.bottomCenter,
+                color: this.widget.color,
+              ),
+            ),
+        ],
       ),
       // Keep the child (and its scroll position) out of rebuilds.
       child: this.widget.child,
+    ),
+  );
+}
+
+/// A strip that fades from [color] at [edge] to clear.
+// An overlay rather than a `ShaderMask`, which would composite the whole
+// scrolling list offscreen every frame.
+class _EdgeFade extends StatelessWidget {
+  const _EdgeFade({required this.edge, required this.color});
+
+  final Alignment edge;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: SizedBox(
+      height: Space.s600,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: this.edge,
+            end: -this.edge,
+            colors: [this.color, this.color.withValues(alpha: 0.0)],
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -353,3 +398,7 @@ List<FiatCurrency> _orderCurrencies(
 // The app is English-only, so most users are likely in the US, the eurozone,
 // the UK, Canada, or Australia.
 const List<String> _pinnedFiatCurrencies = ["USD", "EUR", "GBP", "CAD", "AUD"];
+
+/// The height of a currency row: a [RadioListTile] with a title and a subtitle
+/// at minimum density. The list is sized from it rather than measured.
+const double _currencyRowHeight = 58.0;
