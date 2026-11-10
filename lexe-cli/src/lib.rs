@@ -7,11 +7,12 @@ use std::{
 };
 
 use anyhow::{Context, anyhow, ensure};
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use lexe::{
     bitcoin::address::{Address, NetworkUnchecked},
     config::{Network, WalletEnvConfig},
     provision,
+    rust_decimal::Decimal,
     types::{
         auth::{
             ClientCredentials, Credentials, CredentialsRef, RootSeed, Scope,
@@ -23,7 +24,8 @@ use lexe::{
             UserChannelId,
         },
         command::{
-            AnalyzeRequest, AnalyzeResponse, CancelPaymentRequest,
+            AnalyzeRequest, AnalyzeResponse, BitcoinOrFiat, Budget, BudgetInfo,
+            BudgetReset, BudgetResetInterval, CancelPaymentRequest,
             CashAppBuyRequest, ChannelDetails, ClientInfo, CloseChannelRequest,
             CreateClientRequest, CreateInvoiceRequest, CreateOfferRequest,
             CreatePayerProofRequest, CredentialKind, GetPaymentByIdRequest,
@@ -2730,6 +2732,10 @@ impl ClientInfoArgs {
             None => println!("    - expires_at: Never expires!"),
         }
 
+        if let Some(budget) = &resp.budget {
+            helpers::print_budget_info(budget, now);
+        }
+
         if let Some(label) = &resp.label {
             println!("    - label: {label}");
         }
@@ -2757,7 +2763,7 @@ impl ClientInfoArgs {
     long_about = "List the clients authorized to control this node.\n\
         \n\
         Returns each client's public key, creation time, expiration, label,\n\
-        scopes, explicit permissions, and effective permissions.\n\
+        scopes, explicit permissions, effective permissions, and budget.\n\
         Revoked and expired clients are not included.\n\
         \n\
         Note: permission ids in the output (e.g. create_invoice) are unstable\n\
@@ -2862,6 +2868,52 @@ pub struct CreateClientArgs {
     )]
     expiration_secs: Option<u32>,
 
+    #[arg(
+        long,
+        requires = "budget_currency",
+        value_parser = helpers::parse_decimal,
+        help = "The client's spending limit, including fees, denominated\n\
+        in --budget-currency. Omit to let the client spend without limit."
+    )]
+    budget_limit: Option<Decimal>,
+
+    #[arg(
+        long,
+        requires = "budget_limit",
+        help = "The currency of --budget-limit:\n\
+        \"sats\", or an uppercase ISO 4217 code like \"USD\"."
+    )]
+    budget_currency: Option<types::BudgetCurrency>,
+
+    #[arg(
+        long,
+        value_enum,
+        requires = "budget_limit",
+        help = "How often the limit resets. The first reset is at the start\n\
+        of the next day, week, month, or year.\n\
+        Omit to apply the limit to the client's total spending."
+    )]
+    budget_reset_interval: Option<types::BudgetResetInterval>,
+
+    #[arg(
+        long,
+        requires = "budget_reset_interval",
+        help = "The number of days, weeks, months, or years between resets,\n\
+        whichever --budget-reset-interval specifies.\n\
+        Must be >= 1. Defaults to 1."
+    )]
+    budget_interval_count: Option<u8>,
+
+    #[arg(
+        long,
+        requires = "budget_reset_interval",
+        allow_negative_numbers = true,
+        help = "The timezone in which resets are computed,\n\
+        as a UTC offset in minutes, e.g. -300 for UTC-05:00.\n\
+        Omit to use this machine's timezone."
+    )]
+    budget_utc_offset_mins: Option<i32>,
+
     /// Display output as JSON
     #[arg(long)]
     json: bool,
@@ -2899,12 +2951,23 @@ impl CreateClientArgs {
             .collect::<BTreeSet<_>>();
         let permissions = self.permissions.into_iter().collect::<BTreeSet<_>>();
 
+        let limit = self
+            .budget_limit
+            .zip(self.budget_currency)
+            .map(|(limit, currency)| currency.amount(limit))
+            .transpose()?;
+        let reset = self.budget_reset_interval.map(|interval| BudgetReset {
+            interval: BudgetResetInterval::from(interval),
+            interval_count: self.budget_interval_count,
+            utc_offset_mins: self.budget_utc_offset_mins,
+        });
+        let budget = limit.map(|limit| Budget { limit, reset });
         let req = CreateClientRequest {
             expires_at,
             label: self.label.clone(),
             scopes,
             permissions: permissions.iter().cloned().collect(),
-            budget: None,
+            budget,
         };
         let resp = wallet
             .create_client(req)
@@ -2925,6 +2988,7 @@ impl CreateClientArgs {
                 "label": self.label,
                 "scopes": scope_names,
                 "permissions": permissions,
+                "budget": resp.budget,
             });
             return helpers::print_json_pretty(&json);
         }
@@ -2953,13 +3017,14 @@ impl CreateClientArgs {
 
 #[derive(Parser)]
 #[command(
-    about = "Update a client's label, expiration, scopes, or permissions",
+    about = "Update a client's label, expiration, scopes, permissions, or \
+             budget",
     long_about = "Update an existing client.\n\
         \n\
-        Omitted label and expiration fields are left as-is. If --scope or\n\
-        --permission is provided, together they replace the client's complete\n\
-        grant; an omitted set is treated as empty. The resulting grant must\n\
-        contain at least one scope or permission.",
+        Omitted label, expiration, and budget fields are unchanged.\n\
+        If --scope or --permission is provided, together they replace the\n\
+        client's complete grant; an omitted set is treated as empty. The\n\
+        resulting grant must contain at least one scope or permission.",
     help_template = HELP_TEMPLATE,
 )]
 pub struct UpdateClientArgs {
@@ -3011,6 +3076,69 @@ pub struct UpdateClientArgs {
     )]
     permissions: Option<Vec<String>>,
 
+    #[arg(
+        long,
+        requires = "budget_currency",
+        value_parser = helpers::parse_decimal,
+        help = "Set the client's spending limit, including fees, denominated\n\
+        in --budget-currency. Changing the limit keeps the client's\n\
+        existing reset schedule, if any."
+    )]
+    budget_limit: Option<Decimal>,
+
+    #[arg(
+        long,
+        requires = "budget_limit",
+        help = "The currency of --budget-limit:\n\
+        \"sats\", or an uppercase ISO 4217 code like \"USD\".\n\
+        A limit can't switch between different fiat currencies."
+    )]
+    budget_currency: Option<types::BudgetCurrency>,
+
+    #[arg(
+        long,
+        value_enum,
+        help = "Set how often the limit resets. The first reset is at the\n\
+        start of the next day, week, month, or year."
+    )]
+    budget_reset_interval: Option<types::BudgetResetInterval>,
+
+    #[arg(
+        long,
+        requires = "budget_reset_interval",
+        help = "The number of days, weeks, months, or years between resets,\n\
+        whichever --budget-reset-interval specifies.\n\
+        Must be >= 1. Defaults to 1."
+    )]
+    budget_interval_count: Option<u8>,
+
+    #[arg(
+        long,
+        requires = "budget_reset_interval",
+        allow_negative_numbers = true,
+        help = "The timezone in which resets are computed,\n\
+        as a UTC offset in minutes, e.g. -300 for UTC-05:00.\n\
+        Omit to use this machine's timezone."
+    )]
+    budget_utc_offset_mins: Option<i32>,
+
+    /// Remove the client's spending limit and any reset schedule.
+    #[arg(
+        long,
+        conflicts_with_all = [
+            "budget_limit",
+            "budget_currency",
+            "budget_reset_interval",
+            "budget_interval_count",
+            "budget_utc_offset_mins",
+        ]
+    )]
+    clear_budget: bool,
+
+    /// Stop the client's spending limit from resetting.
+    #[arg(long, conflicts_with = "budget_reset_interval")]
+    clear_budget_reset: bool,
+
     /// Display output as JSON
     #[arg(long)]
     json: bool,
@@ -3026,11 +3154,17 @@ impl UpdateClientArgs {
             scopes.into_iter().map(Scope::from).collect::<BTreeSet<_>>()
         });
         let permissions = self.permissions.map(BTreeSet::from_iter);
-        // TODO(nicole): propagate budgets to the CLI
-        let budget_limit = None;
-        let clear_budget = false;
-        let budget_reset = None;
-        let clear_budget_reset = false;
+        let budget_limit = self
+            .budget_limit
+            .zip(self.budget_currency)
+            .map(|(limit, currency)| currency.amount(limit))
+            .transpose()?;
+        let budget_reset =
+            self.budget_reset_interval.map(|interval| BudgetReset {
+                interval: BudgetResetInterval::from(interval),
+                interval_count: self.budget_interval_count,
+                utc_offset_mins: self.budget_utc_offset_mins,
+            });
         let req = UpdateClientRequest::new(
             self.client_pk,
             self.label,
@@ -3038,9 +3172,9 @@ impl UpdateClientArgs {
             expires_at,
             self.clear_expiration,
             budget_limit,
-            clear_budget,
+            self.clear_budget,
             budget_reset,
-            clear_budget_reset,
+            self.clear_budget_reset,
             scopes,
             permissions,
         )?;
@@ -3168,11 +3302,12 @@ impl ExportArgs {
 
 /// CLI newtypes for `clap`.
 mod types {
-    use clap::ValueEnum;
     use lexe::{
         config,
-        types::{auth, bitcoin},
+        types::{auth, bitcoin, command},
     };
+
+    use super::*;
 
     #[derive(Clone, Copy, Debug, ValueEnum)]
     pub enum Network {
@@ -3255,6 +3390,101 @@ mod types {
                 Scope::ManageChannels => Self::ManageChannels,
                 Scope::Spend => Self::Spend,
                 Scope::Full => Self::Full,
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, ValueEnum)]
+    #[value(rename_all = "snake_case")]
+    pub enum BudgetResetInterval {
+        /// At the start of each day
+        Daily,
+        /// At the start of each week, on Sunday
+        Weekly,
+        /// At the start of each month
+        Monthly,
+        /// At the start of each year
+        Yearly,
+    }
+
+    impl BudgetResetInterval {
+        pub(crate) fn as_str(self) -> &'static str {
+            match self {
+                Self::Daily => "daily",
+                Self::Weekly => "weekly",
+                Self::Monthly => "monthly",
+                Self::Yearly => "yearly",
+            }
+        }
+
+        pub(crate) fn unit(self) -> &'static str {
+            match self {
+                Self::Daily => "day",
+                Self::Weekly => "week",
+                Self::Monthly => "month",
+                Self::Yearly => "year",
+            }
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub enum BudgetCurrency {
+        Sats,
+        Fiat(String),
+    }
+
+    impl BudgetCurrency {
+        pub(crate) fn amount(
+            self,
+            limit: Decimal,
+        ) -> anyhow::Result<BitcoinOrFiat> {
+            match self {
+                Self::Sats => {
+                    let sats = Amount::try_from_sats(limit)
+                        .context("Invalid sats limit")?;
+                    Ok(BitcoinOrFiat::Bitcoin(sats))
+                }
+                Self::Fiat(currency) => Ok(BitcoinOrFiat::Fiat {
+                    amount: limit,
+                    currency,
+                }),
+            }
+        }
+    }
+
+    impl FromStr for BudgetCurrency {
+        type Err = anyhow::Error;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            if s == "sats" {
+                return Ok(Self::Sats);
+            }
+            ensure!(
+                s != "BTC",
+                "Bitcoin budgets are denominated in sats; \
+                 pass --budget-currency sats"
+            );
+            Ok(Self::Fiat(s.to_owned()))
+        }
+    }
+
+    impl From<BudgetResetInterval> for command::BudgetResetInterval {
+        fn from(interval: BudgetResetInterval) -> Self {
+            match interval {
+                BudgetResetInterval::Daily => Self::Daily,
+                BudgetResetInterval::Weekly => Self::Weekly,
+                BudgetResetInterval::Monthly => Self::Monthly,
+                BudgetResetInterval::Yearly => Self::Yearly,
+            }
+        }
+    }
+
+    impl From<command::BudgetResetInterval> for BudgetResetInterval {
+        fn from(interval: command::BudgetResetInterval) -> Self {
+            match interval {
+                command::BudgetResetInterval::Daily => Self::Daily,
+                command::BudgetResetInterval::Weekly => Self::Weekly,
+                command::BudgetResetInterval::Monthly => Self::Monthly,
+                command::BudgetResetInterval::Yearly => Self::Yearly,
             }
         }
     }
@@ -3346,6 +3576,10 @@ mod helpers {
             None => println!("    - expires_at: Never expires!"),
         }
 
+        if let Some(budget) = &client.budget {
+            helpers::print_budget_info(budget, now);
+        }
+
         if let Some(label) = &client.label {
             println!("    - label: {label}");
         }
@@ -3360,6 +3594,68 @@ mod helpers {
         }
 
         Ok(())
+    }
+
+    /// Print a [`BudgetInfo`] as human-readable lines.
+    pub fn print_budget_info(budget: &BudgetInfo, now: TimestampMs) {
+        let BudgetInfo {
+            limit,
+            reset,
+            spendable,
+        } = budget;
+        let (schedule, next_reset) = match reset {
+            None => ("total".to_owned(), String::new()),
+            Some(reset) => {
+                let interval = types::BudgetResetInterval::from(reset.interval);
+                let unit = interval.unit();
+                let every = match reset.interval_count {
+                    1 => interval.as_str().to_owned(),
+                    n => format!("every {n} {unit}s"),
+                };
+                let tz = helpers::utc_offset_string(reset.utc_offset_mins);
+                let next_rel = reset.next_reset.to_relative_string(now);
+                let next_abs = helpers::timestamp_to_datetime(reset.next_reset)
+                    .to_rfc2822();
+                (
+                    format!("resets {every} ({tz})"),
+                    format!(", next reset {next_rel} ({next_abs})"),
+                )
+            }
+        };
+        let limit = helpers::format_budget_amount(limit);
+        println!("    - budget: {limit}, {schedule}");
+        let spendable = helpers::format_budget_amount(spendable);
+        println!("    - spendable: {spendable}{next_reset}");
+    }
+
+    /// Parse a [`Decimal`] CLI argument. `rust_decimal`'s error type lacks
+    /// [`std::error::Error`] without its `std` feature, so clap can't parse
+    /// a [`Decimal`] by default.
+    pub fn parse_decimal(s: &str) -> Result<Decimal, String> {
+        Decimal::from_str(s).map_err(|e| e.to_string())
+    }
+
+    /// A budget amount as `100000 sats` or `20 USD`.
+    pub fn format_budget_amount(amount: &BitcoinOrFiat) -> String {
+        match amount {
+            BitcoinOrFiat::Bitcoin(amount) => {
+                // Amounts converted from BTC can carry trailing zeros,
+                // e.g. `100000.000`.
+                let sats = amount.sats().normalize();
+                format!("{sats} sats")
+            }
+            BitcoinOrFiat::Fiat { amount, currency } =>
+                format!("{amount} {currency}"),
+        }
+    }
+
+    /// A UTC offset in minutes as `UTC-07:00`.
+    pub fn utc_offset_string(mins: i32) -> String {
+        let sign = if mins < 0 { '-' } else { '+' };
+        let mins = mins.unsigned_abs();
+        let hours = mins / 60;
+        let mins = mins % 60;
+        format!("UTC{sign}{hours:02}:{mins:02}")
     }
 
     /// Compute an absolute expiration [`TimestampMs`] from `--expiration-days`
