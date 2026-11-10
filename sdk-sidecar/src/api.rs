@@ -5,13 +5,15 @@
 
 use std::{borrow::Cow, collections::BTreeSet};
 
-use anyhow::ensure;
+use anyhow::{Context, bail, ensure};
 use lexe::{
     bitcoin::address::{Address, NetworkUnchecked},
+    rust_decimal::Decimal,
     types::{
         auth::{Scope, UserPk},
         bitcoin::Amount,
         command::{
+            BitcoinOrFiat, BudgetReset, BudgetResetInterval,
             PayLnurlRequest as SdkPayLnurlRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
@@ -273,4 +275,50 @@ pub struct UpdateClientRequest {
     pub clear_expiration: bool,
     pub scopes: Option<BTreeSet<Scope>>,
     pub permissions: Option<BTreeSet<String>>,
+    pub budget_limit: Option<Decimal>,
+    pub budget_currency: Option<String>,
+    pub budget_reset_interval: Option<BudgetResetInterval>,
+    pub budget_interval_count: Option<u8>,
+    pub budget_utc_offset_mins: Option<i32>,
+    #[serde(default)]
+    pub clear_budget: bool,
+    #[serde(default)]
+    pub clear_budget_reset: bool,
+}
+
+impl UpdateClientRequest {
+    pub(crate) fn budget_limit(&self) -> anyhow::Result<Option<BitcoinOrFiat>> {
+        let (limit, currency) = match (self.budget_limit, &self.budget_currency)
+        {
+            (None, None) => return Ok(None),
+            (Some(limit), Some(currency)) => (limit, currency),
+            _ => bail!("Set budget_limit and budget_currency together"),
+        };
+        if currency == "sats" {
+            let sats = Amount::try_from_sats(limit)
+                .context("Invalid sats budget_limit")?;
+            return Ok(Some(BitcoinOrFiat::Bitcoin(sats)));
+        }
+        Ok(Some(BitcoinOrFiat::Fiat {
+            amount: limit,
+            currency: currency.clone(),
+        }))
+    }
+
+    pub(crate) fn budget_reset(&self) -> anyhow::Result<Option<BudgetReset>> {
+        let Some(interval) = self.budget_reset_interval else {
+            ensure!(
+                self.budget_interval_count.is_none()
+                    && self.budget_utc_offset_mins.is_none(),
+                "budget_interval_count and budget_utc_offset_mins require \
+                 budget_reset_interval"
+            );
+            return Ok(None);
+        };
+        Ok(Some(BudgetReset {
+            interval,
+            interval_count: self.budget_interval_count,
+            utc_offset_mins: self.budget_utc_offset_mins,
+        }))
+    }
 }
