@@ -1,7 +1,5 @@
-//! The [`WebhookSender`] allows for sidecar users to receive notifications
-//! via webhook `POST` whenever a payment is finalized. (See [`is_finalized`]).
-//!
-//! The notification format is described by [`WebhookPayload`].
+//! The [`WebhookSender`] `POST`s a [`WebhookPayload`] to the sidecar user's
+//! webhook URL whenever a payment [is finalized].
 //!
 //! To receive webhook notifications, configure the sidecar with either
 //! - CLI arg: `--webhook-url <url>`
@@ -14,7 +12,7 @@
 //!
 //! Full webhook documentation is at <https://docs.lexe.tech/sidecar/webhooks/>.
 //!
-//! [`is_finalized`]: lexe::types::payment::PaymentStatus::is_finalized
+//! [is finalized]: lexe::types::payment::PaymentStatus::is_finalized
 //! [`WebhookSender`]: crate::webhook::WebhookSender
 //! [`WebhookPayload`]: crate::webhook::WebhookPayload
 
@@ -81,27 +79,18 @@ const MAX_WEBHOOK_ATTEMPTS: u32 = 3;
 
 /// Request to track a payment for webhook notification.
 pub(crate) struct TrackRequest {
-    /// Indicates the [`LexeWallet`] associated with the payment.
     pub creds_or_default: CredentialsOrDefault,
     /// The payment's created index, used to initialize the cursor.
     pub payment_created_index: PaymentCreatedIndex,
 }
 
-/// Either full per-request credentials or a pointer to the default wallet.
-///
-/// Sent from the server to the webhook sender in a [`TrackRequest`] so that
-/// the sender can locate (or construct) the [`LexeWallet`] to track payments
-/// against.
-///
-/// - The `PerRequest` variant carries the [`ClientCredentials`] used to build
-///   the wallet on demand (one wallet per distinct client pk, cached).
-/// - The `Default` variant carries just the default wallet's `user_pk`, since
-///   the default wallet itself is already loaded at sidecar startup.
+/// Identifies the [`LexeWallet`] to load for a tracked payment.
 #[derive(Serialize, Deserialize)]
 pub(crate) enum CredentialsOrDefault {
-    /// Per-request wallet built from [`ClientCredentials`].
+    /// A per-request wallet, loaded on demand with its [`ClientCredentials`].
     PerRequest(ClientCredentials),
-    /// Default wallet, identified by its `user_pk`.
+    /// The default wallet. It is already loaded at sidecar startup, so its
+    /// `user_pk` is enough to identify it.
     Default(UserPk),
 }
 
@@ -117,8 +106,7 @@ impl From<&Credentials> for CredentialsOrDefault {
 /// JSON payload `POST`ed to the user's webhook URL when a payment finalizes.
 ///
 /// The top-level `type` and `timestamp` fields follow the "Standard Webhooks"
-/// recommended payload structure; the rest of the fields are flattened from
-/// [`Payment`] alongside `user_pk`.
+/// recommended payload structure.
 #[derive(Serialize)]
 pub struct WebhookPayload {
     /// Event type discriminator. Always `"payment.finalized"` for now.
@@ -126,8 +114,7 @@ pub struct WebhookPayload {
     /// When the underlying event occurred (ISO 8601).
     /// For a finalized payment, this is `finalized_at`.
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    /// The user's public key. Allows for identifying the user associated with
-    /// the payment in the case of per-request authorization.
+    /// Identifies the payment's user when using per-request authorization.
     pub user_pk: UserPk,
     /// The full payment information.
     #[serde(flatten)]
@@ -139,42 +126,34 @@ pub struct WebhookPayload {
 /// Runs as a dedicated task that receives track requests via channel and
 /// polls for payment updates using `get_updated_payments` batched tailing.
 ///
-/// Persists tracking state in `tracked_wallets` to `tracked_payments_path`
-/// on disk.
+/// Tracked payments are persisted to disk, so tracking resumes after a restart.
 pub(crate) struct WebhookSender {
-    /// In-memory state for the wallets we're currently tracking payments for.
-    /// Persisted to disk and rebuilt from `tracked_payments_path` on startup.
+    /// The payments being tracked, grouped by wallet.
     tracked_wallets: HashMap<WalletKey, WalletState>,
-    /// Full path to the persisted tracking-state file, e.g.
+    /// Where `tracked_wallets` is persisted, e.g.
     /// `$HOME/.lexe/sidecar/<wallet_env>/tracked_payments.json`.
     tracked_payments_path: PathBuf,
 
-    /// Wallet environment of the payments being tracked.
     wallet_env: WalletEnvConfig,
-    /// The default wallet and credentials to be used.
+    /// The wallet for the sidecar's default credentials, if configured.
     default_wallet: Option<Arc<LexeWallet>>,
-    /// In-memory cache of wallets associated with tracked payments.
-    /// Only wallets using [`ClientCredentials`] are cached; the cache is
-    /// keyed by client pk.
-    cache: Arc<Mutex<WalletCache>>,
-    /// Data directory for persisted state. Although the webhook sender doesn't
-    /// need wallet persistence, the `cache` is shared with the server which
-    /// does need wallet persistence.
+    wallet_cache: Arc<Mutex<WalletCache>>,
+    /// Data dir for the wallets loaded into `wallet_cache`. The webhook sender
+    /// doesn't need wallet persistence, but the server, which shares the
+    /// cache, does.
     data_dir: PathBuf,
 
     /// Webhook URL to send payment notifications to.
     /// Notification format is described by [`WebhookPayload`].
     webhook_url: Url,
-    /// Optional signer for outbound webhooks ("Standard Webhooks"
-    /// HMAC-SHA256). When `Some`, every webhook delivery carries
-    /// `webhook-id`, `webhook-timestamp`, and `webhook-signature` headers.
+    /// Signs webhooks using the "Standard Webhooks" HMAC-SHA256 scheme, if a
+    /// secret is configured.
     webhook_signer: Option<WebhookSigner>,
     /// The HTTP client used for webhook delivery.
     http_client: reqwest::Client,
 
-    /// Receives track request from HTTP handlers.
+    /// Receives track requests from the HTTP handlers.
     webhook_sender_rx: mpsc::Receiver<TrackRequest>,
-    /// Shutdown signal.
     shutdown: NotifyOnce,
 }
 
@@ -183,10 +162,7 @@ pub(crate) struct WebhookSender {
 pub(crate) struct WalletState {
     /// Tracks the latest payment update we have received.
     pub cursor: PaymentUpdatedIndex,
-    /// The indices of the payments being tracked.
     pub tracked_payments: HashSet<PaymentCreatedIndex>,
-    /// Credentials (or `user_pk` for the default wallet) used to (re)build
-    /// the associated [`LexeWallet`].
     pub creds_or_default: CredentialsOrDefault,
 }
 
@@ -236,11 +212,7 @@ impl From<&CredentialsOrDefault> for WalletKey {
 // --- impl WebhookSender --- //
 
 impl WebhookSender {
-    /// Create a new webhook sender and return the channel sender to track
-    /// requests.
-    ///
-    /// `<data_dir>/sidecar` is the base directory for the webhook sender's data
-    /// persistence; state is persisted in
+    /// Tracking state is persisted at
     /// `<data_dir>/sidecar/<wallet_env>/tracked_payments.json`.
     pub fn new(
         default_wallet: Option<Arc<LexeWallet>>,
@@ -253,7 +225,6 @@ impl WebhookSender {
     ) -> (Self, mpsc::Sender<TrackRequest>) {
         let (tx, rx) = mpsc::channel(TRACK_REQUEST_BUFFER);
 
-        // Build HTTP client with proper TLS configuration
         #[allow(clippy::disallowed_methods)]
         let tls_config = lexe_tls_core::rustls::ClientConfig::builder()
             .with_root_certificates(lexe_tls_core::WEBPKI_ROOT_CERTS.clone())
@@ -277,7 +248,7 @@ impl WebhookSender {
         let sender = Self {
             tracked_wallets: Self::load_wallets(&tracked_payments_path),
             tracked_payments_path,
-            cache: wallet_cache,
+            wallet_cache,
             data_dir,
             default_wallet,
             wallet_env,
@@ -291,7 +262,6 @@ impl WebhookSender {
         (sender, tx)
     }
 
-    /// Spawn a new task that runs the webhook sender.
     pub(crate) fn spawn(self) -> LxTask<()> {
         LxTask::spawn_with_span(
             "(webhook-sender)",
@@ -329,7 +299,6 @@ impl WebhookSender {
             }
         }
 
-        // Final persist before shutdown
         self.persist_state();
         info!("Webhook sender task stopped");
     }
@@ -515,10 +484,11 @@ impl WebhookSender {
     /// Send a webhook for a finalized payment with exponential backoff retry.
     async fn send_webhook(&self, user_pk: UserPk, payment: Payment) {
         let payment_index = payment.index;
+
         // Use `payment.index` as the event id and `finalized_at` as the event
-        // timestamp so that retries across sidecar restarts replay the same
-        // logical event (idempotency). The `pf-` prefix tags the event kind
-        // ("payment finalized") so future event kinds are disambiguable.
+        // timestamp, so that retries across sidecar restarts replay the same
+        // event. The `pf-` prefix stands for "payment finalized", which
+        // distinguishes this event from future event kinds.
         let event_id = format!("pf-{payment_index}");
         let finalized_at = payment
             .finalized_at
@@ -536,8 +506,7 @@ impl WebhookSender {
 
         let mut backoff = backoff::get_backoff_iter();
 
-        // Serialize only once to ensure the bytes on the wire are the exact
-        // same as the bytes that are signed.
+        // Serialize once, so that the bytes sent are exactly the bytes signed.
         let body = serde_json::to_vec(&payload)
             .map(Bytes::from)
             .expect("Always succeeds");
@@ -613,7 +582,6 @@ impl WebhookSender {
         );
     }
 
-    /// Persist tracking state to `tracked_payments_path`.
     fn persist_state(&self) {
         let persist_state_inner = || -> anyhow::Result<()> {
             if let Some(parent) = self.tracked_payments_path.parent() {
@@ -640,7 +608,6 @@ impl WebhookSender {
         }
     }
 
-    /// Load persisted tracking state from `tracked_payments_path`.
     fn load_wallets(
         tracked_payments_path: &Path,
     ) -> HashMap<WalletKey, WalletState> {
@@ -677,8 +644,6 @@ impl WebhookSender {
         wallets
     }
 
-    /// Get a [`LexeWallet`] based on a [`CredentialsOrDefault`].
-    /// Find the wallet in cache; if none, create a new wallet and add to cache.
     fn get_wallet(
         &self,
         creds_or_default: &CredentialsOrDefault,
@@ -700,11 +665,10 @@ impl WebhookSender {
             }
             CredentialsOrDefault::PerRequest(cc) => {
                 let client_pk = &cc.unstable().client_pk;
-                let mut locked_cache = self.cache.lock().unwrap();
+                let mut locked_cache = self.wallet_cache.lock().unwrap();
                 match locked_cache.get(client_pk) {
                     Some(cached_wallet) => cached_wallet.clone(),
                     None => {
-                        // Create new
                         let wallet = LexeWallet::load_or_fresh(
                             self.wallet_env.clone(),
                             CredentialsRef::from(cc),
@@ -712,7 +676,6 @@ impl WebhookSender {
                         )
                         .map(Arc::new)
                         .context("Couldn't create new wallet")?;
-                        // Add to cache
                         locked_cache.insert(*client_pk, wallet.clone());
                         wallet
                     }
