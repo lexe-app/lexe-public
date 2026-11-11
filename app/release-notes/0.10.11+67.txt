@@ -1,0 +1,4 @@
+- New Settings page: choose your display currency from dozens of fiat currencies
+- Your display currency now defaults to the one for your device's region
+- Fiat exchange rates now refresh periodically instead of only once per visit to the wallet
+- Lexe now handles "keyauth:" LNURL-Auth links
