@@ -158,5 +158,8 @@ const fn channel_config() -> ChannelConfig {
         // LDK always adds this to the funder's coop-close max_fee.
         force_close_avoidance_max_fee_satoshis:
             constants::FORCE_CLOSE_AVOIDANCE_MAX_FEE_SATS,
+        // TODO(phlip9): splicing. Revisit; these are LDK's defaults.
+        inbound_splice_min_depth: 6,
+        outbound_splice_min_depth: 6,
     }
 }
