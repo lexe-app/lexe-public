@@ -49,6 +49,8 @@
 
 // TODO(max): Consider `cargo install lexe-sidecar`
 
+/// Request access control.
+pub mod access;
 /// Sidecar-specific request and response types.
 pub mod api;
 /// Command-line interface.

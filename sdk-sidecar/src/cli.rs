@@ -6,6 +6,8 @@ use clap::{ArgAction, Parser};
 use lexe::{provision, types::auth::ClientCredentials};
 use lexe_common::{ln::network::Network, or_env::OrEnvExt as _};
 
+use crate::access::AllowedHosts;
+
 /// Version string; `lexe-sidecar --version` prints
 /// `lexe-sidecar v0.4.23 (node-v0.10.4, released: 2026-09-11)`.
 static VERSION: LazyLock<String> = LazyLock::new(|| {
@@ -83,6 +85,14 @@ pub struct SidecarArgs {
     #[arg(long)]
     pub sidecar_url: Option<String>,
 
+    /// Comma-separated hostnames, besides `localhost`, `127.0.0.1`, `[::1]`,
+    /// and the `--sidecar-url` host, which clients may use to reach the
+    /// sidecar. Requests with any other `Host` header are rejected to prevent
+    /// DNS rebinding attacks. Use `*` to allow any host.
+    /// [env: LEXE_SIDECAR_ALLOWED_HOSTS]
+    #[arg(long)]
+    pub allowed_hosts: Option<AllowedHosts>,
+
     /// The Bitcoin network to use: mainnet, testnet3, regtest.
     /// [default: mainnet] [env: LEXE_NETWORK]
     #[arg(long, hide = true)] // hide option until we support staging
@@ -132,6 +142,8 @@ impl SidecarArgs {
     pub fn other_or_env_mut(&mut self) -> anyhow::Result<()> {
         self.listen_addr.or_env_mut("LISTEN_ADDR")?;
         self.sidecar_url.or_env_mut("LEXE_SIDECAR_URL")?;
+        self.allowed_hosts
+            .or_env_mut("LEXE_SIDECAR_ALLOWED_HOSTS")?;
         self.network.or_env_mut("LEXE_NETWORK")?;
         self.webhook_url.or_env_mut("LEXE_WEBHOOK_URL")?;
         self.webhook_secret.or_env_mut("LEXE_WEBHOOK_SECRET")?;

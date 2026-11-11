@@ -150,8 +150,13 @@ impl Sidecar {
         let sidecar_url = args
             .sidecar_url
             .unwrap_or_else(|| build_server_url(listen_addr, maybe_dns));
+        let allowed_hosts = args
+            .allowed_hosts
+            .unwrap_or_default()
+            .with_defaults(&sidecar_url);
         let deploy_env = wallet_env_config.wallet_env.deploy_env;
         let router_state = Arc::new(server::RouterState {
+            allowed_hosts,
             sidecar_url,
             data_dir,
             default,

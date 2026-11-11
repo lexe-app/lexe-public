@@ -9,6 +9,7 @@ use anyhow::Context;
 use axum::{
     Router,
     extract::State,
+    middleware,
     routing::{get, post, put},
 };
 use lexe::{
@@ -53,6 +54,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
 
 use crate::{
+    access::{self, AllowedHosts},
     api::{
         AnalyzeResponse, CheckAddressRequest, ClaimableDetails,
         HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest, PayRequest,
@@ -75,6 +77,7 @@ const HTTP_PERCENT_ENCODE_SET: percent_encoding::AsciiSet =
         .remove(b'~');
 
 pub(crate) struct RouterState {
+    pub allowed_hosts: AllowedHosts,
     pub sidecar_url: String,
     /// The data directory for persisted state.
     pub data_dir: PathBuf,
@@ -160,6 +163,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v1/node/create_invoice", post(node::create_invoice))
         .route("/v1/node/pay_invoice", post(node::pay_invoice))
         .route("/v1/node/payment", get(node::get_payment_v1))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            access::check_access,
+        ))
         .with_state(state)
 }
 
