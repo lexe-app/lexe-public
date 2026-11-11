@@ -6,7 +6,10 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use http::{header::HOST, uri::Authority};
+use http::{
+    header::{HOST, ORIGIN},
+    uri::Authority,
+};
 use lexe_api::error::{SdkApiError, SdkErrorKind};
 use reqwest::Url;
 
@@ -85,6 +88,7 @@ pub(crate) async fn check_access(
     next: Next,
 ) -> Result<Response, SdkApiError> {
     helpers::check_host(&state.allowed_hosts, &req)?;
+    helpers::check_origin(&req)?;
     Ok(next.run(req).await)
 }
 
@@ -106,6 +110,19 @@ mod helpers {
                 "Host '{host}' is not allowed. To allow it, add it to \
                  --allowed-hosts / $LEXE_SIDECAR_ALLOWED_HOSTS"
             )));
+        }
+        Ok(())
+    }
+
+    /// Rejects requests with an `Origin` header, which browsers attach to
+    /// cross-origin and non-GET requests. The sidecar API is not for browsers.
+    pub(super) fn check_origin(req: &Request) -> Result<(), SdkApiError> {
+        if req.headers().contains_key(ORIGIN) {
+            return Err(rejection(
+                "Requests from web browsers are not allowed. Call the sidecar \
+                 from your backend or reverse proxy instead."
+                    .to_owned(),
+            ));
         }
         Ok(())
     }
@@ -198,5 +215,20 @@ mod test {
         );
         helpers::request_authority(&req("/v2/health", Some("bad/host")))
             .unwrap_err();
+    }
+
+    #[test]
+    fn rejects_origin() {
+        let req = |origin: Option<&str>| {
+            let mut builder = Request::builder().uri("/v2/health");
+            if let Some(origin) = origin {
+                builder = builder.header(ORIGIN, origin);
+            }
+            builder.body(Body::empty()).unwrap()
+        };
+
+        helpers::check_origin(&req(None)).unwrap();
+        helpers::check_origin(&req(Some("https://evil.example"))).unwrap_err();
+        helpers::check_origin(&req(Some("null"))).unwrap_err();
     }
 }
