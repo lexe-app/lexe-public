@@ -30,8 +30,9 @@ fn env_var_opt(env_var: &'static str) -> anyhow::Result<Option<String>> {
     match env::var(env_var) {
         Ok(val_str) => Ok(Some(val_str)),
         Err(env::VarError::NotPresent) => Ok(None),
-        Err(env::VarError::NotUnicode(s)) =>
-            Err(anyhow::format_err!("invalid unicode: '{:?}'", s)),
+        // Omit the value, which may be a secret.
+        Err(env::VarError::NotUnicode(_)) =>
+            Err(anyhow::format_err!("invalid unicode")),
     }
 }
 
