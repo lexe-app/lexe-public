@@ -231,7 +231,7 @@ android-bundle-permissions:
 
 # read the combined version from the built .aab bundle (ex: "1.2.3+45")
 # [no-cd] so the caller's cwd is preserved; the release script
-# (/just/release-app-android.sh) passes a repo-root-relative path.
+# (/just/release-app-android-build.sh) passes a repo-root-relative path.
 
 [no-cd]
 android-bundle-version path:
@@ -296,7 +296,7 @@ update-podfile:
 
 # read the combined version from the built .ipa bundle (ex: "1.2.3+45")
 # [no-cd] so the caller's cwd is preserved; the release script
-# (/just/release-app-ios.sh) passes a repo-root-relative path.
+# (/just/release-app-ios-build.sh) passes a repo-root-relative path.
 
 [no-cd]
 ios-bundle-version path:
