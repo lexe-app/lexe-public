@@ -277,6 +277,21 @@ build-prod-ios *args:
 # toolchain, not just the podspec, so a toolchain bump can shift it and leave
 # the committed lock stale. Run this to resync it.
 update-podfile:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # `flutter pub get` from a nix store SDK never rewrites an existing
+    # Generated.xcconfig, so `pod install` fails once the FLUTTER_ROOT in that
+    # file is garbage collected.
+    xcconfig="ios/Flutter/Generated.xcconfig"
+    flutter_root="$(sed -n 's/^FLUTTER_ROOT=//p' "$xcconfig" 2> /dev/null || true)"
+    if [[ -n $flutter_root && ! -d $flutter_root ]]; then
+      echo >&2 "update-podfile: FLUTTER_ROOT in $xcconfig no longer exists:"
+      echo >&2 "    $flutter_root"
+      echo >&2 "Deleting $xcconfig so that 'flutter pub get' regenerates it."
+      rm "$xcconfig"
+    fi
+
     nix develop ../..#app-ios-macos --command bash -c 'flutter pub get && cd ios && pod install'
 
 # read the combined version from the built .ipa bundle (ex: "1.2.3+45")
