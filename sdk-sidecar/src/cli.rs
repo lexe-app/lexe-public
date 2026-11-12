@@ -6,7 +6,7 @@ use clap::{ArgAction, Parser};
 use lexe::{provision, types::auth::ClientCredentials};
 use lexe_common::{ln::network::Network, or_env::OrEnvExt as _};
 
-use crate::access::AllowedHosts;
+use crate::access::{AllowedHosts, ApiToken};
 
 /// Version string; `lexe-sidecar --version` prints
 /// `lexe-sidecar v0.4.23 (node-v0.10.4, released: 2026-09-11)`.
@@ -93,6 +93,21 @@ pub struct SidecarArgs {
     #[arg(long)]
     pub allowed_hosts: Option<AllowedHosts>,
 
+    /// An optional API token. When set, requests must have
+    /// `Authorization: Bearer <api_token>` to use the default wallet.
+    /// Env-only, to keep it out of process listings.
+    /// [env: LEXE_SIDECAR_API_TOKEN]
+    #[arg(skip)]
+    pub api_token: Option<ApiToken>,
+
+    /// An optional path to a file containing an API token. When set, requests
+    /// must have `Authorization: Bearer <api_token>` to use the default
+    /// wallet. Alternatively, set the token itself in
+    /// $LEXE_SIDECAR_API_TOKEN.
+    /// [env: LEXE_SIDECAR_API_TOKEN_PATH]
+    #[arg(long)]
+    pub api_token_path: Option<PathBuf>,
+
     /// The Bitcoin network to use: mainnet, testnet3, regtest.
     /// [default: mainnet] [env: LEXE_NETWORK]
     #[arg(long, hide = true)] // hide option until we support staging
@@ -144,6 +159,12 @@ impl SidecarArgs {
         self.sidecar_url.or_env_mut("LEXE_SIDECAR_URL")?;
         self.allowed_hosts
             .or_env_mut("LEXE_SIDECAR_ALLOWED_HOSTS")?;
+        // `--api-token-path` overrides both API token envs.
+        if self.api_token_path.is_none() {
+            self.api_token.or_env_mut("LEXE_SIDECAR_API_TOKEN")?;
+            self.api_token_path
+                .or_env_mut("LEXE_SIDECAR_API_TOKEN_PATH")?;
+        }
         self.network.or_env_mut("LEXE_NETWORK")?;
         self.webhook_url.or_env_mut("LEXE_WEBHOOK_URL")?;
         self.webhook_secret.or_env_mut("LEXE_WEBHOOK_SECRET")?;

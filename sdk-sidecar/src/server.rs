@@ -54,7 +54,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
 
 use crate::{
-    access::{self, AllowedHosts},
+    access::{self, AllowedHosts, ApiToken},
     api::{
         AnalyzeResponse, CheckAddressRequest, ClaimableDetails,
         HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest, PayRequest,
@@ -63,7 +63,8 @@ use crate::{
         WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     extract::{
-        CredentialsExtractor, WalletAndCredentialsExtractor, WalletExtractor,
+        AuthExtractor, RequestAuth, WalletAndCredentialsExtractor,
+        WalletExtractor, helpers::missing_api_token,
     },
     webhook::{TrackRequest, WalletCache},
 };
@@ -78,6 +79,8 @@ const HTTP_PERCENT_ENCODE_SET: percent_encoding::AsciiSet =
 
 pub(crate) struct RouterState {
     pub allowed_hosts: AllowedHosts,
+    /// If set, requests must present this token to use the default wallet.
+    pub api_token: Option<ApiToken>,
     pub sidecar_url: String,
     /// The data directory for persisted state.
     pub data_dir: PathBuf,
@@ -176,10 +179,11 @@ mod sidecar {
     #[instrument(skip_all, name = "(health)")]
     pub(crate) async fn health(
         state: State<Arc<RouterState>>,
-        CredentialsExtractor(maybe_credentials): CredentialsExtractor,
+        AuthExtractor(auth): AuthExtractor,
     ) -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
         let has_default = state.default.is_some();
-        let has_request_credentials = maybe_credentials.is_some();
+        let has_request_credentials =
+            matches!(auth, RequestAuth::ClientCredentials(_));
 
         let status = if has_default || has_request_credentials {
             Cow::from("ok")
@@ -206,17 +210,19 @@ mod node {
     #[instrument(skip_all, name = "(signup)")]
     pub(crate) async fn signup(
         State(state): State<Arc<RouterState>>,
-        CredentialsExtractor(maybe_credentials): CredentialsExtractor,
+        AuthExtractor(auth): AuthExtractor,
         req: Option<LxJson<SignupRequest>>,
     ) -> Result<LxJson<Empty>, SdkApiError> {
-        // Ensure that per-request credentials weren't passed
-        if maybe_credentials.is_some() {
-            return Err(SdkApiError::bad_auth(
-                "Signup requires root seed credentials, but per-request client \
-                 credentials were provided. \
-                 Ensure that the Authorization header is empty.",
-            ));
-        };
+        match auth {
+            RequestAuth::Default => (),
+            RequestAuth::MissingApiToken => return Err(missing_api_token()),
+            RequestAuth::ClientCredentials(_) =>
+                return Err(SdkApiError::bad_auth(
+                    "Signup requires root seed credentials, but per-request \
+                     client credentials were provided. Ensure that the \
+                     Authorization header is empty or contains the API token.",
+                )),
+        }
         let (wallet, root_seed) = match state
             .default
             .as_ref()

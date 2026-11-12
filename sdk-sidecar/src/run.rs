@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    env,
+    env, fs,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     path::{Path, PathBuf},
     str::FromStr,
@@ -24,7 +24,9 @@ use quick_cache::unsync;
 use standardwebhooks::Webhook as WebhookSigner;
 use tracing::{info, info_span, instrument, warn};
 
-use crate::{cli::SidecarArgs, server, webhook::WebhookSender};
+use crate::{
+    access::ApiToken, cli::SidecarArgs, server, webhook::WebhookSender,
+};
 
 /// `127.0.0.1:5393` We use IPv4 because it's more approachable to newbie devs.
 /// The docs note that IPv6 is still supported.
@@ -154,9 +156,12 @@ impl Sidecar {
             .allowed_hosts
             .unwrap_or_default()
             .with_defaults(&sidecar_url);
+        let api_token =
+            helpers::resolve_api_token(args.api_token, args.api_token_path)?;
         let deploy_env = wallet_env_config.wallet_env.deploy_env;
         let router_state = Arc::new(server::RouterState {
             allowed_hosts,
+            api_token,
             sidecar_url,
             data_dir,
             default,
@@ -273,7 +278,7 @@ fn resolve_credentials(
     let (maybe_creds, source) = if let Some(cc) = client_credentials {
         (Some(Credentials::from(cc)), source_if_direct)
     } else if let Some(path) = &client_credentials_path {
-        let contents = std::fs::read_to_string(path).with_context(|| {
+        let contents = fs::read_to_string(path).with_context(|| {
             format!("Failed to read '{}' as path", path.display())
         })?;
         let cc = ClientCredentials::from_string(contents.trim()).context(
@@ -324,4 +329,32 @@ fn resolve_credentials(
     }
 
     Ok(maybe_creds)
+}
+
+mod helpers {
+    use super::*;
+
+    /// Resolve the API token from the provided args.
+    pub(super) fn resolve_api_token(
+        api_token: Option<ApiToken>,
+        api_token_path: Option<PathBuf>,
+    ) -> anyhow::Result<Option<ApiToken>> {
+        match (api_token, api_token_path) {
+            (Some(_), Some(_)) => Err(anyhow!(
+                "Provide only one of $LEXE_SIDECAR_API_TOKEN or \
+                 --api-token-path / $LEXE_SIDECAR_API_TOKEN_PATH"
+            )),
+            (None, Some(path)) => {
+                let contents =
+                    fs::read_to_string(&path).with_context(|| {
+                        format!(
+                            "Failed to read API token file: {}",
+                            path.display()
+                        )
+                    })?;
+                ApiToken::from_str(&contents).map(Some)
+            }
+            (api_token, None) => Ok(api_token),
+        }
+    }
 }

@@ -9,45 +9,55 @@ use lexe::{
 };
 use lexe_api::error::SdkApiError;
 
-use crate::server::RouterState;
+use crate::{access::bearer_token, server::RouterState};
 
-/// Extracts and validates [`ClientCredentials`] from `Authorization` header.
-///
-/// Returns `None` if the header is not present.
-/// Returns an error if the header is present but invalid.
-///
-/// Expected format: `Authorization: Bearer <credentials>`
-pub(crate) struct CredentialsExtractor(pub Option<ClientCredentials>);
+/// How a request authenticates, per its `Authorization: Bearer <token>`
+/// header, where the token is the sidecar's API token or client credentials.
+pub(crate) enum RequestAuth {
+    /// Use the default wallet.
+    Default,
+    /// The request may not use the default wallet, since it lacks the
+    /// required API token.
+    MissingApiToken,
+    /// Use these per-request client credentials.
+    ClientCredentials(ClientCredentials),
+}
 
-impl FromRequestParts<Arc<RouterState>> for CredentialsExtractor {
+/// Extracts and validates the [`RequestAuth`] from the `Authorization` header.
+pub(crate) struct AuthExtractor(pub RequestAuth);
+
+impl FromRequestParts<Arc<RouterState>> for AuthExtractor {
     type Rejection = SdkApiError;
 
     async fn from_request_parts(
         parts: &mut http::request::Parts,
-        _state: &Arc<RouterState>,
+        state: &Arc<RouterState>,
     ) -> Result<Self, Self::Rejection> {
         let Some(auth_header) = parts.headers.get(AUTHORIZATION) else {
-            return Ok(Self(None));
+            return Ok(Self(match state.api_token {
+                Some(_) => RequestAuth::MissingApiToken,
+                None => RequestAuth::Default,
+            }));
         };
-
-        let auth_str = auth_header
-            .to_str()
-            .map_err(|_| "Auth header contains invalid characters")
-            .map_err(SdkApiError::bad_auth)?;
 
         // Be strict about the format: AIs calling this API should know the
         // correct format, and leniency could mask security issues.
-        let credentials_str = auth_str
-            .strip_prefix("Bearer ")
-            .ok_or("Auth header must use 'Bearer ' prefix")
+        let token = bearer_token(auth_header).map_err(SdkApiError::bad_auth)?;
+
+        if state.api_token.as_ref().is_some_and(|t| t.matches(token)) {
+            return Ok(Self(RequestAuth::Default));
+        }
+
+        let invalid_credentials_msg = match state.api_token {
+            Some(_) =>
+                "Bearer token is not the API token and not valid client credentials",
+            None => "Client credentials had invalid format",
+        };
+        let credentials = ClientCredentials::from_str(token)
+            .context(invalid_credentials_msg)
             .map_err(SdkApiError::bad_auth)?;
 
-        // Parse credentials
-        let credentials = ClientCredentials::from_str(credentials_str)
-            .context("Client credentials had invalid format")
-            .map_err(SdkApiError::bad_auth)?;
-
-        Ok(Self(Some(credentials)))
+        Ok(Self(RequestAuth::ClientCredentials(credentials)))
     }
 }
 
@@ -72,46 +82,53 @@ impl FromRequestParts<Arc<RouterState>> for WalletAndCredentialsExtractor {
         parts: &mut http::request::Parts,
         state: &Arc<RouterState>,
     ) -> Result<Self, Self::Rejection> {
-        let maybe_credentials =
-            CredentialsExtractor::from_request_parts(parts, state).await?;
+        let AuthExtractor(auth) =
+            AuthExtractor::from_request_parts(parts, state).await?;
 
-        if let Some(client_credentials) = maybe_credentials.0 {
-            let client_pk = client_credentials.unstable().client_pk;
-            let mut locked_cache = state.wallet_cache.lock().unwrap();
+        let client_credentials = match auth {
+            RequestAuth::Default => return Self::from_default(state),
+            RequestAuth::MissingApiToken =>
+                return Err(helpers::missing_api_token()),
+            RequestAuth::ClientCredentials(cc) => cc,
+        };
 
-            // Check cache or create new
-            let wallet = match locked_cache.get(&client_pk) {
-                Some(cached_wallet) => cached_wallet.clone(),
-                None => {
-                    let credentials_ref =
-                        CredentialsRef::from(&client_credentials);
+        let client_pk = client_credentials.unstable().client_pk;
+        let mut locked_cache = state.wallet_cache.lock().unwrap();
 
-                    // Create new wallet and insert into cache
-                    let wallet = LexeWallet::load_or_fresh(
-                        state.wallet_env_config.clone(),
-                        credentials_ref,
-                        Some(state.data_dir.clone()),
-                    )
-                    .context("Failed to create wallet")
-                    .map_err(SdkApiError::bad_auth)?;
+        // Check cache or create new
+        let wallet = match locked_cache.get(&client_pk) {
+            Some(cached_wallet) => cached_wallet.clone(),
+            None => {
+                let credentials_ref = CredentialsRef::from(&client_credentials);
 
-                    let arc_wallet = Arc::new(wallet);
+                // Create new wallet and insert into cache
+                let wallet = LexeWallet::load_or_fresh(
+                    state.wallet_env_config.clone(),
+                    credentials_ref,
+                    Some(state.data_dir.clone()),
+                )
+                .context("Failed to create wallet")
+                .map_err(SdkApiError::bad_auth)?;
 
-                    locked_cache.insert(client_pk, arc_wallet.clone());
-                    arc_wallet
-                }
-            };
+                let arc_wallet = Arc::new(wallet);
 
-            let credentials =
-                Credentials::ClientCredentials(client_credentials);
+                locked_cache.insert(client_pk, arc_wallet.clone());
+                arc_wallet
+            }
+        };
 
-            return Ok(Self {
-                wallet,
-                credentials: Arc::new(credentials),
-            });
-        }
+        let credentials = Credentials::ClientCredentials(client_credentials);
 
-        // Fall back to the default wallet if available, otherwise error.
+        Ok(Self {
+            wallet,
+            credentials: Arc::new(credentials),
+        })
+    }
+}
+
+impl WalletAndCredentialsExtractor {
+    /// Uses the default wallet, if configured.
+    fn from_default(state: &RouterState) -> Result<Self, SdkApiError> {
         let (wallet, credentials) = state
             .default
             .as_ref()
@@ -150,5 +167,16 @@ impl FromRequestParts<Arc<RouterState>> for WalletExtractor {
                 .await?;
 
         Ok(Self(extractor.wallet))
+    }
+}
+
+pub(crate) mod helpers {
+    use super::*;
+
+    pub(crate) fn missing_api_token() -> SdkApiError {
+        SdkApiError::bad_auth(
+            "Using the sidecar's default wallet requires its API token. \
+             Pass it via the header `Authorization: Bearer <api_token>`.",
+        )
     }
 }

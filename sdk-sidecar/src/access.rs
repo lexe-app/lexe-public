@@ -7,10 +7,12 @@ use axum::{
     response::Response,
 };
 use http::{
-    header::{HOST, ORIGIN},
+    HeaderValue,
+    header::{AUTHORIZATION, HOST, ORIGIN},
     uri::Authority,
 };
 use lexe_api::error::{SdkApiError, SdkErrorKind};
+use lexe_sha256::sha256;
 use reqwest::Url;
 
 use crate::server::RouterState;
@@ -81,6 +83,37 @@ impl FromStr for AllowedHosts {
     }
 }
 
+/// A secret which clients must present as `Authorization: Bearer <token>` to
+/// use the default wallet.
+#[derive(Clone)]
+pub struct ApiToken(sha256::Hash);
+
+impl ApiToken {
+    pub(crate) fn matches(&self, token: &str) -> bool {
+        // Comparing hashes avoids leaking the token through timing.
+        sha256::digest(token.as_bytes()) == self.0
+    }
+}
+
+/// Parses a token, ignoring surrounding whitespace, e.g. a trailing newline.
+impl FromStr for ApiToken {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let token = s.trim();
+        ensure!(!token.is_empty(), "API token is empty");
+        Ok(Self(sha256::digest(token.as_bytes())))
+    }
+}
+
+pub(crate) fn bearer_token(header: &HeaderValue) -> Result<&str, &'static str> {
+    header
+        .to_str()
+        .map_err(|_| "Auth header contains invalid characters")?
+        .strip_prefix("Bearer ")
+        .ok_or("Auth header must use 'Bearer ' prefix")
+}
+
 /// Rejects requests which may have been sent by a malicious website.
 pub(crate) async fn check_access(
     State(state): State<Arc<RouterState>>,
@@ -88,7 +121,7 @@ pub(crate) async fn check_access(
     next: Next,
 ) -> Result<Response, SdkApiError> {
     helpers::check_host(&state.allowed_hosts, &req)?;
-    helpers::check_origin(&req)?;
+    helpers::check_origin(state.api_token.as_ref(), &req)?;
     Ok(next.run(req).await)
 }
 
@@ -114,17 +147,27 @@ mod helpers {
         Ok(())
     }
 
-    /// Rejects requests with an `Origin` header, which browsers attach to
-    /// cross-origin and non-GET requests. The sidecar API is not for browsers.
-    pub(super) fn check_origin(req: &Request) -> Result<(), SdkApiError> {
-        if req.headers().contains_key(ORIGIN) {
-            return Err(rejection(
-                "Requests from web browsers are not allowed. Call the sidecar \
-                 from your backend or reverse proxy instead."
-                    .to_owned(),
-            ));
+    /// Requests with an `Origin` header must present the sidecar API token.
+    pub(super) fn check_origin(
+        api_token: Option<&ApiToken>,
+        req: &Request,
+    ) -> Result<(), SdkApiError> {
+        if !req.headers().contains_key(ORIGIN) {
+            return Ok(());
         }
-        Ok(())
+
+        if let Some(api_token) = api_token
+            && let Some(header) = req.headers().get(AUTHORIZATION)
+            && let Ok(token) = bearer_token(header)
+            && api_token.matches(token)
+        {
+            return Ok(());
+        }
+
+        Err(rejection(
+            "Requests with an Origin header require the sidecar API token."
+                .to_owned(),
+        ))
     }
 
     /// The request's `:authority` (HTTP/2) or `Host` header (HTTP/1).
@@ -218,17 +261,42 @@ mod test {
     }
 
     #[test]
-    fn rejects_origin() {
-        let req = |origin: Option<&str>| {
+    fn api_token() {
+        let token = ApiToken::from_str(" s3cret\n").unwrap();
+        assert!(token.matches("s3cret"));
+        assert!(!token.matches(" s3cret"));
+        assert!(!token.matches("s3cre"));
+        assert!(ApiToken::from_str(" \n").is_err());
+    }
+
+    #[test]
+    fn check_origin() {
+        let req = |origin: Option<&str>, authorization: Option<&str>| {
             let mut builder = Request::builder().uri("/v2/health");
             if let Some(origin) = origin {
                 builder = builder.header(ORIGIN, origin);
             }
+            if let Some(authorization) = authorization {
+                builder = builder.header(AUTHORIZATION, authorization);
+            }
             builder.body(Body::empty()).unwrap()
         };
 
-        helpers::check_origin(&req(None)).unwrap();
-        helpers::check_origin(&req(Some("https://evil.example"))).unwrap_err();
-        helpers::check_origin(&req(Some("null"))).unwrap_err();
+        let token = ApiToken::from_str("s3cret").unwrap();
+        helpers::check_origin(None, &req(None, None)).unwrap();
+        helpers::check_origin(Some(&token), &req(None, None)).unwrap();
+        for origin in [Some("https://example.com"), Some("null")] {
+            helpers::check_origin(None, &req(origin, Some("Bearer s3cret")))
+                .unwrap_err();
+            for auth in [None, Some("Bearer wrong"), Some("Basic s3cret")] {
+                helpers::check_origin(Some(&token), &req(origin, auth))
+                    .unwrap_err();
+            }
+            helpers::check_origin(
+                Some(&token),
+                &req(origin, Some("Bearer s3cret")),
+            )
+            .unwrap();
+        }
     }
 }
