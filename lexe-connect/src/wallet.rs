@@ -24,8 +24,14 @@ use crate::{
 // Lexe's infra, and fall back to a hard-coded list (or nothing) if that fails.
 //
 // Spec: User Approval.
-pub const VERIFIED_REQUESTERS: &[&str] =
-    &["bitcoinrouter.ai", "zaprite.com", "zaptrain.com"];
+pub const VERIFIED_REQUESTERS: &[&str] = &[
+    "bitcoinrouter.ai",
+    "lexe.bot",
+    "lexe.cloud",
+    "lexerouter.ai",
+    "zaprite.com",
+    "zaptrain.com",
+];
 
 #[cfg(feature = "crypto")]
 #[derive(Debug, thiserror::Error)]
