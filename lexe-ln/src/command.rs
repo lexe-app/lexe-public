@@ -949,7 +949,7 @@ where
             return Err(anyhow!("Invoice already exists somehow??"))?,
     };
 
-    info!("Success: Generated invoice {invoice}");
+    info!(%hash, "Success: Generated invoice");
 
     Ok(CreateInvoiceResponse {
         invoice,
