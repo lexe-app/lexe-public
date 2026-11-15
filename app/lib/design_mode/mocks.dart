@@ -1218,33 +1218,36 @@ const Balance balanceLightningOnly = Balance(
 
 // App store screenshot wallet amounts.
 const int appStoreWalletInitialLexeDepositSats = 250000;
+const int appStoreWalletSavingsTopUpSats = 158300;
 const int appStoreWalletStackerNewsSendSats = 4200;
 const int appStoreWalletLunchAtCeciliasReceiveSats = 12000;
-const int appStoreWalletBalanceSats =
+const int appStoreWalletLightningSats =
     appStoreWalletInitialLexeDepositSats -
     appStoreWalletStackerNewsSendSats +
     appStoreWalletLunchAtCeciliasReceiveSats;
 
 const Balance balanceAppStoreWallet = Balance(
-  totalSats: appStoreWalletBalanceSats,
-  lightningSats: appStoreWalletBalanceSats,
-  lightningUsableSats: appStoreWalletBalanceSats - 1000,
-  lightningMaxSendableSats: appStoreWalletBalanceSats - 1000 - 1198,
-  onchainSats: 0,
+  totalSats: appStoreWalletLightningSats + appStoreWalletSavingsTopUpSats,
+  lightningSats: appStoreWalletLightningSats,
+  lightningUsableSats: appStoreWalletLightningSats - 1000,
+  lightningMaxSendableSats: appStoreWalletLightningSats - 1000 - 1198,
+  onchainSats: appStoreWalletSavingsTopUpSats,
 );
 
-String _lightningPaymentIndex({
-  required int createdAtMs,
-  required String paymentHash,
-}) => "${createdAtMs.toString().padLeft(19, "0")}-ln_$paymentHash";
+String _paymentIndex({required int createdAtMs, required String id}) =>
+    "${createdAtMs.toString().padLeft(19, "0")}-$id";
 
-/// Three completed Lightning payments for the app store wallet screenshot.
+/// Completed payments for the app store wallet screenshot, summing to
+/// [balanceAppStoreWallet].
 ///
 /// Generated from `now` so their relative timestamps are always <8h old.
 List<Payment> appStoreWalletPayments({DateTime? now}) {
   final now2 = now ?? DateTime.now();
   final depositCreatedAt = now2
       .subtract(const Duration(hours: 7, minutes: 20))
+      .millisecondsSinceEpoch;
+  final savingsCreatedAt = now2
+      .subtract(const Duration(hours: 5, minutes: 15))
       .millisecondsSinceEpoch;
   final stackerNewsCreatedAt = now2
       .subtract(const Duration(hours: 3, minutes: 45))
@@ -1253,16 +1256,17 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
       .subtract(const Duration(hours: 1, minutes: 10))
       .millisecondsSinceEpoch;
 
+  const savingsTxid =
+      "7e5842f0d961400557c1ab21892fe11dc9a99b48f6624baa37db432934c50444";
   final inboundTemplate = dummyInvoiceInboundCompleted03.invoice!;
   final outboundTemplate = dummyInvoiceOutboundCompleted01.invoice!;
 
   return <Payment>[
     Payment(
       index: PaymentCreatedIndex(
-        field0: _lightningPaymentIndex(
+        field0: _paymentIndex(
           createdAtMs: depositCreatedAt,
-          paymentHash:
-              "0d5af6a9ec1d95ff0b0ea1275a1be7296c5848a2e4b77aca37318e32fc244111",
+          id: "ln_0d5af6a9ec1d95ff0b0ea1275a1be7296c5848a2e4b77aca37318e32fc244111",
         ),
       ),
       kind: PaymentKind_Invoice(),
@@ -1289,10 +1293,32 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
     ),
     Payment(
       index: PaymentCreatedIndex(
-        field0: _lightningPaymentIndex(
+        field0: _paymentIndex(
+          createdAtMs: savingsCreatedAt,
+          id: "or_$savingsTxid",
+        ),
+      ),
+      kind: PaymentKind_Onchain(),
+      direction: PaymentDirection.inbound,
+      txid: savingsTxid,
+      amountSats: appStoreWalletSavingsTopUpSats,
+      feesSats: 0,
+      amountMsats: appStoreWalletSavingsTopUpSats * 1000,
+      feesMsats: 0,
+      status: PaymentStatus.completed,
+      statusStr: "fully confirmed (6+ confirmations)",
+      personalNote: "Savings top-up",
+      createdAt: savingsCreatedAt,
+      updatedAt: savingsCreatedAt + const Duration(minutes: 40).inMilliseconds,
+      finalizedAt:
+          savingsCreatedAt + const Duration(minutes: 40).inMilliseconds,
+      replacement: null,
+    ),
+    Payment(
+      index: PaymentCreatedIndex(
+        field0: _paymentIndex(
           createdAtMs: stackerNewsCreatedAt,
-          paymentHash:
-              "267bc8fcc8a0db2cb143cf77c17f48f99c9ecde7d1044c3a5703226224e00222",
+          id: "ln_267bc8fcc8a0db2cb143cf77c17f48f99c9ecde7d1044c3a5703226224e00222",
         ),
       ),
       kind: PaymentKind_Invoice(),
@@ -1321,10 +1347,9 @@ List<Payment> appStoreWalletPayments({DateTime? now}) {
     ),
     Payment(
       index: PaymentCreatedIndex(
-        field0: _lightningPaymentIndex(
+        field0: _paymentIndex(
           createdAtMs: lunchCreatedAt,
-          paymentHash:
-              "ec58d122968e3a12fc6d280defb455572f6f0fa5f0e8a80a62c3da18d7a4f333",
+          id: "ln_ec58d122968e3a12fc6d280defb455572f6f0fa5f0e8a80a62c3da18d7a4f333",
         ),
       ),
       kind: PaymentKind_Invoice(),
@@ -2046,11 +2071,11 @@ const LxChannelDetails dummyChannelAppStoreWallet = LxChannelDetails(
   channelId: "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
   counterpartyNodeId:
       "0314a77523d1dcbc5db56081edcbc24ab820b35e343a6c6769176de707c178d457",
-  channelValueSats: appStoreWalletBalanceSats + 180000,
+  channelValueSats: appStoreWalletLightningSats + 180000,
   isUsable: true,
-  ourBalanceSats: appStoreWalletBalanceSats,
-  outboundCapacitySats: appStoreWalletBalanceSats - 1000,
-  nextOutboundHtlcLimitSats: appStoreWalletBalanceSats - 1000 - 1198,
+  ourBalanceSats: appStoreWalletLightningSats,
+  outboundCapacitySats: appStoreWalletLightningSats - 1000,
+  nextOutboundHtlcLimitSats: appStoreWalletLightningSats - 1000 - 1198,
   theirBalanceSats: 180000,
   inboundCapacitySats: 180000 - 1000,
 );
