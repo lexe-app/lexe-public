@@ -4,7 +4,7 @@ use std::{
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     path::{Path, PathBuf},
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 
@@ -20,19 +20,18 @@ use lexe_tokio::{
     notify_once::NotifyOnce,
     task::{self, LxTask},
 };
-use quick_cache::unsync;
 use standardwebhooks::Webhook as WebhookSigner;
 use tracing::{info, info_span, instrument, warn};
 
 use crate::{
-    access::ApiToken, cli::SidecarArgs, server, webhook::WebhookSender,
+    access::ApiToken, cli::SidecarArgs, server, wallets::Wallets,
+    webhook::WebhookSender,
 };
 
 /// `127.0.0.1:5393` We use IPv4 because it's more approachable to newbie devs.
 /// The docs note that IPv6 is still supported.
 const DEFAULT_LISTEN_ADDR: SocketAddr =
     SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 5393));
-const WALLET_CACHE_CAPACITY: usize = 64;
 
 pub struct Sidecar {
     deploy_env: DeployEnv,
@@ -124,20 +123,24 @@ impl Sidecar {
             (None, None) => None,
         };
 
+        let deploy_env = wallet_env_config.wallet_env.deploy_env;
+        let wallets = Arc::new(Wallets::new(
+            data_dir.clone(),
+            default,
+            wallet_env_config.clone(),
+        ));
+
         // Create WebhookSender if webhook URL is configured
         let shutdown = NotifyOnce::new();
-        let wallet_cache =
-            Arc::new(Mutex::new(unsync::Cache::new(WALLET_CACHE_CAPACITY)));
         let webhook_tx = match webhook_url {
             Some(url) => {
                 let (sender, tx) = WebhookSender::new(
-                    default.as_ref().map(|(w, _)| w.clone()),
                     shutdown.clone(),
-                    data_dir.clone(),
+                    &data_dir,
                     url,
                     webhook_signer,
-                    wallet_cache.clone(),
-                    wallet_env_config.clone(),
+                    wallets.clone(),
+                    &wallet_env_config,
                 );
                 static_tasks.push(sender.spawn());
                 Some(tx)
@@ -158,15 +161,11 @@ impl Sidecar {
             .with_defaults(&sidecar_url);
         let api_token =
             helpers::resolve_api_token(args.api_token, args.api_token_path)?;
-        let deploy_env = wallet_env_config.wallet_env.deploy_env;
         let router_state = Arc::new(server::RouterState {
             allowed_hosts,
             api_token,
             sidecar_url,
-            data_dir,
-            default,
-            wallet_cache,
-            wallet_env_config,
+            wallets,
             webhook_tx,
         });
         let layer_config = LayerConfig {

@@ -1,9 +1,4 @@
-use std::{
-    borrow::Cow,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::{
@@ -12,38 +7,33 @@ use axum::{
     middleware,
     routing::{get, post, put},
 };
-use lexe::{
-    config::WalletEnvConfig,
-    types::{
-        auth::Credentials,
-        bitcoin::{ClaimMethod, PaymentMethod, PaymentUriMethod},
-        command::{
-            AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
-            CashAppBuyResponse, CheckAddressResponse,
-            ClaimableDetails as SdkClaimableDetails, ClientInfoResponse,
-            CloseChannelRequest, CreateClientRequest, CreateClientResponse,
-            CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
-            CreateOfferResponse, CreatePayerProofRequest,
-            CreatePayerProofResponse, GetClientInfoResponse,
-            GetExclusiveAddressResponse, GetHumanBitcoinAddressResponse,
-            GetNextUnusedAddressResponse, GetPaymentByIdRequest,
-            GetPaymentRequest, GetPaymentResponse, GetUpdatedPaymentsRequest,
-            GetUpdatedPaymentsResponse, ListChannelsResponse,
-            ListClientsResponse, ListPaymentsResponse, NodeInfo,
-            OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
-            PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
-            PayOnchainPreflightRequest, PayOnchainPreflightResponse,
-            PayOnchainRequest, PayRequest as SdkPayRequest,
-            PayableDetails as SdkPayableDetails, PaymentSyncSummary,
-            RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
-            UpdatePersonalNoteRequest,
-            WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
-            WaitForNextPaymentResponse,
-            WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
-        },
-        payment::Payment,
+use lexe::types::{
+    auth::Credentials,
+    bitcoin::{ClaimMethod, PaymentMethod, PaymentUriMethod},
+    command::{
+        AnalyzeRequest, CancelPaymentRequest, CashAppBuyRequest,
+        CashAppBuyResponse, CheckAddressResponse,
+        ClaimableDetails as SdkClaimableDetails, ClientInfoResponse,
+        CloseChannelRequest, CreateClientRequest, CreateClientResponse,
+        CreateInvoiceRequest, CreateInvoiceResponse, CreateOfferRequest,
+        CreateOfferResponse, CreatePayerProofRequest, CreatePayerProofResponse,
+        GetClientInfoResponse, GetExclusiveAddressResponse,
+        GetHumanBitcoinAddressResponse, GetNextUnusedAddressResponse,
+        GetPaymentByIdRequest, GetPaymentRequest, GetPaymentResponse,
+        GetUpdatedPaymentsRequest, GetUpdatedPaymentsResponse,
+        ListChannelsResponse, ListClientsResponse, ListPaymentsResponse,
+        NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
+        PayLnurlRequest as SdkPayLnurlRequest, PayOfferRequest,
+        PayOnchainPreflightRequest, PayOnchainPreflightResponse,
+        PayOnchainRequest, PayRequest as SdkPayRequest,
+        PayableDetails as SdkPayableDetails, PaymentSyncSummary,
+        RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
+        UpdatePersonalNoteRequest,
+        WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
+        WaitForNextPaymentResponse,
+        WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
     },
-    wallet::LexeWallet,
+    payment::Payment,
 };
 use lexe_api::{
     error::{SdkApiError, SdkErrorKind},
@@ -66,7 +56,8 @@ use crate::{
         AuthExtractor, RequestAuth, WalletAndCredentialsExtractor,
         WalletExtractor, helpers::missing_api_token,
     },
-    webhook::{TrackRequest, WalletCache},
+    wallets::Wallets,
+    webhook::TrackRequest,
 };
 
 /// A percent encoding set intended for use in HTTP query parameters.
@@ -82,14 +73,7 @@ pub(crate) struct RouterState {
     /// If set, requests must present this token to use the default wallet.
     pub api_token: Option<ApiToken>,
     pub sidecar_url: String,
-    /// The data directory for persisted state.
-    pub data_dir: PathBuf,
-    /// The default [`LexeWallet`] and [`Credentials`] from env/CLI.
-    /// Used when no per-request credentials are provided.
-    pub default: Option<(Arc<LexeWallet>, Arc<Credentials>)>,
-    /// Shared cache of [`LexeWallet`]s
-    pub wallet_cache: Arc<Mutex<WalletCache>>,
-    pub wallet_env_config: WalletEnvConfig,
+    pub wallets: Arc<Wallets>,
     /// Channel to send track requests to the webhook sender.
     pub webhook_tx: Option<mpsc::Sender<TrackRequest>>,
 }
@@ -181,7 +165,7 @@ mod sidecar {
         state: State<Arc<RouterState>>,
         AuthExtractor(auth): AuthExtractor,
     ) -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
-        let has_default = state.default.is_some();
+        let has_default = state.wallets.default().is_some();
         let has_request_credentials =
             matches!(auth, RequestAuth::ClientCredentials(_));
 
@@ -224,8 +208,8 @@ mod node {
                 )),
         }
         let (wallet, root_seed) = match state
-            .default
-            .as_ref()
+            .wallets
+            .default()
             .map(|(w, creds)| (w.as_ref(), creds.as_ref()))
         {
             None =>

@@ -4,7 +4,7 @@ use anyhow::Context;
 use axum::extract::FromRequestParts;
 use http::header::AUTHORIZATION;
 use lexe::{
-    types::auth::{ClientCredentials, Credentials, CredentialsRef},
+    types::auth::{ClientCredentials, Credentials},
     wallet::LexeWallet,
 };
 use lexe_api::error::SdkApiError;
@@ -92,30 +92,10 @@ impl FromRequestParts<Arc<RouterState>> for WalletAndCredentialsExtractor {
             RequestAuth::ClientCredentials(cc) => cc,
         };
 
-        let client_pk = client_credentials.unstable().client_pk;
-        let mut locked_cache = state.wallet_cache.lock().unwrap();
-
-        // Check cache or create new
-        let wallet = match locked_cache.get(&client_pk) {
-            Some(cached_wallet) => cached_wallet.clone(),
-            None => {
-                let credentials_ref = CredentialsRef::from(&client_credentials);
-
-                // Create new wallet and insert into cache
-                let wallet = LexeWallet::load_or_fresh(
-                    state.wallet_env_config.clone(),
-                    credentials_ref,
-                    Some(state.data_dir.clone()),
-                )
-                .context("Failed to create wallet")
-                .map_err(SdkApiError::bad_auth)?;
-
-                let arc_wallet = Arc::new(wallet);
-
-                locked_cache.insert(client_pk, arc_wallet.clone());
-                arc_wallet
-            }
-        };
+        let wallet = state
+            .wallets
+            .get(&client_credentials)
+            .map_err(SdkApiError::bad_auth)?;
 
         let credentials = Credentials::ClientCredentials(client_credentials);
 
@@ -130,8 +110,8 @@ impl WalletAndCredentialsExtractor {
     /// Uses the default wallet, if configured.
     fn from_default(state: &RouterState) -> Result<Self, SdkApiError> {
         let (wallet, credentials) = state
-            .default
-            .as_ref()
+            .wallets
+            .default()
             .ok_or(
                 "No client credentials configured. \
                  Set LEXE_CLIENT_CREDENTIALS in env or .env, \

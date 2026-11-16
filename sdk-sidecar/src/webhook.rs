@@ -25,7 +25,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     str::FromStr,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 
@@ -35,7 +35,7 @@ use futures::{StreamExt, stream::FuturesUnordered};
 use lexe::{
     config::WalletEnvConfig,
     types::{
-        auth::{ClientCredentials, Credentials, CredentialsRef, UserPk},
+        auth::{ClientCredentials, Credentials, UserPk},
         payment::Payment,
     },
     wallet::LexeWallet,
@@ -45,7 +45,6 @@ use lexe_common::time::TimestampMs;
 use lexe_crypto::ed25519;
 use lexe_std::backoff;
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
-use quick_cache::unsync;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -53,10 +52,7 @@ use standardwebhooks::Webhook as WebhookSigner;
 use tokio::sync::mpsc;
 use tracing::{error, info, info_span, warn};
 
-/// Cache of [`LexeWallet`]s, keyed by [`ClientCredentials`] `client_pk`.
-/// Shared between the sidecar server and webhook sender.
-pub(crate) type WalletCache =
-    unsync::Cache<ed25519::PublicKey, Arc<LexeWallet>>;
+use crate::wallets::Wallets;
 
 /// Filename for persisted tracking state. By default, state is persisted in
 /// `$HOME/.lexe/sidecar/<wallet_env>/tracked_payments.json`.
@@ -125,14 +121,8 @@ pub(crate) struct WebhookSender {
     /// `$HOME/.lexe/sidecar/<wallet_env>/tracked_payments.json`.
     tracked_payments_path: PathBuf,
 
-    wallet_env: WalletEnvConfig,
-    /// The wallet for the sidecar's default credentials, if configured.
-    default_wallet: Option<Arc<LexeWallet>>,
-    wallet_cache: Arc<Mutex<WalletCache>>,
-    /// Data dir for the wallets loaded into `wallet_cache`. The webhook sender
-    /// doesn't need wallet persistence, but the server, which shares the
-    /// cache, does.
-    data_dir: PathBuf,
+    /// The wallets associated with tracked payments. Shared with the server.
+    wallets: Arc<Wallets>,
 
     client: Arc<WebhookClient>,
     /// One task per tracked payment, which returns the payment once delivery
@@ -209,13 +199,12 @@ impl WebhookSender {
     /// Tracking state is persisted at
     /// `<data_dir>/sidecar/<wallet_env>/tracked_payments.json`.
     pub fn new(
-        default_wallet: Option<Arc<LexeWallet>>,
         shutdown: NotifyOnce,
-        data_dir: PathBuf,
+        data_dir: &Path,
         url: Url,
         webhook_signer: Option<WebhookSigner>,
-        wallet_cache: Arc<Mutex<WalletCache>>,
-        wallet_env: WalletEnvConfig,
+        wallets: Arc<Wallets>,
+        wallet_env: &WalletEnvConfig,
     ) -> (Self, mpsc::Sender<TrackRequest>) {
         let (tx, rx) = mpsc::channel(TRACK_REQUEST_BUFFER);
 
@@ -248,10 +237,7 @@ impl WebhookSender {
         let sender = Self {
             tracked_wallets: Self::load_wallets(&tracked_payments_path),
             tracked_payments_path,
-            wallet_cache,
-            data_dir,
-            default_wallet,
-            wallet_env,
+            wallets,
             client,
             waiters: FuturesUnordered::new(),
             webhook_sender_rx: rx,
@@ -478,11 +464,11 @@ impl WebhookSender {
         &self,
         creds_or_default: &CredentialsOrDefault,
     ) -> anyhow::Result<Arc<LexeWallet>> {
-        let wallet = match creds_or_default {
+        match creds_or_default {
             CredentialsOrDefault::Default(user_pk) => {
-                let default = self
-                    .default_wallet
-                    .clone()
+                let (default, _) = self
+                    .wallets
+                    .default()
                     .ok_or_else(|| anyhow!("Couldn't get default wallet"))?;
                 let default_user_pk = &default.user_config().user_pk;
                 ensure!(
@@ -491,28 +477,10 @@ impl WebhookSender {
                      {default_user_pk}, but the current default wallet has a \
                      user pk of {user_pk}"
                 );
-                default
+                Ok(default.clone())
             }
-            CredentialsOrDefault::PerRequest(cc) => {
-                let client_pk = &cc.unstable().client_pk;
-                let mut locked_cache = self.wallet_cache.lock().unwrap();
-                match locked_cache.get(client_pk) {
-                    Some(cached_wallet) => cached_wallet.clone(),
-                    None => {
-                        let wallet = LexeWallet::load_or_fresh(
-                            self.wallet_env.clone(),
-                            CredentialsRef::from(cc),
-                            Some(self.data_dir.clone()),
-                        )
-                        .map(Arc::new)
-                        .context("Couldn't create new wallet")?;
-                        locked_cache.insert(*client_pk, wallet.clone());
-                        wallet
-                    }
-                }
-            }
-        };
-        Ok(wallet)
+            CredentialsOrDefault::PerRequest(cc) => self.wallets.get(cc),
+        }
     }
 }
 

@@ -66,6 +66,8 @@ mod server;
 
 /// Sidecar-specific axum extractors
 mod extract;
+/// The wallets served by the sidecar.
+mod wallets;
 /// Webhook types and functionality for payment notifications.
 mod webhook;
 
