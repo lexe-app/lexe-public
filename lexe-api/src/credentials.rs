@@ -60,6 +60,10 @@ pub enum CredentialsRef<'a> {
 pub struct ClientCredentials {
     /// The user public key.
     ///
+    /// Untrusted input: nothing binds it to the client key, so it may be
+    /// forged. Before relying on it, check it against the `user_pk` that the
+    /// user's node reports via `client_info`.
+    ///
     /// Always `Some(_)` if the credentials were created by `node-v0.8.11+`.
     #[serde(skip_serializing_if = "Option::is_none")]
     // #[cfg_attr(

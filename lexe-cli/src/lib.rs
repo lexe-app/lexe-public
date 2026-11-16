@@ -2709,6 +2709,9 @@ impl ClientInfoArgs {
         };
         println!("Credentials [{kind}]");
 
+        if let Some(user_pk) = resp.user_pk {
+            println!("    - user_pk: {user_pk}");
+        }
         if let Some(client_pk) = resp.client_pk {
             println!("    - client_pk: {client_pk}");
         }

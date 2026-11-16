@@ -1193,6 +1193,9 @@ impl From<CloseChannelRequest> for command::CloseChannelRequest {
 pub struct GetClientInfoResponse {
     /// How this wallet is authenticated: root seed or client credentials.
     pub kind: CredentialKind,
+    /// The user whose node served this request, as reported by the node.
+    /// [`None`] if the node is too old to report it.
+    pub user_pk: Option<UserPk>,
     /// The public key of the client.
     /// `Some` iff `kind` is [`CredentialKind::ClientCredentials`].
     pub client_pk: Option<ed25519::PublicKey>,
@@ -1250,6 +1253,7 @@ impl TryFrom<revocable_clients::models::GetClientInfoResponse>
             permissions,
             effective_permissions,
             budget,
+            user_pk,
         } = value;
         let ClientPermissions {
             scopes,
@@ -1258,6 +1262,7 @@ impl TryFrom<revocable_clients::models::GetClientInfoResponse>
 
         Ok(Self {
             kind: CredentialKind::from(kind),
+            user_pk: user_pk.map(UserPk::from_unstable),
             client_pk: pubkey,
             created_at,
             expires_at,

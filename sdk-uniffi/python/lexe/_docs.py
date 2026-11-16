@@ -3383,6 +3383,8 @@ and the authorization associated with those credentials.
 Attributes:
     kind: How this wallet is authenticated (root seed or client
         credentials), as a :class:`CredentialKind`.
+    user_pk: Hex-encoded user public key of the node that served this
+        request, or ``None`` if the node is too old to report it.
     client_pk: Hex-encoded public key of the client, or ``None`` if this
         wallet authenticated with the root seed.
     created_at_ms: Client creation time (ms since UNIX epoch), or ``None``

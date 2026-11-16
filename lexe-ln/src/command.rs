@@ -2481,10 +2481,12 @@ mod validate {
     }
 }
 
+/// `user_pk` is the user whose node is serving the request, if any.
 pub async fn client_info<CM, PS, FRA>(
     authz: &VerifiedClientAuthorization,
     revocable_clients: &RwLock<RevocableClients>,
     payments_manager: &PaymentsManager<CM, PS, FRA>,
+    user_pk: Option<UserPk>,
 ) -> Result<GetClientInfoResponse, CommonApiError>
 where
     CM: LexeChannelManager<PS>,
@@ -2507,6 +2509,7 @@ where
             permissions: ClientPermissions::from_single_scope(Scope::Full),
             effective_permissions,
             budget: None,
+            user_pk,
         }),
         ClientCertKind::Revocable { client_pk } => {
             // Get the budget before taking the `clients` lock below. Its guard
@@ -2532,6 +2535,7 @@ where
                 permissions: client.permissions.clone(),
                 effective_permissions,
                 budget,
+                user_pk,
             })
         }
     }

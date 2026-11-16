@@ -4626,6 +4626,9 @@ impl From<Scope> for SdkScope {
 pub struct GetClientInfoResponse {
     /// How this wallet is authenticated: root seed or client credentials.
     pub kind: CredentialKind,
+    /// Hex-encoded user public key of the node that served this request.
+    /// `None` if the node is too old to report it.
+    pub user_pk: Option<String>,
     /// Hex-encoded public key of the client.
     /// `Some` iff `kind` is `CredentialKind::ClientCredentials`.
     pub client_pk: Option<String>,
@@ -4662,6 +4665,7 @@ impl From<SdkGetClientInfoResponse> for GetClientInfoResponse {
     fn from(resp: SdkGetClientInfoResponse) -> Self {
         Self {
             kind: CredentialKind::from(resp.kind),
+            user_pk: resp.user_pk.map(|pk| pk.to_string()),
             client_pk: resp.client_pk.map(|pk| pk.to_string()),
             created_at_ms: resp.created_at.map(|t| t.to_millis()),
             expires_at_ms: resp.expires_at.map(|t| t.to_millis()),

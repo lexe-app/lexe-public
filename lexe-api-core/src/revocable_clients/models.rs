@@ -55,6 +55,12 @@ pub struct GetClientInfoResponse {
     /// The caller's budget. [`None`] means no spending limit.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub budget: Option<BudgetInfo>,
+
+    /// The user whose node served this request. [`None`] if not served by a
+    /// user node (e.g. the LSP).
+    // compat: Added in node-v0.10.10
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_pk: Option<UserPk>,
 }
 
 /// How a client authenticated: root seed or client credentials.

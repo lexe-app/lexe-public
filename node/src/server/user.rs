@@ -736,6 +736,7 @@ pub(super) async fn client_info(
         &permissions,
         &state.revocable_clients.0,
         &state.payments_manager,
+        Some(state.user_pk),
     )
     .await
     .map(LxJson)
