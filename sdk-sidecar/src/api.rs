@@ -262,39 +262,15 @@ pub struct WaitForNextPaymentRequest {
 /// Mirrors [`lexe::types::command::UpdateClientRequest`], but uses explicit
 /// set/clear flags in place of its `Option<Option<_>>` fields, which JSON
 /// cannot easily express.
-///
-/// Every field except `client_pk` is optional. Omitted label and expiration
-/// fields are unchanged; `scopes` and `permissions` follow the coupled
-/// replacement semantics documented below.
 #[derive(Serialize, Deserialize)]
 pub struct UpdateClientRequest {
-    /// The public key of the client to update.
     pub client_pk: ed25519::PublicKey,
-    /// Set the client's label. Conflicts with `clear_label`.
     pub label: Option<String>,
-    /// Clear the client's label. Conflicts with `label`.
     #[serde(default)]
     pub clear_label: bool,
-    /// Set the client's expiration, in milliseconds since the UNIX epoch.
-    /// Conflicts with `clear_expiration`.
     pub expires_at: Option<TimestampMs>,
-    /// Clear the client's expiration, so it never expires. Conflicts with
-    /// `expires_at`. Use carefully!
     #[serde(default)]
     pub clear_expiration: bool,
-    /// The updated scopes.
-    ///
-    /// If either `scopes` or `permissions` is provided, together they replace
-    /// the complete grant; an omitted set is empty. The resulting grant must
-    /// contain at least one scope or permission.
     pub scopes: Option<BTreeSet<Scope>>,
-    /// The updated explicit permission ids.
-    ///
-    /// If either `scopes` or `permissions` is provided, together they replace
-    /// the complete grant; an omitted set is empty. The resulting grant must
-    /// contain at least one scope or permission.
-    ///
-    /// **Unstable**: permission ids are not part of the stable API and may be
-    /// renamed. Avoid matching on specific ids; prefer `scopes` instead.
     pub permissions: Option<BTreeSet<String>>,
 }
