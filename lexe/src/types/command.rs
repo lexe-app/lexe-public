@@ -1382,8 +1382,8 @@ pub struct BudgetInfo {
     /// [`None`] means the limit never resets, so the limit applies to the
     /// client's total spending.
     pub reset: Option<BudgetResetInfo>,
-    /// How much the client can still spend before the next reset, or in total
-    /// if the limit never resets. Uses the same denomination as `limit`.
+    /// How much the client can spend right now. Uses the same denomination as
+    /// `limit`.
     pub spendable: BitcoinOrFiat,
 }
 
@@ -1391,7 +1391,7 @@ pub struct BudgetInfo {
 #[derive(Serialize, Deserialize)]
 pub struct BudgetResetInfo {
     /// How often the limit resets. Resets happen at the start of each day,
-    /// week, month, or year; weeks start on Sunday.
+    /// week, month, or year, and weeks start on Sunday.
     pub interval: BudgetResetInterval,
     /// The number of days, weeks, months, or years between resets, whichever
     /// `interval` specifies. Always >= 1.
@@ -1752,7 +1752,7 @@ pub struct RevokeClientRequest {
 /// A client's spending limit, including fees.
 #[derive(Serialize, Deserialize)]
 pub struct Budget {
-    /// How much the client may spend before the limit resets.
+    /// How much the client may spend.
     pub limit: BitcoinOrFiat,
     /// When the limit resets.
     ///
@@ -1779,7 +1779,7 @@ pub enum BitcoinOrFiat {
 #[derive(Serialize, Deserialize)]
 pub struct BudgetReset {
     /// How often the limit resets. Resets happen at the start of each day,
-    /// week, month, or year; weeks start on Sunday.
+    /// week, month, or year, and weeks start on Sunday.
     pub interval: BudgetResetInterval,
     /// The number of days, weeks, months, or years between resets, whichever
     /// `interval` specifies. Must be >= 1. For example, pass 2 with a
