@@ -1373,7 +1373,8 @@ impl TryFrom<revocable_clients::models::RevocableClientWithBudget>
 }
 
 /// Info about a client's budget.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(into = "BudgetInfoWire", try_from = "BudgetInfoWire")]
 pub struct BudgetInfo {
     /// The client's spending limit, including fees.
     pub limit: BitcoinOrFiat,
@@ -1388,7 +1389,7 @@ pub struct BudgetInfo {
 }
 
 /// Info about a budget's reset schedule.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct BudgetResetInfo {
     /// How often the limit resets. Resets happen at the start of each day,
     /// week, month, or year, and weeks start on Sunday.
@@ -1418,8 +1419,8 @@ impl TryFrom<lexe_api::budget::models::BudgetInfo> for BudgetInfo {
             spendable,
             next_reset,
         } = info;
-        let limit = BitcoinOrFiat::try_from_flattened(limit, currency)?;
-        let spendable = BitcoinOrFiat::try_from_flattened(spendable, currency)?;
+        let limit = BitcoinOrFiat::try_from_api(limit, currency)?;
+        let spendable = BitcoinOrFiat::try_from_api(spendable, currency)?;
         let reset =
             match (reset_interval, interval_count, utc_offset_mins, next_reset)
             {
@@ -1699,7 +1700,7 @@ impl TryFrom<UpdateClientRequest>
                 let (limit, currency) = match new_limit {
                     None => (None, None),
                     Some(Some(limit)) => {
-                        let (limit, currency) = limit.try_flatten()?;
+                        let (limit, currency) = limit.try_into_api()?;
                         (Some(Some(limit)), Some(Some(currency)))
                     }
                     // Handled above.
@@ -1711,7 +1712,7 @@ impl TryFrom<UpdateClientRequest>
                         Some(None) => (Some(None), Some(None), Some(None)),
                         Some(Some(reset)) => {
                             let (interval, count, utc_offset_mins) =
-                                reset.try_flatten()?;
+                                reset.try_into_api()?;
                             (
                                 Some(Some(interval)),
                                 Some(Some(count)),
@@ -1750,7 +1751,8 @@ pub struct RevokeClientRequest {
 }
 
 /// A client's spending limit, including fees.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(into = "BudgetWire", try_from = "BudgetWire")]
 pub struct Budget {
     /// How much the client may spend.
     pub limit: BitcoinOrFiat,
@@ -1762,7 +1764,7 @@ pub struct Budget {
 }
 
 /// An amount, in either bitcoin or a fiat currency.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone)]
 pub enum BitcoinOrFiat {
     /// An amount of bitcoin.
     Bitcoin(Amount),
@@ -1776,7 +1778,7 @@ pub enum BitcoinOrFiat {
 }
 
 /// A budget's reset schedule.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct BudgetReset {
     /// How often the limit resets. Resets happen at the start of each day,
     /// week, month, or year, and weeks start on Sunday.
@@ -1796,9 +1798,9 @@ pub struct BudgetReset {
 }
 
 impl BudgetReset {
-    /// Flattens into the unstable reset interval, interval count, and UTC
+    /// Converts into the API's reset interval, interval count, and UTC
     /// offset, applying the defaults.
-    fn try_flatten(
+    fn try_into_api(
         self,
     ) -> anyhow::Result<(BudgetResetInterval, NonZeroU8, i32)> {
         let interval_count =
@@ -1811,10 +1813,175 @@ impl BudgetReset {
     }
 }
 
+/// The serialized form of [`Budget`]: the fields of [`BudgetParams`], but
+/// with bitcoin amounts in sats and `"sats"` as their `currency`.
+#[derive(Serialize, Deserialize)]
+struct BudgetWire {
+    limit: Decimal,
+    currency: String,
+    reset_interval: Option<BudgetResetInterval>,
+    interval_count: Option<u8>,
+    utc_offset_mins: Option<i32>,
+}
+
+/// The serialized form of [`BudgetInfo`]; see [`BudgetWire`].
+#[derive(Serialize, Deserialize)]
+struct BudgetInfoWire {
+    limit: Decimal,
+    currency: String,
+    reset_interval: Option<BudgetResetInterval>,
+    interval_count: Option<u8>,
+    utc_offset_mins: Option<i32>,
+    next_reset: Option<TimestampMs>,
+    spendable: Decimal,
+}
+
+impl From<Budget> for BudgetWire {
+    fn from(budget: Budget) -> Self {
+        let (limit, currency) = budget.limit.into_wire();
+        let (reset_interval, interval_count, utc_offset_mins) =
+            match budget.reset {
+                Some(reset) => {
+                    let interval = Some(reset.interval);
+                    (interval, reset.interval_count, reset.utc_offset_mins)
+                }
+                None => (None, None, None),
+            };
+        Self {
+            limit,
+            currency,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+        }
+    }
+}
+
+impl TryFrom<BudgetWire> for Budget {
+    type Error = anyhow::Error;
+
+    fn try_from(wire: BudgetWire) -> anyhow::Result<Self> {
+        let BudgetWire {
+            limit,
+            currency,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+        } = wire;
+        let limit = BitcoinOrFiat::try_from_wire(limit, currency)?;
+        let reset = match reset_interval {
+            Some(interval) => Some(BudgetReset {
+                interval,
+                interval_count,
+                utc_offset_mins,
+            }),
+            None => {
+                ensure!(
+                    interval_count.is_none() && utc_offset_mins.is_none(),
+                    "interval_count and utc_offset_mins require reset_interval"
+                );
+                None
+            }
+        };
+        Ok(Self { limit, reset })
+    }
+}
+
+impl From<BudgetInfo> for BudgetInfoWire {
+    fn from(info: BudgetInfo) -> Self {
+        let (limit, currency) = info.limit.into_wire();
+        let (spendable, _) = info.spendable.into_wire();
+        let (reset_interval, interval_count, utc_offset_mins, next_reset) =
+            match info.reset {
+                Some(reset) => {
+                    let interval = Some(reset.interval);
+                    let count = Some(reset.interval_count);
+                    let utc_offset_mins = Some(reset.utc_offset_mins);
+                    let next_reset = Some(reset.next_reset);
+                    (interval, count, utc_offset_mins, next_reset)
+                }
+                None => (None, None, None, None),
+            };
+        Self {
+            limit,
+            currency,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+            next_reset,
+            spendable,
+        }
+    }
+}
+
+impl TryFrom<BudgetInfoWire> for BudgetInfo {
+    type Error = anyhow::Error;
+
+    fn try_from(wire: BudgetInfoWire) -> anyhow::Result<Self> {
+        let BudgetInfoWire {
+            limit,
+            currency,
+            reset_interval,
+            interval_count,
+            utc_offset_mins,
+            next_reset,
+            spendable,
+        } = wire;
+        let spendable =
+            BitcoinOrFiat::try_from_wire(spendable, currency.clone())?;
+        let limit = BitcoinOrFiat::try_from_wire(limit, currency)?;
+        let reset =
+            match (reset_interval, interval_count, utc_offset_mins, next_reset)
+            {
+                (None, None, None, None) => None,
+                (
+                    Some(interval),
+                    Some(interval_count),
+                    Some(utc_offset_mins),
+                    Some(next_reset),
+                ) => Some(BudgetResetInfo {
+                    interval,
+                    interval_count,
+                    utc_offset_mins,
+                    next_reset,
+                }),
+                _ => bail!("Incomplete budget reset schedule"),
+            };
+        Ok(Self {
+            limit,
+            reset,
+            spendable,
+        })
+    }
+}
+
 impl BitcoinOrFiat {
-    /// Flattens into a decimal and a [`BudgetCurrency`]. Bitcoin amounts are
-    /// in BTC, not sats.
-    fn try_flatten(self) -> anyhow::Result<(Decimal, BudgetCurrency)> {
+    /// Splits into a decimal and its currency: sats and `"sats"` for bitcoin,
+    /// or the fiat amount and its ISO 4217 code.
+    fn into_wire(self) -> (Decimal, String) {
+        match self {
+            Self::Bitcoin(amount) =>
+                (amount.sats().normalize(), "sats".to_owned()),
+            Self::Fiat { amount, currency } => (amount, currency),
+        }
+    }
+
+    /// The inverse of [`Self::into_wire`].
+    fn try_from_wire(
+        amount: Decimal,
+        currency: String,
+    ) -> anyhow::Result<Self> {
+        if currency == "sats" {
+            let sats =
+                Amount::try_from_sats(amount).context("Invalid sats amount")?;
+            return Ok(Self::Bitcoin(sats));
+        }
+        Ok(Self::Fiat { amount, currency })
+    }
+
+    /// Converts into the API's amount and [`BudgetCurrency`]. Bitcoin amounts
+    /// are in BTC, not sats.
+    fn try_into_api(self) -> anyhow::Result<(Decimal, BudgetCurrency)> {
         match self {
             Self::Bitcoin(amount) =>
                 Ok((amount.btc(), BudgetCurrency::Bitcoin)),
@@ -1832,8 +1999,8 @@ impl BitcoinOrFiat {
         }
     }
 
-    /// The inverse of [`Self::try_flatten`].
-    fn try_from_flattened(
+    /// The inverse of [`Self::try_into_api`].
+    fn try_from_api(
         amount: Decimal,
         currency: BudgetCurrency,
     ) -> anyhow::Result<Self> {
@@ -1855,16 +2022,16 @@ impl TryFrom<Budget> for BudgetParams {
     type Error = anyhow::Error;
 
     fn try_from(budget: Budget) -> anyhow::Result<Self> {
-        let (limit, currency) = budget.limit.try_flatten()?;
-        let (reset_interval, interval_count, utc_offset_mins) = match budget
-            .reset
-        {
-            Some(reset) => {
-                let (interval, count, utc_offset_mins) = reset.try_flatten()?;
-                (Some(interval), Some(count), Some(utc_offset_mins))
-            }
-            None => (None, None, None),
-        };
+        let (limit, currency) = budget.limit.try_into_api()?;
+        let (reset_interval, interval_count, utc_offset_mins) =
+            match budget.reset {
+                Some(reset) => {
+                    let (interval, count, utc_offset_mins) =
+                        reset.try_into_api()?;
+                    (Some(interval), Some(count), Some(utc_offset_mins))
+                }
+                None => (None, None, None),
+            };
         Ok(Self {
             limit: Some(limit),
             currency: Some(currency),
