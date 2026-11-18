@@ -2,8 +2,9 @@
   description = "Lexe public monorepo flake";
 
   inputs = {
-    # NixOS/nixpkgs - nixos-stable branch for the current release
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    # NixOS/nixpkgs - release branch for the current NixOS stable release
+    # TODO(phlip9): Return to nixos-26.05 branch on next update.
+    nixpkgs.url = "github:NixOS/nixpkgs/release-26.05";
 
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
