@@ -95,6 +95,7 @@ impl FromRequestParts<Arc<RouterState>> for WalletAndCredentialsExtractor {
         let wallet = state
             .wallets
             .get(&client_credentials)
+            .await
             .map_err(SdkApiError::bad_auth)?;
 
         let credentials = Credentials::ClientCredentials(client_credentials);

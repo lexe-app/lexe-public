@@ -47,5 +47,6 @@ serde_with = { workspace = true }
 standardwebhooks = { workspace = true }
 tokio = { workspace = true, features = [
     "rt",
+    "sync",
 ] }
 tracing = { workspace = true }

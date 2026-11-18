@@ -49,7 +49,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use standardwebhooks::Webhook as WebhookSigner;
-use tokio::sync::mpsc;
+use tokio::sync::{Semaphore, mpsc};
 use tracing::{error, info, info_span, warn};
 
 use crate::wallets::Wallets;
@@ -61,6 +61,9 @@ const TRACKED_PAYMENTS_FILE: &str = "tracked_payments.json";
 /// Channel buffer size for track requests.
 const TRACK_REQUEST_BUFFER: usize = 64;
 
+/// Limit concurrent wallet loads, which may wake nodes to verify credentials.
+const MAX_CONCURRENT_WALLET_LOADS: usize = 4;
+
 /// Maximum number of webhook delivery attempts.
 const MAX_WEBHOOK_ATTEMPTS: u32 = 3;
 
@@ -71,7 +74,7 @@ pub(crate) struct TrackRequest {
 }
 
 /// Identifies the [`LexeWallet`] to load for a tracked payment.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) enum CredentialsOrDefault {
     /// A per-request wallet, loaded on demand with its [`ClientCredentials`].
     PerRequest(ClientCredentials),
@@ -123,6 +126,7 @@ pub(crate) struct WebhookSender {
 
     /// The wallets associated with tracked payments. Shared with the server.
     wallets: Arc<Wallets>,
+    wallet_load_limit: Arc<Semaphore>,
 
     client: Arc<WebhookClient>,
     /// One task per tracked payment, which returns the payment once delivery
@@ -238,6 +242,9 @@ impl WebhookSender {
             tracked_wallets: Self::load_wallets(&tracked_payments_path),
             tracked_payments_path,
             wallets,
+            wallet_load_limit: Arc::new(Semaphore::new(
+                MAX_CONCURRENT_WALLET_LOADS,
+            )),
             client,
             waiters: FuturesUnordered::new(),
             webhook_sender_rx: rx,
@@ -299,6 +306,9 @@ impl WebhookSender {
             }
         }
 
+        for waiter in &self.waiters {
+            waiter.abort();
+        }
         self.persist_state();
         info!("Webhook sender task stopped");
     }
@@ -351,27 +361,29 @@ impl WebhookSender {
         }
     }
 
-    /// Untracks the payment if its wallet can't be loaded.
     fn spawn_waiter(
         &mut self,
         wallet_key: WalletKey,
         index: PaymentCreatedIndex,
     ) {
         let creds_or_default =
-            &self.tracked_wallets[&wallet_key].creds_or_default;
-        let wallet = match self.get_wallet(creds_or_default) {
-            Ok(wallet) => wallet,
-            Err(e) => {
-                warn!("Couldn't track payment with index {index}: {e:#}");
-                self.untrack_payment(wallet_key, index);
-                return;
-            }
-        };
-
+            self.tracked_wallets[&wallet_key].creds_or_default.clone();
+        let wallets = self.wallets.clone();
+        let wallet_load_limit = self.wallet_load_limit.clone();
         let client = self.client.clone();
         let name = format!("(webhook-waiter-{index})");
         let waiter = LxTask::spawn_unlogged(name, async move {
-            Self::wait_and_deliver(&wallet, &client, index).await;
+            match Self::get_wallet(
+                &wallets,
+                &wallet_load_limit,
+                &creds_or_default,
+            )
+            .await
+            {
+                Ok(wallet) =>
+                    Self::wait_and_deliver(&wallet, &client, index).await,
+                Err(e) => warn!(%index, "Couldn't track payment: {e:#}"),
+            }
             (wallet_key, index)
         });
         self.waiters.push(waiter);
@@ -460,14 +472,14 @@ impl WebhookSender {
         wallets
     }
 
-    fn get_wallet(
-        &self,
+    async fn get_wallet(
+        wallets: &Wallets,
+        wallet_load_limit: &Semaphore,
         creds_or_default: &CredentialsOrDefault,
     ) -> anyhow::Result<Arc<LexeWallet>> {
         match creds_or_default {
             CredentialsOrDefault::Default(user_pk) => {
-                let (default, _) = self
-                    .wallets
+                let (default, _) = wallets
                     .default()
                     .ok_or_else(|| anyhow!("Couldn't get default wallet"))?;
                 let default_user_pk = &default.user_config().user_pk;
@@ -479,7 +491,26 @@ impl WebhookSender {
                 );
                 Ok(default.clone())
             }
-            CredentialsOrDefault::PerRequest(cc) => self.wallets.get(cc),
+            CredentialsOrDefault::PerRequest(cc) => {
+                // Keep restored payments tracked through transient node
+                // failures.
+                let mut backoff = backoff::get_backoff_iter();
+                loop {
+                    let result = {
+                        let _permit = wallet_load_limit
+                            .acquire()
+                            .await
+                            .expect("Semaphore should not have been closed");
+                        wallets.get(cc).await
+                    };
+                    match result {
+                        Ok(wallet) => return Ok(wallet),
+                        Err(e) =>
+                            warn!(client_pk = %cc.unstable().client_pk, "Couldn't load webhook wallet: {e:#}"),
+                    }
+                    tokio::time::sleep(backoff.next_delay()).await;
+                }
+            }
         }
     }
 }
