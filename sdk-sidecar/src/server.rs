@@ -3,8 +3,7 @@ use std::{borrow::Cow, sync::Arc, time::Duration};
 use anyhow::Context;
 use axum::{
     Router,
-    extract::State,
-    middleware,
+    extract::{Request, State},
     routing::{get, post, put},
 };
 use lexe::types::{
@@ -44,7 +43,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
 
 use crate::{
-    access::{self, AllowedHosts, ApiToken},
+    access::{ApiToken, HostPolicy},
     api::{
         AnalyzeResponse, CheckAddressRequest, ClaimableDetails,
         HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest, PayRequest,
@@ -54,7 +53,7 @@ use crate::{
     },
     extract::{
         AuthExtractor, RequestAuth, WalletAndCredentialsExtractor,
-        WalletExtractor, helpers::missing_api_token,
+        WalletExtractor,
     },
     wallets::Wallets,
     webhook::TrackRequest,
@@ -69,9 +68,9 @@ const HTTP_PERCENT_ENCODE_SET: percent_encoding::AsciiSet =
         .remove(b'~');
 
 pub(crate) struct RouterState {
-    pub allowed_hosts: AllowedHosts,
     /// If set, requests must present this token to use the default wallet.
     pub api_token: Option<ApiToken>,
+    pub host_policy: HostPolicy,
     pub sidecar_url: String,
     pub wallets: Arc<Wallets>,
     /// Channel to send track requests to the webhook sender.
@@ -150,10 +149,6 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v1/node/create_invoice", post(node::create_invoice))
         .route("/v1/node/pay_invoice", post(node::pay_invoice))
         .route("/v1/node/payment", get(node::get_payment_v1))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            access::check_access,
-        ))
         .with_state(state)
 }
 
@@ -162,12 +157,19 @@ mod sidecar {
 
     #[instrument(skip_all, name = "(health)")]
     pub(crate) async fn health(
-        state: State<Arc<RouterState>>,
-        AuthExtractor(auth): AuthExtractor,
+        State(state): State<Arc<RouterState>>,
+        req: Request,
     ) -> Result<LxJson<HealthCheckResponse>, SdkApiError> {
+        // Health probes may use unlisted hosts under the default Host policy.
+        let (parts, _) = req.into_parts();
+        state.host_policy.allows_implicit_auth(&parts)?;
+        let auth = RequestAuth::from_headers(
+            &parts.headers,
+            state.api_token.as_ref(),
+        )?;
         let has_default = state.wallets.default().is_some();
         let has_request_credentials =
-            matches!(auth, RequestAuth::ClientCredentials(_));
+            matches!(auth, Some(RequestAuth::ClientCredentials(_)));
 
         let status = if has_default || has_request_credentials {
             Cow::from("ok")
@@ -199,7 +201,6 @@ mod node {
     ) -> Result<LxJson<Empty>, SdkApiError> {
         match auth {
             RequestAuth::Default => (),
-            RequestAuth::MissingApiToken => return Err(missing_api_token()),
             RequestAuth::ClientCredentials(_) =>
                 return Err(SdkApiError::bad_auth(
                     "Signup requires root seed credentials, but per-request \
@@ -992,6 +993,143 @@ mod helpers {
 
         if tx.try_send(req).is_err() {
             warn!("Webhook channel full, payment not tracked");
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::path::PathBuf;
+
+    use http::{
+        StatusCode,
+        header::{AUTHORIZATION, HOST, ORIGIN},
+    };
+    use lexe::{
+        config::WalletEnvConfig, types::auth::RootSeed, wallet::LexeWallet,
+    };
+    use lexe_api::server::{LayerConfig, ServerConfig, spawn_server_task};
+    use lexe_common::net::LOCALHOST_WITH_EPHEMERAL_PORT;
+    use lexe_tokio::notify_once::NotifyOnce;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn wallet_and_health_access() {
+        let env_config = WalletEnvConfig::mainnet();
+        let credentials = Credentials::from(RootSeed::generate());
+        let wallet =
+            LexeWallet::without_db(env_config.clone(), credentials.as_ref())
+                .unwrap();
+        let wallets = Arc::new(Wallets::new(
+            PathBuf::new(),
+            Some((Arc::new(wallet), Arc::new(credentials))),
+            env_config,
+        ));
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        // An on-chain address can be analyzed without a connection to the node.
+        let analyze = "/v2/node/analyze?payment_string=1BoatSLRHtKNngkdXEeobR76b53LETtpyT";
+        let local = "localhost";
+        let unlisted = "docker.internal";
+        let origin = Some("https://example.com");
+        let auth = Some("Bearer test-token");
+        let ok = StatusCode::OK;
+        let unauthorized = StatusCode::UNAUTHORIZED;
+        let rejected = StatusCode::BAD_REQUEST;
+
+        let default_policy = [
+            (analyze, local, None, None, ok),
+            (analyze, local, origin, None, unauthorized),
+            (analyze, unlisted, None, None, unauthorized),
+            (analyze, unlisted, None, auth, unauthorized),
+            ("/v2/health", unlisted, None, None, ok),
+        ];
+        let token_policy = [
+            (analyze, local, None, None, unauthorized),
+            (analyze, local, origin, auth, ok),
+            (analyze, unlisted, None, auth, ok),
+            (analyze, unlisted, Some("null"), auth, ok),
+            (
+                analyze,
+                unlisted,
+                origin,
+                Some("Bearer wrong"),
+                unauthorized,
+            ),
+            (
+                analyze,
+                unlisted,
+                origin,
+                Some("Basic test-token"),
+                unauthorized,
+            ),
+            (analyze, "bad/host", None, auth, rejected),
+            ("/v1/health", unlisted, None, None, ok),
+            ("/v2/health", unlisted, None, None, ok),
+        ];
+        let explicit_policy = [
+            (analyze, "proxy.internal", origin, auth, ok),
+            (analyze, unlisted, origin, auth, rejected),
+            ("/v1/health", unlisted, None, None, rejected),
+            ("/v2/health", "proxy.internal", None, None, ok),
+        ];
+
+        for (api_token, extra_hosts, cases) in [
+            (None, None, default_policy.as_slice()),
+            (Some("test-token"), None, token_policy.as_slice()),
+            (
+                Some("test-token"),
+                Some("proxy.internal"),
+                explicit_policy.as_slice(),
+            ),
+        ] {
+            let sidecar_url = "http://localhost:5393";
+            let app = router(Arc::new(RouterState {
+                api_token: api_token.map(|token| token.parse().unwrap()),
+                host_policy: HostPolicy::new(
+                    extra_hosts.map(|hosts| hosts.parse().unwrap()),
+                    sidecar_url,
+                ),
+                sidecar_url: sidecar_url.to_owned(),
+                wallets: wallets.clone(),
+                webhook_tx: None,
+            }));
+            let shutdown = NotifyOnce::new();
+            let (server, server_url) = spawn_server_task(
+                LOCALHOST_WITH_EPHEMERAL_PORT,
+                app,
+                LayerConfig::default(),
+                ServerConfig::default(),
+                None,
+                "(sidecar-test-server)".into(),
+                tracing::Span::none(),
+                shutdown.clone(),
+            )
+            .unwrap();
+
+            for &(path, host, origin, auth, expected) in cases {
+                let mut req = client
+                    .get(format!("{server_url}{path}"))
+                    .header(HOST, host);
+                if let Some(origin) = origin {
+                    req = req.header(ORIGIN, origin);
+                }
+                if let Some(auth) = auth {
+                    req = req.header(AUTHORIZATION, auth);
+                }
+                let resp = req.send().await.unwrap();
+                assert_eq!(
+                    resp.status(),
+                    expected,
+                    "{host}{path}, Origin={origin:?}"
+                );
+            }
+
+            shutdown.send();
+            tokio::time::timeout(Duration::from_secs(5), server)
+                .await
+                .unwrap()
+                .unwrap();
         }
     }
 }

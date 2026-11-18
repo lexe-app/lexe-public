@@ -85,10 +85,11 @@ pub struct SidecarArgs {
     #[arg(long)]
     pub sidecar_url: Option<String>,
 
-    /// Comma-separated hostnames, besides `localhost`, `127.0.0.1`, `[::1]`,
-    /// and the `--sidecar-url` host, which clients may use to reach the
-    /// sidecar. Requests with any other `Host` header are rejected to prevent
-    /// DNS rebinding attacks. Use `*` to allow any host.
+    /// Comma-separated hostnames that clients may use to reach the sidecar.
+    /// `localhost`, `127.0.0.1`, `[::1]`, and the `--sidecar-url` host are
+    /// always allowed. Use `*` to allow any host. If unset, requests for other
+    /// hosts require bearer auth, either via API token or client credentials.
+    /// Health probes can use any host.
     /// [env: LEXE_SIDECAR_ALLOWED_HOSTS]
     #[arg(long)]
     pub allowed_hosts: Option<AllowedHosts>,

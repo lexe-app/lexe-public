@@ -24,7 +24,10 @@ use standardwebhooks::Webhook as WebhookSigner;
 use tracing::{info, info_span, instrument, warn};
 
 use crate::{
-    access::ApiToken, cli::SidecarArgs, server, wallets::Wallets,
+    access::{ApiToken, HostPolicy},
+    cli::SidecarArgs,
+    server,
+    wallets::Wallets,
     webhook::WebhookSender,
 };
 
@@ -155,15 +158,12 @@ impl Sidecar {
         let sidecar_url = args
             .sidecar_url
             .unwrap_or_else(|| build_server_url(listen_addr, maybe_dns));
-        let allowed_hosts = args
-            .allowed_hosts
-            .unwrap_or_default()
-            .with_defaults(&sidecar_url);
         let api_token =
             helpers::resolve_api_token(args.api_token, args.api_token_path)?;
+        let host_policy = HostPolicy::new(args.allowed_hosts, &sidecar_url);
         let router_state = Arc::new(server::RouterState {
-            allowed_hosts,
             api_token,
+            host_policy,
             sidecar_url,
             wallets,
             webhook_tx,
