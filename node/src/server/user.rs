@@ -156,7 +156,7 @@ pub(super) async fn update_user_settings(
 
     // The current implementation of auto-withdrawal closes channels, so
     // require both `Permission::CloseChannel` and `Permission::PayOnchain` for
-    // enabling auto-withdrawals or setting the auto-withdraw destination.
+    // setting the auto-withdraw destination or threshold.
     // TODO(nicole): remove CloseChannel once we use ShutdownScript or splicing
     let sets_destination = matches!(auto_withdraw_destination, Some(Some(_)));
     let sets_threshold = matches!(auto_withdraw_threshold, Some(Some(_)));

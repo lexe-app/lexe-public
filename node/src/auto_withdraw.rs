@@ -117,10 +117,7 @@ impl AutoWithdrawCtx {
                 warn!("Unknown auto-withdraw destination kind; skipping");
                 return Ok(());
             }
-            None => {
-                debug!("No auto-withdraw destination; skipping");
-                return Ok(());
-            }
+            None => return Ok(()),
             Some(dest) => dest,
         };
 

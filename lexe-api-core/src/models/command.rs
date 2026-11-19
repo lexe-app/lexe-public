@@ -220,8 +220,6 @@ pub struct UserSettings {
     pub auto_withdraw_destination: Option<AutoWithdrawDestination>,
     /// Withdraw all funds to [`Self::auto_withdraw_destination`] once the
     /// total balance, on-chain and Lightning, exceeds this amount.
-    /// Requires an auto-withdraw destination. `None` if auto-withdrawal is
-    /// disabled.
     pub auto_withdraw_threshold: Option<Amount>,
     /// The user-preferred fiat currency. `None` if the user never set one.
     pub preferred_fiat_currency: Option<IsoCurrencyCode>,
@@ -245,7 +243,7 @@ impl UserSettings {
             .unwrap_or(Self::DEFAULT_FIAT_CURRENCY)
     }
 
-    /// Checks that these settings are usable.
+    /// Checks that these settings are valid for `network`.
     pub fn validate(&self, network: Network) -> anyhow::Result<()> {
         match &self.auto_withdraw_destination {
             Some(AutoWithdrawDestination::Address { address }) => ensure!(
@@ -263,10 +261,6 @@ impl UserSettings {
             ensure!(
                 threshold >= min_threshold,
                 "Auto-withdrawal threshold must be at least {min_threshold} sats"
-            );
-            ensure!(
-                self.auto_withdraw_destination.is_some(),
-                "Auto-withdrawal requires an auto-withdraw destination"
             );
         }
 
@@ -288,7 +282,7 @@ pub struct UpdateUserSettingsRequest {
     pub auto_withdraw_destination: Option<Option<AutoWithdrawDestination>>,
     /// The new auto-withdrawal threshold.
     ///
-    /// `Some(None)` disables auto-withdrawal.
+    /// `Some(None)` clears it.
     ///
     /// Setting a threshold requires the `CloseChannel` and `PayOnchain`
     /// permissions, and a client with no spending limit.
