@@ -2198,6 +2198,7 @@ const CredentialRequest defaultCredentialRequest = CredentialRequest(
   account: "@janedoe",
   scopes: ["read_info", "receive", "spend"],
   permissions: [],
+  canSpend: true,
   label: "BillSplit App",
   expiresAt: 1821484800000,
 );
@@ -2217,6 +2218,7 @@ const CredentialRequest zapriteCredentialRequest = CredentialRequest(
   account: "janedoe@gmail.com",
   scopes: ["read_info", "receive", "spend"],
   permissions: [],
+  canSpend: true,
   label: "Zaprite P2P",
   expiresAt: 1821484800000,
 );

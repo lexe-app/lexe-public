@@ -162,6 +162,9 @@ class CredentialRequest {
   final List<String> scopes;
   final List<String> permissions;
 
+  /// Whether the requested `scopes` and `permissions` can spend funds.
+  final bool canSpend;
+
   /// Prefills the credential label.
   final String? label;
 
@@ -174,6 +177,7 @@ class CredentialRequest {
     this.account,
     required this.scopes,
     required this.permissions,
+    required this.canSpend,
     this.label,
     this.expiresAt,
   });
@@ -185,6 +189,7 @@ class CredentialRequest {
       account.hashCode ^
       scopes.hashCode ^
       permissions.hashCode ^
+      canSpend.hashCode ^
       label.hashCode ^
       expiresAt.hashCode;
 
@@ -198,6 +203,7 @@ class CredentialRequest {
           account == other.account &&
           scopes == other.scopes &&
           permissions == other.permissions &&
+          canSpend == other.canSpend &&
           label == other.label &&
           expiresAt == other.expiresAt;
 }
@@ -804,6 +810,11 @@ enum Scope {
   manageChannels,
   spend,
   full;
+
+  /// Whether this scope can spend funds.
+  ///
+  /// flutter_rust_bridge:sync
+  bool canSpend() => AppRs.instance.api.crateFfiTypesScopeCanSpend(that: this);
 
   /// The other scopes this scope fully covers; see `Scope::children` in
   /// the `lexe` SDK. The UI locks a child's checkbox while its parent is

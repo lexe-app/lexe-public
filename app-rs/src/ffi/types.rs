@@ -15,7 +15,10 @@ use lexe_api::{
     models::command::{
         BackupInfo as BackupInfoRs, GDriveStatus as GDriveStatusRs,
     },
-    revocable_clients::scopes::Scope as ScopeInternalRs,
+    revocable_clients::scopes::{
+        ClientPermissions as ClientPermissionsRs, Permission as PermissionRs,
+        Scope as ScopeInternalRs,
+    },
     types::{
         invoice::{DescriptionHash, Invoice as InvoiceRs},
         lnurl::{
@@ -748,12 +751,26 @@ impl TryFrom<lexe_payment_uri::AuthMethod> for AuthMethod {
                 let connection_string = request.to_string();
                 let requester = RequesterDisplay::new(&request);
                 let params = request.params;
+                // Unknown ids can't be granted, so they can't spend.
+                let requested = ClientPermissionsRs {
+                    scopes: params
+                        .scopes
+                        .iter()
+                        .filter_map(|id| ScopeInternalRs::from_str(id).ok())
+                        .collect(),
+                    permissions: params
+                        .permissions
+                        .iter()
+                        .filter_map(|id| PermissionRs::from_str(id).ok())
+                        .collect(),
+                };
                 Ok(Self::LexeConnect(CredentialRequest {
                     connection_string,
                     requester,
                     account: params.account,
                     scopes: params.scopes.into_iter().collect(),
                     permissions: params.permissions.into_iter().collect(),
+                    can_spend: requested.resolve().can_spend(),
                     label: params.label,
                     expires_at: params.expires_at.map(TimestampMs::to_i64),
                 }))
@@ -833,6 +850,8 @@ pub struct CredentialRequest {
     pub account: Option<String>,
     pub scopes: Vec<String>,
     pub permissions: Vec<String>,
+    /// Whether the requested `scopes` and `permissions` can spend funds.
+    pub can_spend: bool,
     /// Prefills the credential label.
     pub label: Option<String>,
     /// Prefills the credential expiration, in ms since the UNIX epoch.
@@ -1303,6 +1322,15 @@ impl Scope {
             .into_iter()
             .map(Scope::from)
             .collect()
+    }
+
+    /// Whether this scope can spend funds.
+    ///
+    /// flutter_rust_bridge:sync
+    pub fn can_spend(&self) -> bool {
+        ScopeInternalRs::from(ScopeRs::from(self.clone()))
+            .permissions()
+            .can_spend()
     }
 
     /// The canonical scope id, e.g. "read_info". Inverse of

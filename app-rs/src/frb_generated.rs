@@ -49,7 +49,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -291735777;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1735106779;
 
 // Section: executor
 
@@ -1355,6 +1355,19 @@ fn wire__crate__ffi__types__root_seed_seed_phrase_impl(
                      let output_ok = Ok::<_, ()>(crate::ffi::types::RootSeed::seed_phrase(&api_that))?;   std::result::Result::Ok(output_ok)
                 })()) })
 }
+fn wire__crate__ffi__types__scope_can_spend_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "scope_can_spend", port: None, mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync }, move || {
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <crate::ffi::types::Scope>::sse_decode(&mut deserializer);deserializer.end();
+                transform_result_sse::<_, ()>((move || {
+                     let output_ok = Ok::<_, ()>(crate::ffi::types::Scope::can_spend(&api_that))?;   std::result::Result::Ok(output_ok)
+                })()) })
+}
 fn wire__crate__ffi__types__scope_children_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -2088,6 +2101,7 @@ impl SseDecode for crate::ffi::types::CredentialRequest {
         let mut var_account = <Option<String>>::sse_decode(deserializer);
         let mut var_scopes = <Vec<String>>::sse_decode(deserializer);
         let mut var_permissions = <Vec<String>>::sse_decode(deserializer);
+        let mut var_canSpend = <bool>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_expiresAt = <Option<i64>>::sse_decode(deserializer);
         return crate::ffi::types::CredentialRequest {
@@ -2096,6 +2110,7 @@ impl SseDecode for crate::ffi::types::CredentialRequest {
             account: var_account,
             scopes: var_scopes,
             permissions: var_permissions,
+            can_spend: var_canSpend,
             label: var_label,
             expires_at: var_expiresAt,
         };
@@ -4065,8 +4080,8 @@ fn pde_ffi_dispatcher_primary_impl(
 76 => wire__crate__ffi__gdrive__g_drive_restore_client_find_restore_candidates_impl(port, ptr, rust_vec_len, data_len),
 77 => wire__crate__ffi__gdrive__g_drive_restore_client_rotate_backup_password_impl(port, ptr, rust_vec_len, data_len),
 78 => wire__crate__ffi__logger__init_rust_log_stream_impl(port, ptr, rust_vec_len, data_len),
-100 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
-101 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
+101 => wire__crate__ffi__debug__unconditional_error_impl(port, ptr, rust_vec_len, data_len),
+102 => wire__crate__ffi__debug__unconditional_panic_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -4119,21 +4134,22 @@ fn pde_ffi_dispatcher_sync_impl(
 86 => wire__crate__ffi__types__root_seed_from_mnemonic_impl(ptr, rust_vec_len, data_len),
 87 => wire__crate__ffi__types__root_seed_generate_impl(ptr, rust_vec_len, data_len),
 88 => wire__crate__ffi__types__root_seed_seed_phrase_impl(ptr, rust_vec_len, data_len),
-89 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
-90 => wire__crate__ffi__types__scope_from_string_id_impl(ptr, rust_vec_len, data_len),
-91 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
-92 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
-93 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
-94 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
-95 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
-96 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
-97 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
-98 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
-99 => wire__crate__ffi__api__supported_fiat_currencies_impl(ptr, rust_vec_len, data_len),
-102 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
-103 => wire__crate__ffi__api__user_settings_default_fiat_currency_impl(ptr, rust_vec_len, data_len),
-104 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
-105 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
+89 => wire__crate__ffi__types__scope_can_spend_impl(ptr, rust_vec_len, data_len),
+90 => wire__crate__ffi__types__scope_children_impl(ptr, rust_vec_len, data_len),
+91 => wire__crate__ffi__types__scope_from_string_id_impl(ptr, rust_vec_len, data_len),
+92 => wire__crate__ffi__types__scope_recommended_impl(ptr, rust_vec_len, data_len),
+93 => wire__crate__ffi__types__scope_to_string_id_impl(ptr, rust_vec_len, data_len),
+94 => wire__crate__ffi__secret_store__secret_store_new_impl(ptr, rust_vec_len, data_len),
+95 => wire__crate__ffi__secret_store__secret_store_read_root_seed_impl(ptr, rust_vec_len, data_len),
+96 => wire__crate__ffi__settings__settings_db_read_impl(ptr, rust_vec_len, data_len),
+97 => wire__crate__ffi__settings__settings_db_reset_impl(ptr, rust_vec_len, data_len),
+98 => wire__crate__ffi__settings__settings_db_update_impl(ptr, rust_vec_len, data_len),
+99 => wire__crate__ffi__form__suggest_mnemonic_words_impl(ptr, rust_vec_len, data_len),
+100 => wire__crate__ffi__api__supported_fiat_currencies_impl(ptr, rust_vec_len, data_len),
+103 => wire__crate__ffi__types__user_channel_id_gen_new_impl(ptr, rust_vec_len, data_len),
+104 => wire__crate__ffi__api__user_settings_default_fiat_currency_impl(ptr, rust_vec_len, data_len),
+105 => wire__crate__ffi__types__username_parse_impl(ptr, rust_vec_len, data_len),
+106 => wire__crate__ffi__form__validate_password_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -4624,6 +4640,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::CredentialRequest {
             self.account.into_into_dart().into_dart(),
             self.scopes.into_into_dart().into_dart(),
             self.permissions.into_into_dart().into_dart(),
+            self.can_spend.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
             self.expires_at.into_into_dart().into_dart(),
         ]
@@ -6734,6 +6751,7 @@ impl SseEncode for crate::ffi::types::CredentialRequest {
         <Option<String>>::sse_encode(self.account, serializer);
         <Vec<String>>::sse_encode(self.scopes, serializer);
         <Vec<String>>::sse_encode(self.permissions, serializer);
+        <bool>::sse_encode(self.can_spend, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
         <Option<i64>>::sse_encode(self.expires_at, serializer);
     }

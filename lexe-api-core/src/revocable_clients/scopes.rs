@@ -456,6 +456,18 @@ impl PermissionSet {
         self.0 == 0
     }
 
+    /// Whether this set can spend funds: pay invoices, offers, or on-chain
+    /// addresses.
+    #[inline]
+    pub const fn can_spend(self) -> bool {
+        const SPEND: PermissionSet = PermissionSet::from_slice(&[
+            Permission::PayInvoice,
+            Permission::PayOffer,
+            Permission::PayOnchain,
+        ]);
+        self.0 & SPEND.0 != 0
+    }
+
     /// Iterate over the permissions in this set.
     pub fn iter(self) -> impl Iterator<Item = Permission> {
         Permission::VARIANTS

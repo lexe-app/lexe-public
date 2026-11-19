@@ -214,10 +214,6 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
     this.collapsedItems.value = collapsed;
   }
 
-  bool canSpend() => this.knownScopes().any(
-    (scope) => scope == Scope.spend || scope == Scope.full,
-  );
-
   Future<void> onApprove() => this.respond(
     CredentialDecision.approve(
       label: this.labelController.text.trim().nonEmpty(),
@@ -296,7 +292,7 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
           RequesterHeader(requester: request.requester),
           const SizedBox(height: Space.s400),
 
-          if (canApprove && this.canSpend())
+          if (canApprove && request.canSpend)
             Padding(
               padding: const EdgeInsets.only(bottom: Space.s200),
               child: const WarningCard(
