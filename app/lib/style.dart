@@ -992,6 +992,9 @@ final class LxIcons {
   /// Add icon (+ icon)
   static const IconData add = Symbols.add_rounded;
 
+  /// Remove icon (- icon)
+  static const IconData remove = Symbols.remove_rounded;
+
   /// Delete icon (trashcan icon)
   static const IconData delete = Symbols.delete_rounded;
 

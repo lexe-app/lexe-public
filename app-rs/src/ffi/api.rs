@@ -7,7 +7,7 @@ use lexe::types::{
     auth::Scope as ScopeRs,
     bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
     command::{
-        CancelPaymentRequest as CancelPaymentRequestRs,
+        Budget as BudgetRs, CancelPaymentRequest as CancelPaymentRequestRs,
         CreateClientRequest as CreateClientRequestRs,
         CreateClientResponse as CreateClientResponseRs,
         GetHumanBitcoinAddressResponse as GetHumanBitcoinAddressResponseRs,
@@ -73,9 +73,9 @@ use lexe_crypto::ed25519;
 
 use crate::{
     ffi::types::{
-        ClientPaymentId, ConfirmationPriority, Invoice, LnurlWithdrawRequest,
-        LxChannelDetails, Offer, PaymentCreatedIndex, PaymentKind,
-        PaymentUpdatedIndex, Scope, UserChannelId,
+        Budget, ClientPaymentId, ConfirmationPriority, Invoice,
+        LnurlWithdrawRequest, LxChannelDetails, Offer, PaymentCreatedIndex,
+        PaymentKind, PaymentUpdatedIndex, Scope, UserChannelId,
     },
     fiat_currency,
 };
@@ -941,12 +941,13 @@ impl TryFrom<CancelPaymentRequest> for CancelPaymentRequestRs {
 /// See `lexe::types::command::CreateClientRequest`.
 ///
 /// flutter_rust_bridge:dart_metadata=("freezed")
-#[derive(Clone)]
 pub struct CreateClientRequest {
     /// In ms since the UNIX epoch. [`None`] never expires.
     pub expires_at: Option<i64>,
     pub label: Option<String>,
     pub scopes: Vec<Scope>,
+    /// [`None`] means no spending limit.
+    pub budget: Option<Budget>,
 }
 
 impl TryFrom<CreateClientRequest> for CreateClientRequestRs {
@@ -957,12 +958,17 @@ impl TryFrom<CreateClientRequest> for CreateClientRequestRs {
             .map(TimestampMs::try_from)
             .transpose()
             .context("Invalid expiration")?;
+        let budget = value
+            .budget
+            .map(BudgetRs::try_from)
+            .transpose()
+            .context("Invalid budget")?;
         Ok(Self {
             expires_at,
             label: value.label,
             scopes: value.scopes.into_iter().map(ScopeRs::from).collect(),
             permissions: Vec::new(),
-            budget: None,
+            budget,
         })
     }
 }

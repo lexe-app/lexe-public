@@ -166,6 +166,100 @@ String toString() {
 
 
 /// @nodoc
+mixin _$BitcoinOrFiat {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BitcoinOrFiat);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BitcoinOrFiat()';
+}
+
+
+}
+
+
+
+
+
+/// @nodoc
+
+
+class BitcoinOrFiat_Bitcoin extends BitcoinOrFiat {
+  const BitcoinOrFiat_Bitcoin({required this.amountMsats}): super._();
+  
+
+ final  int amountMsats;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BitcoinOrFiat_Bitcoin&&(identical(other.amountMsats, amountMsats) || other.amountMsats == amountMsats));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amountMsats);
+
+@override
+String toString() {
+  return 'BitcoinOrFiat.bitcoin(amountMsats: $amountMsats)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BitcoinOrFiat_Fiat extends BitcoinOrFiat {
+  const BitcoinOrFiat_Fiat({required this.amount, required this.currency}): super._();
+  
+
+/// A decimal string, e.g. "20.50".
+ final  String amount;
+ final  String currency;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BitcoinOrFiat_Fiat&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.currency, currency) || other.currency == currency));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,amount,currency);
+
+@override
+String toString() {
+  return 'BitcoinOrFiat.fiat(amount: $amount, currency: $currency)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$ClaimMethod {
 
 /// The HTTP endpoint, for display purposes

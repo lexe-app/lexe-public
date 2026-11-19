@@ -258,22 +258,22 @@ String toString() {
 /// @nodoc
 mixin _$CreateClientRequest {
 
- int? get expiresAt; String? get label; List<Scope> get scopes;
+ int? get expiresAt; String? get label; List<Scope> get scopes; Budget? get budget;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientRequest&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.label, label) || other.label == label)&&const DeepCollectionEquality().equals(other.scopes, scopes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CreateClientRequest&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.label, label) || other.label == label)&&const DeepCollectionEquality().equals(other.scopes, scopes)&&(identical(other.budget, budget) || other.budget == budget));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,expiresAt,label,const DeepCollectionEquality().hash(scopes));
+int get hashCode => Object.hash(runtimeType,expiresAt,label,const DeepCollectionEquality().hash(scopes),budget);
 
 @override
 String toString() {
-  return 'CreateClientRequest(expiresAt: $expiresAt, label: $label, scopes: $scopes)';
+  return 'CreateClientRequest(expiresAt: $expiresAt, label: $label, scopes: $scopes, budget: $budget)';
 }
 
 
@@ -287,7 +287,7 @@ String toString() {
 
 
 class _CreateClientRequest implements CreateClientRequest {
-  const _CreateClientRequest({this.expiresAt, this.label, required final  List<Scope> scopes}): _scopes = scopes;
+  const _CreateClientRequest({this.expiresAt, this.label, required final  List<Scope> scopes, this.budget}): _scopes = scopes;
   
 
 @override final  int? expiresAt;
@@ -299,22 +299,23 @@ class _CreateClientRequest implements CreateClientRequest {
   return EqualUnmodifiableListView(_scopes);
 }
 
+@override final  Budget? budget;
 
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientRequest&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.label, label) || other.label == label)&&const DeepCollectionEquality().equals(other._scopes, _scopes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CreateClientRequest&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.label, label) || other.label == label)&&const DeepCollectionEquality().equals(other._scopes, _scopes)&&(identical(other.budget, budget) || other.budget == budget));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,expiresAt,label,const DeepCollectionEquality().hash(_scopes));
+int get hashCode => Object.hash(runtimeType,expiresAt,label,const DeepCollectionEquality().hash(_scopes),budget);
 
 @override
 String toString() {
-  return 'CreateClientRequest(expiresAt: $expiresAt, label: $label, scopes: $scopes)';
+  return 'CreateClientRequest(expiresAt: $expiresAt, label: $label, scopes: $scopes, budget: $budget)';
 }
 
 

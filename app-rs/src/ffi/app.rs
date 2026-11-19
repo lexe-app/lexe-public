@@ -725,6 +725,7 @@ impl AppHandle {
             expires_at,
             label,
             scopes,
+            budget: None,
         };
         let req = CreateClientRequestRs {
             permissions: params.permissions.iter().cloned().collect(),

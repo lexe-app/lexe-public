@@ -60,6 +60,10 @@ import 'package:app_rs_dart/ffi/types.dart'
         AuthMethod_LnurlAuth,
         BackupInfo,
         BestPaymentUriMethods,
+        BitcoinOrFiat,
+        BudgetInfo,
+        BudgetResetInfo,
+        BudgetResetInterval,
         ClaimMethod_LnurlWithdraw,
         Config,
         CredentialDecision,
@@ -567,6 +571,16 @@ class MockAppHandle extends AppHandle {
         scopes: [Scope.full],
         permissions: [],
         effectivePermissions: [],
+        budget: BudgetInfo(
+          limit: BitcoinOrFiat.fiat(amount: "20", currency: "USD"),
+          reset: BudgetResetInfo(
+            interval: BudgetResetInterval.monthly,
+            intervalCount: 1,
+            utcOffsetMins: 0,
+            nextReset: 1780272000000,
+          ),
+          spendable: BitcoinOrFiat.fiat(amount: "12.75", currency: "USD"),
+        ),
       ),
       const RevocableClient(
         createdAt: 1775952000000,
@@ -577,6 +591,7 @@ class MockAppHandle extends AppHandle {
         scopes: [Scope.readInfo, Scope.readPayments],
         permissions: [],
         effectivePermissions: [],
+        budget: null,
       ),
     ],
   );

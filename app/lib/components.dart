@@ -973,8 +973,10 @@ class PaymentAmountInput extends StatefulWidget {
     this.validate,
     this.onMsatAmountChanged,
     this.onEditingComplete,
+    this.focusNode,
     this.initialMsatValue,
     this.decimal = false,
+    this.compact = false,
   });
 
   /// If true, `.validate()` will allow an empty field value (`null`).
@@ -994,6 +996,8 @@ class PaymentAmountInput extends StatefulWidget {
 
   final VoidCallback? onEditingComplete;
 
+  final FocusNode? focusNode;
+
   /// Initial amount to prefill the field with, in msat.
   final int? initialMsatValue;
 
@@ -1001,6 +1005,10 @@ class PaymentAmountInput extends StatefulWidget {
   /// 3 decimal places). When false, only whole sats can be entered, and the
   /// exposed [PaymentAmountInputState.msat] is always a multiple of 1000.
   final bool decimal;
+
+  /// Drops the field's padding, the ₿ symbol's gap, and the error message,
+  /// and starts empty rather than prefilled with "0".
+  final bool compact;
 
   @override
   State<PaymentAmountInput> createState() => PaymentAmountInputState();
@@ -1016,11 +1024,14 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
 
   /// The [PaymentAmountInput.initialMsatValue] rendered by the field.
   // Truncates in non-decimal mode.
-  late final String _initialText = this._formatter.formatInt(
-    // Prefill with 0 for style; doesn't affect input UX.
-    this.widget.initialMsatValue ?? 0,
-    numDecimalPlaces: _msatDecimalPlaces,
-  );
+  late final String _initialText = switch (this.widget.initialMsatValue) {
+    null when this.widget.compact => "",
+    final msat => this._formatter.formatInt(
+      // Prefill with 0 for style; doesn't affect input UX.
+      msat ?? 0,
+      numDecimalPlaces: _msatDecimalPlaces,
+    ),
+  };
 
   /// The entered amount in msat, or `null` when the field is empty or invalid.
   late final ValueNotifier<int?> _msat = ValueNotifier(
@@ -1115,6 +1126,8 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
       fontVariations: [Fonts.weightMedium],
       letterSpacing: -0.5,
     );
+    final compact = this.widget.compact;
+    final symbolGap = compact ? "" : " ";
 
     // Get the box's minWidth
     final textPainter = (TextPainter(
@@ -1139,7 +1152,7 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
             // Left bitcoin symbol (only if locale uses prefix)
             if (showPrefix)
               Text(
-                "₿ ",
+                "₿$symbolGap",
                 style: amountTextStyle.copyWith(color: LxColors.grey700),
               ),
             Flexible(
@@ -1147,6 +1160,7 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
               child: IntrinsicWidth(
                 child: TextFormField(
                   key: this._fieldKey,
+                  focusNode: this.widget.focusNode,
                   autofocus: true,
                   keyboardType: TextInputType.numberWithOptions(
                     signed: false,
@@ -1173,6 +1187,9 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
                   errorBuilder: (_, _) => SizedBox.shrink(),
                   decoration: baseInputDecoration.copyWith(
                     hintText: "0",
+                    // Drop the filled field's side gaps and min height.
+                    filled: compact ? false : null,
+                    isCollapsed: compact ? true : null,
                     // Remove default padding to make it more compact
                     contentPadding: EdgeInsets.zero,
                     // Ensure there's no collapse of the field when empty
@@ -1186,27 +1203,28 @@ class PaymentAmountInputState extends State<PaymentAmountInput> {
             // Right bitcoin symbol (only if locale uses suffix)
             if (showSuffix)
               Text(
-                " ₿",
+                "$symbolGap₿",
                 style: amountTextStyle.copyWith(color: LxColors.grey700),
               ),
           ],
         ),
         // Error messages that are too long will be cut off because of IntrinsicWidth.
         // We hide the TextFormField error message above and display it here instead.
-        Padding(
-          padding: const EdgeInsets.only(top: 6.0),
-          child: ValueListenableBuilder<String?>(
-            valueListenable: this._errorText,
-            builder: (_, value, _) => Text(
-              value ?? "",
-              style: Fonts.fontUI.copyWith(
-                color: LxColors.errorText,
-                fontSize: Fonts.size100,
+        if (!compact)
+          Padding(
+            padding: const EdgeInsets.only(top: 6.0),
+            child: ValueListenableBuilder<String?>(
+              valueListenable: this._errorText,
+              builder: (_, value, _) => Text(
+                value ?? "",
+                style: Fonts.fontUI.copyWith(
+                  color: LxColors.errorText,
+                  fontSize: Fonts.size100,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-        ),
       ],
     );
   }

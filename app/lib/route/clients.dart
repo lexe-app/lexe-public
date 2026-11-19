@@ -1,12 +1,23 @@
 import 'dart:async';
+import 'dart:math' show max, min;
 
 import 'package:app_rs_dart/ffi/api.dart'
     show CreateClientRequest, CreateClientResponse, RevokeClientRequest;
 import 'package:app_rs_dart/ffi/app.dart' show AppHandle;
 import 'package:app_rs_dart/ffi/types.dart'
-    show Network, RevocableClient, Scope;
+    show
+        BitcoinOrFiat,
+        BitcoinOrFiat_Bitcoin,
+        BitcoinOrFiat_Fiat,
+        Budget,
+        BudgetReset,
+        BudgetResetInterval,
+        Network,
+        RevocableClient,
+        Scope;
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
@@ -25,12 +36,15 @@ import 'package:lexeapp/components.dart'
         LxFilledButton,
         LxOutlinedButton,
         LxRefreshButton,
+        PaymentAmountInput,
+        PaymentAmountInputState,
         ScrollableSinglePageBody,
         SheetDragHandle,
         SliverPullToRefresh,
         SubheadingText,
         baseInputDecoration,
         showModalAsyncFlow;
+import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/date_time_ext.dart';
 import 'package:lexeapp/prelude.dart';
@@ -306,10 +320,46 @@ class CreateClientFlow {
     ClientRole.receiver.scopes()!,
   );
 
+  /// Whether to limit spending at all. While false, the other budget inputs
+  /// are kept but unused.
+  final ValueNotifier<bool> budgetLimited = ValueNotifier(true);
+
+  /// The spending limit, once entered.
+  final ValueNotifier<int?> budgetLimitMsats = ValueNotifier(null);
+
+  /// Whether the limit resets every [budgetReset], rather than applying
+  /// in total. While false, [budgetReset] is kept but unused.
+  final ValueNotifier<bool> budgetResets = ValueNotifier(false);
+
+  /// How often the limit resets, if it does.
+  final ValueNotifier<BudgetReset> budgetReset = ValueNotifier(
+    const BudgetReset(interval: BudgetResetInterval.monthly, intervalCount: 1),
+  );
+
   void dispose() {
     this.labelController.dispose();
     this.expiresAtMs.dispose();
     this.scopePicker.dispose();
+    this.budgetLimited.dispose();
+    this.budgetLimitMsats.dispose();
+    this.budgetResets.dispose();
+    this.budgetReset.dispose();
+  }
+
+  /// Whether the selected scopes can spend funds.
+  bool canSpend() => this.scopePicker.scopes.any((scope) => scope.canSpend());
+
+  /// The budget to create the client with, or null for no limit. Only
+  /// scopes that can spend get a budget.
+  Budget? budget() {
+    final limitMsats = this.budgetLimitMsats.value;
+    if (!this.canSpend() || !this.budgetLimited.value || limitMsats == null) {
+      return null;
+    }
+
+    final limit = BitcoinOrFiat.bitcoin(amountMsats: limitMsats);
+    final reset = this.budgetResets.value ? this.budgetReset.value : null;
+    return Budget(limit: limit, reset: reset);
   }
 }
 
@@ -444,15 +494,11 @@ class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
       return;
     }
 
-    final CreateClientResponse? flowResult = await Navigator.of(this.context)
-        .push(
-          MaterialPageRoute(
-            builder: (context) => CreateClientSummaryPage(
-              app: this.widget.app,
-              flow: this.widget.flow,
-            ),
-          ),
-        );
+    final flowResult = await CreateClientBudgetPage.enter(
+      this.context,
+      this.widget.app,
+      this.widget.flow,
+    );
     if (!this.mounted || flowResult == null) return;
 
     // Return the response to the previous page.
@@ -502,7 +548,229 @@ class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
   }
 }
 
-/// Create-client flow, page 3: review the new client, then create it.
+/// Create-client flow, page 3: optionally limit what the client can spend.
+class CreateClientBudgetPage extends StatefulWidget {
+  const CreateClientBudgetPage({
+    super.key,
+    required this.app,
+    required this.flow,
+  });
+
+  final AppHandle app;
+  final CreateClientFlow flow;
+
+  /// Pushes this page if the flow's scopes can spend, else the summary.
+  static Future<CreateClientResponse?> enter(
+    BuildContext context,
+    AppHandle app,
+    CreateClientFlow flow,
+  ) {
+    final canSpend = flow.canSpend();
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => canSpend
+            ? CreateClientBudgetPage(app: app, flow: flow)
+            : CreateClientSummaryPage(app: app, flow: flow),
+      ),
+    );
+  }
+
+  @override
+  State<CreateClientBudgetPage> createState() => _CreateClientBudgetPageState();
+}
+
+class _CreateClientBudgetPageState extends State<CreateClientBudgetPage> {
+  final GlobalKey<PaymentAmountInputState> amountKey = GlobalKey();
+  final FocusNode amountFocus = FocusNode();
+
+  @override
+  void dispose() {
+    this.amountFocus.dispose();
+    super.dispose();
+  }
+
+  void onLimitedChanged(bool limited) {
+    _dismissKeyboard();
+    this.widget.flow.budgetLimited.value = limited;
+  }
+
+  /// Selects an interval, or "Never" for null.
+  void onIntervalSelected(BudgetResetInterval? interval) {
+    _dismissKeyboard();
+    final flow = this.widget.flow;
+    if (interval != null) {
+      flow.budgetReset.value = BudgetReset(
+        interval: interval,
+        intervalCount: flow.budgetReset.value.intervalCount,
+      );
+    }
+    flow.budgetResets.value = interval != null;
+  }
+
+  void onIntervalCountChanged(int intervalCount) {
+    final budgetReset = this.widget.flow.budgetReset;
+    budgetReset.value = BudgetReset(
+      interval: budgetReset.value.interval,
+      intervalCount: intervalCount,
+    );
+  }
+
+  Future<void> onNext() async {
+    final flow = this.widget.flow;
+    if (flow.budgetLimited.value && !this.amountKey.currentState!.validate()) {
+      this.amountFocus.requestFocus();
+      return;
+    }
+
+    final CreateClientResponse? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) =>
+                CreateClientSummaryPage(app: this.widget.app, flow: flow),
+          ),
+        );
+    if (!this.mounted || flowResult == null) return;
+
+    // Return the response to the previous page.
+    await Navigator.of(this.context).maybePop(flowResult);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final flow = this.widget.flow;
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          // Heading, and whether to limit spending at all
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HeadingText(text: "Set a budget"),
+                    SubheadingText(text: "Fees count toward the limit."),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Space.s400),
+              Padding(
+                padding: const EdgeInsets.only(top: Space.s300),
+                child: ValueListenableBuilder(
+                  valueListenable: flow.budgetLimited,
+                  builder: (context, limited, _) => Semantics(
+                    label: "Set a budget",
+                    child: Switch(
+                      value: limited,
+                      onChanged: this.onLimitedChanged,
+                      inactiveTrackColor: LxColors.grey1000,
+                      activeTrackColor: LxColors.moneyGoUp,
+                      inactiveThumbColor: LxColors.grey850,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Space.s600),
+
+          // Amount
+          ValueListenableBuilder(
+            valueListenable: flow.budgetLimited,
+            builder: (context, limited, child) =>
+                _LimitAmount(limited: limited, amount: child!),
+            child: PaymentAmountInput(
+              key: this.amountKey,
+              allowEmpty: false,
+              allowZero: false,
+              compact: true,
+              focusNode: this.amountFocus,
+              initialMsatValue: flow.budgetLimitMsats.value,
+              onMsatAmountChanged: (msats) =>
+                  flow.budgetLimitMsats.value = msats,
+              onEditingComplete: this.onNext,
+            ),
+          ),
+
+          // Reset period
+          ValueListenableBuilder(
+            valueListenable: flow.budgetLimited,
+            builder: (context, limited, child) =>
+                _Revealable(visible: limited, child: child!),
+            child: ListenableBuilder(
+              listenable: Listenable.merge([
+                flow.budgetResets,
+                flow.budgetReset,
+              ]),
+              builder: (context, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: Space.s500,
+                      left: Space.s400,
+                      bottom: Space.s200,
+                    ),
+                    child: Text(
+                      "Resets",
+                      style: Fonts.fontUI.copyWith(
+                        fontSize: Fonts.size200,
+                        color: LxColors.grey550,
+                      ),
+                    ),
+                  ),
+                  _SegmentedControl<BudgetResetInterval?>(
+                    values: const [null, ...BudgetResetInterval.values],
+                    selected: flow.budgetResets.value
+                        ? flow.budgetReset.value.interval
+                        : null,
+                    label: (interval) => switch (interval) {
+                      null => "Never",
+                      BudgetResetInterval.daily => "Daily",
+                      BudgetResetInterval.weekly => "Weekly",
+                      BudgetResetInterval.monthly => "Monthly",
+                      BudgetResetInterval.yearly => "Yearly",
+                    },
+                    onSelected: this.onIntervalSelected,
+                  ),
+                  _Revealable(
+                    visible: flow.budgetResets.value,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: Space.s200),
+                      child: _IntervalCountRow(
+                        budgetReset: flow.budgetReset.value,
+                        onChanged: this.onIntervalCountChanged,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: Space.s600),
+
+          // Summary
+          _BudgetSummary(flow: flow),
+        ],
+        // Next button
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: LxFilledButton(
+            label: const Text("Next"),
+            icon: const Icon(LxIcons.next),
+            onTap: this.onNext,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Create-client flow, page 4: review the new client, then create it.
 class CreateClientSummaryPage extends StatefulWidget {
   const CreateClientSummaryPage({
     super.key,
@@ -539,6 +807,7 @@ class _CreateClientSummaryPageState extends State<CreateClientSummaryPage> {
       expiresAt: flow.expiresAtMs.value,
       label: flow.labelController.text.trim().nonEmpty(),
       scopes: flow.scopePicker.scopesList(),
+      budget: flow.budget(),
     );
     final res = await Result.tryFfiAsync(
       () => this.widget.app.createClient(req: req),
@@ -582,6 +851,8 @@ class _CreateClientSummaryPageState extends State<CreateClientSummaryPage> {
             const SizedBox(height: Space.s200),
 
             AccessCard(items: [for (final scope in scopes) scope.accessItem()]),
+
+            if (flow.canSpend()) BudgetCard(budget: flow.budget()),
 
             InfoCard(
               header: const Text("Details"),
@@ -630,6 +901,646 @@ class _CreateClientSummaryPageState extends State<CreateClientSummaryPage> {
       ),
     );
   }
+}
+
+const Duration _motionDuration = Duration(milliseconds: 280);
+const Curve _motionCurve = Curves.easeOutCubic;
+
+/// A budget reset's interval count is a nonzero `u8`.
+const int _maxIntervalCount = 255;
+
+/// The number pad has no done key, so taking another control dismisses it.
+void _dismissKeyboard() => FocusManager.instance.primaryFocus?.unfocus();
+
+/// Shows [amount], or "No limit" in its place while not [limited], rolling one
+/// up and out as the other rolls in from below. [amount] stays mounted, so it
+/// keeps what was typed.
+class _LimitAmount extends StatefulWidget {
+  const _LimitAmount({required this.limited, required this.amount});
+
+  final bool limited;
+  final Widget amount;
+
+  @override
+  State<_LimitAmount> createState() => _LimitAmountState();
+}
+
+class _LimitAmountState extends State<_LimitAmount>
+    with SingleTickerProviderStateMixin {
+  /// From 0 at the amount to 1 at "No limit".
+  late final AnimationController roll = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 360),
+    value: this.widget.limited ? 0 : 1,
+  );
+
+  late final Animation<Offset> amountSlide = this.roll.drive(
+    Tween(
+      begin: Offset.zero,
+      end: const Offset(0, -0.7),
+    ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+  );
+  late final Animation<Offset> noLimitSlide = this.roll.drive(
+    Tween(
+      begin: const Offset(0, 0.7),
+      end: Offset.zero,
+    ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+  );
+
+  /// The fades overlap for the middle fifth of the roll, so the two texts
+  /// crossfade rather than one vanishing before the other appears.
+  late final Animation<double> amountOpacity = this.roll.drive(
+    Tween<double>(
+      begin: 1,
+      end: 0,
+    ).chain(CurveTween(curve: const Interval(0, 0.6, curve: Curves.easeIn))),
+  );
+  late final Animation<double> noLimitOpacity = this.roll.drive(
+    CurveTween(curve: const Interval(0.4, 1, curve: Curves.easeOut)),
+  );
+
+  @override
+  void didUpdateWidget(_LimitAmount oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (this.widget.limited == oldWidget.limited) return;
+    this.widget.limited ? this.roll.reverse() : this.roll.forward();
+  }
+
+  @override
+  void dispose() {
+    this.roll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final limited = this.widget.limited;
+    return ClipRect(
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          SlideTransition(
+            position: this.amountSlide,
+            child: FadeTransition(
+              opacity: this.amountOpacity,
+              child: IgnorePointer(
+                ignoring: !limited,
+                child: ExcludeSemantics(
+                  excluding: !limited,
+                  child: ExcludeFocus(
+                    excluding: !limited,
+                    child: this.widget.amount,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                excluding: limited,
+                child: SlideTransition(
+                  position: this.noLimitSlide,
+                  child: FadeTransition(
+                    opacity: this.noLimitOpacity,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Text(
+                        "No limit",
+                        style: Fonts.fontUI.copyWith(
+                          fontSize: Fonts.size800,
+                          fontVariations: [Fonts.weightMedium],
+                          letterSpacing: -0.5,
+                          color: LxColors.grey650,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows [child] while [visible], growing and fading it in and out. It stays
+/// mounted either way, but can't be reached while hidden.
+class _Revealable extends StatefulWidget {
+  const _Revealable({required this.visible, required this.child});
+
+  final bool visible;
+  final Widget child;
+
+  @override
+  State<_Revealable> createState() => _RevealableState();
+}
+
+class _RevealableState extends State<_Revealable>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: _motionDuration,
+    value: this.widget.visible ? 1 : 0,
+  );
+  late final Animation<double> curve = this.controller.drive(
+    CurveTween(curve: _motionCurve),
+  );
+
+  @override
+  void didUpdateWidget(_Revealable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (this.widget.visible == oldWidget.visible) return;
+    this.widget.visible ? this.controller.forward() : this.controller.reverse();
+  }
+
+  @override
+  void dispose() {
+    this.controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hidden = !this.widget.visible;
+    return SizeTransition(
+      sizeFactor: this.curve,
+      axisAlignment: -1,
+      child: FadeTransition(
+        opacity: this.curve,
+        child: IgnorePointer(
+          ignoring: hidden,
+          child: ExcludeSemantics(
+            excluding: hidden,
+            child: ExcludeFocus(excluding: hidden, child: this.widget.child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A pill-shaped segmented control whose white thumb slides to the selected
+/// value.
+class _SegmentedControl<T> extends StatelessWidget {
+  const _SegmentedControl({
+    required this.values,
+    required this.selected,
+    required this.label,
+    required this.onSelected,
+  });
+
+  final List<T> values;
+  final T selected;
+  final String Function(T value) label;
+  final ValueChanged<T> onSelected;
+
+  /// Each segment's width: its label plus an equal share of the spare space,
+  /// so the gaps between labels match. Equal widths if the labels don't fit.
+  List<double> segmentWidths(BuildContext context, double width) {
+    double labelWidth(T value) {
+      final painter = TextPainter(
+        text: TextSpan(text: this.label(value), style: _segmentLabelStyle),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return width;
+    }
+
+    final labelWidths = this.values.map(labelWidth).toList();
+
+    final count = this.values.length;
+    final spare = width - labelWidths.fold(0.0, (sum, w) => sum + w);
+    if (spare < 0) return List.filled(count, width / count);
+    final share = spare / count;
+    return [for (final labelWidth in labelWidths) labelWidth + share];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = this.values.indexOf(this.selected);
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.all(3),
+      decoration: const ShapeDecoration(
+        color: LxColors.grey850,
+        shape: StadiumBorder(),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final widths = this.segmentWidths(context, constraints.maxWidth);
+          final thumbLeft = widths
+              .take(index)
+              .fold(0.0, (sum, width) => sum + width);
+          return Stack(
+            children: [
+              // Thumb
+              AnimatedPositioned(
+                left: thumbLeft,
+                width: widths[index],
+                top: 0,
+                bottom: 0,
+                duration: _motionDuration,
+                curve: _motionCurve,
+                child: const DecoratedBox(
+                  decoration: ShapeDecoration(
+                    color: LxColors.grey1000,
+                    shape: StadiumBorder(),
+                    shadows: [
+                      BoxShadow(
+                        color: LxColors.clearB50,
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Segments
+              Row(
+                children: [
+                  for (final (i, value) in this.values.indexed)
+                    SizedBox(
+                      width: widths[i],
+                      child: Semantics(
+                        button: true,
+                        selected: value == this.selected,
+                        inMutuallyExclusiveGroup: true,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => this.onSelected(value),
+                          child: Center(
+                            child: AnimatedDefaultTextStyle(
+                              duration: _motionDuration,
+                              curve: _motionCurve,
+                              style: _segmentLabelStyle.copyWith(
+                                color: (value == this.selected)
+                                    ? LxColors.foreground
+                                    : LxColors.grey550,
+                              ),
+                              // Inter's tall ascender makes centered text read
+                              // high, so bump it down.
+                              child: Transform.translate(
+                                offset: const Offset(0.0, 1.5),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(this.label(value), maxLines: 1),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+final TextStyle _segmentLabelStyle = Fonts.fontUI.copyWith(
+  fontSize: Fonts.size200,
+  fontVariations: [Fonts.weightMedium],
+  letterSpacing: -0.3,
+);
+
+/// "Every [N] units", with buttons to step N.
+class _IntervalCountRow extends StatelessWidget {
+  const _IntervalCountRow({required this.budgetReset, required this.onChanged});
+
+  final BudgetReset budgetReset;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final BudgetReset(:interval, :intervalCount) = this.budgetReset;
+    final textStyle = Fonts.fontUI.copyWith(
+      fontSize: Fonts.size300,
+      color: LxColors.grey450,
+      letterSpacing: -0.2,
+    );
+    final valueStyle = textStyle.copyWith(
+      color: LxColors.foreground,
+      fontVariations: [Fonts.weightMedium],
+    );
+
+    void step(int intervalCount) {
+      _dismissKeyboard();
+      this.onChanged(intervalCount);
+    }
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.only(left: Space.s400, right: 6),
+      decoration: const ShapeDecoration(
+        color: LxColors.grey850,
+        shape: StadiumBorder(),
+      ),
+      child: Row(
+        children: [
+          Text("Every", style: textStyle),
+          const SizedBox(width: Space.s200),
+          _IntervalCountField(
+            intervalCount: intervalCount,
+            onChanged: this.onChanged,
+            style: valueStyle,
+          ),
+          const SizedBox(width: Space.s200),
+          Text(formatBudgetUnit(interval, intervalCount), style: valueStyle),
+          const Spacer(),
+          _StepButton(
+            icon: LxIcons.remove,
+            label: "Decrease",
+            onPressed: (intervalCount > 1)
+                ? () => step(intervalCount - 1)
+                : null,
+          ),
+          const SizedBox(width: 6),
+          _StepButton(
+            icon: LxIcons.add,
+            label: "Increase",
+            onPressed: (intervalCount < _maxIntervalCount)
+                ? () => step(intervalCount + 1)
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A budget reset's interval count, typed into a white pill.
+class _IntervalCountField extends StatefulWidget {
+  const _IntervalCountField({
+    required this.intervalCount,
+    required this.onChanged,
+    required this.style,
+  });
+
+  final int intervalCount;
+  final ValueChanged<int> onChanged;
+  final TextStyle style;
+
+  @override
+  State<_IntervalCountField> createState() => _IntervalCountFieldState();
+}
+
+class _IntervalCountFieldState extends State<_IntervalCountField> {
+  late final TextEditingController controller = TextEditingController(
+    text: "${this.widget.intervalCount}",
+  );
+  final FocusNode focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    this.focusNode.addListener(this.onFocusChanged);
+  }
+
+  @override
+  void didUpdateWidget(_IntervalCountField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Show an outside count change, unless the text already parses to it.
+    final count = this.widget.intervalCount;
+    if (int.tryParse(this.controller.text) != count) this.setText("$count");
+  }
+
+  @override
+  void dispose() {
+    this.focusNode.removeListener(this.onFocusChanged);
+    this.focusNode.dispose();
+    this.controller.dispose();
+    super.dispose();
+  }
+
+  void setText(String text) => this.controller.value = TextEditingValue(
+    text: text,
+    selection: TextSelection.collapsed(offset: text.length),
+  );
+
+  void onFocusChanged() {
+    if (this.focusNode.hasFocus) {
+      // Typing replaces the count.
+      final text = this.controller.text;
+      this.controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: text.length,
+      );
+    } else {
+      // Revert an entry that wasn't applied, e.g. "" or "0".
+      this.setText("${this.widget.intervalCount}");
+    }
+    this.setState(() {});
+  }
+
+  void onTextChanged(String text) {
+    final count = int.tryParse(text);
+    if (count == null || count < 1) return;
+    if (count > _maxIntervalCount) this.setText("$_maxIntervalCount");
+    this.widget.onChanged(min(count, _maxIntervalCount));
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: _motionDuration,
+    curve: _motionCurve,
+    height: 36,
+    constraints: const BoxConstraints(minWidth: 40),
+    padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+    decoration: ShapeDecoration(
+      color: LxColors.grey1000,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: this.focusNode.hasFocus
+              ? LxColors.moneyGoUp
+              : LxColors.clearW0,
+          width: 1.5,
+        ),
+      ),
+    ),
+    child: Center(
+      widthFactor: 1,
+      // The field reserves 3px after its text for the cursor (2px wide, 1px
+      // gap); match it before the text so the digits center in the pill.
+      child: Padding(
+        padding: const EdgeInsets.only(left: 3.0),
+        child: IntrinsicWidth(
+          child: TextField(
+            controller: this.controller,
+            focusNode: this.focusNode,
+            // No selection handles over the select-all on focus.
+            enableInteractiveSelection: false,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            maxLength: 3,
+            textAlign: TextAlign.center,
+            style: this.widget.style,
+            onChanged: this.onTextChanged,
+            onTapOutside: (_) => this.focusNode.unfocus(),
+            decoration: const InputDecoration.collapsed(
+              hintText: "1",
+              hintStyle: TextStyle(color: LxColors.grey750),
+            ).copyWith(counterText: ""),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// A round white button that steps the interval count.
+class _StepButton extends StatelessWidget {
+  const _StepButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 36,
+    child: IconButton(
+      padding: EdgeInsets.zero,
+      onPressed: this.onPressed,
+      icon: Icon(this.icon, size: Fonts.size500, semanticLabel: this.label),
+      style: IconButton.styleFrom(
+        backgroundColor: LxColors.grey1000,
+        foregroundColor: LxColors.grey350,
+        disabledBackgroundColor: LxColors.grey1000,
+        disabledForegroundColor: LxColors.grey750,
+      ),
+    ),
+  );
+}
+
+/// The flow's budget as a sentence, e.g. "This credential can spend at most
+/// ₿20,000 every 2 weeks."
+class _BudgetSummary extends StatelessWidget {
+  const _BudgetSummary({required this.flow});
+
+  final CreateClientFlow flow;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Fonts.fontUI.copyWith(
+      fontSize: Fonts.size200,
+      height: 1.45,
+      color: LxColors.grey550,
+      letterSpacing: -0.1,
+    );
+    final valueStyle = style.copyWith(
+      color: LxColors.fgSecondary,
+      fontVariations: [Fonts.weightMedium],
+    );
+
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        this.flow.budgetLimited,
+        this.flow.budgetLimitMsats,
+        this.flow.budgetResets,
+        this.flow.budgetReset,
+      ]),
+      builder: (context, _) {
+        final List<InlineSpan> spans;
+        if (this.flow.budgetLimited.value) {
+          final msats = this.flow.budgetLimitMsats.value ?? 0;
+          final budgetReset = this.flow.budgetReset.value;
+          // Non-breaking spaces keep each value on one line.
+          final period = formatBudgetPeriod(
+            interval: this.flow.budgetResets.value
+                ? budgetReset.interval
+                : null,
+            intervalCount: budgetReset.intervalCount,
+          ).replaceAll(" ", "\u00a0");
+          spans = [
+            const TextSpan(text: "This credential can spend at\u00a0most "),
+            TextSpan(
+              text: currency_format.formatMsatAmount(msats),
+              style: (msats > 0)
+                  ? valueStyle
+                  : valueStyle.copyWith(color: LxColors.grey700),
+            ),
+            const TextSpan(text: " "),
+            TextSpan(text: period, style: valueStyle),
+            const TextSpan(text: "."),
+          ];
+        } else {
+          spans = [
+            const TextSpan(text: "This credential can spend "),
+            TextSpan(text: "without limit", style: valueStyle),
+            const TextSpan(text: "."),
+          ];
+        }
+        return _BalancedText(TextSpan(style: style, children: spans));
+      },
+    );
+  }
+}
+
+/// Centered rich text wrapped so its lines are as even as possible, in no
+/// more lines than it needs.
+class _BalancedText extends StatelessWidget {
+  const _BalancedText(this.span);
+
+  final InlineSpan span;
+
+  /// The narrowest width at which the text still wraps into as few lines as at
+  /// [maxWidth]. Each step lays it out just narrower than its longest line,
+  /// which moves a word down, until that would take another line.
+  double balancedWidth(BuildContext context, double maxWidth) {
+    final painter = TextPainter(
+      // Measure what `Text.rich` draws: the span over the default text style.
+      text: TextSpan(
+        style: DefaultTextStyle.of(context).style,
+        children: [this.span],
+      ),
+      textAlign: TextAlign.center,
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    );
+    double longestLine() => painter.computeLineMetrics().fold(
+      0.0,
+      (longest, line) => max(longest, line.width),
+    );
+
+    painter.layout(maxWidth: maxWidth);
+    final lines = painter.computeLineMetrics().length;
+    var width = longestLine();
+    while (true) {
+      painter.layout(maxWidth: width - 0.5);
+      if (painter.computeLineMetrics().length > lines) break;
+      width = longestLine();
+    }
+    painter.dispose();
+
+    // Round up so the drawn text can't wrap differently from the measured.
+    return width.ceilToDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Center(
+      heightFactor: 1,
+      child: SizedBox(
+        width: this.balancedWidth(context, constraints.maxWidth),
+        child: Text.rich(this.span, textAlign: TextAlign.center),
+      ),
+    ),
+  );
 }
 
 /// A role dropdown and scope checkbox list.
@@ -982,6 +1893,63 @@ class _AccessCardState extends State<AccessCard> {
   );
 }
 
+/// The "Budget" card: what a credential can spend.
+class BudgetCard extends StatelessWidget {
+  const BudgetCard({super.key, required this.budget});
+
+  /// Null means no limit.
+  final Budget? budget;
+
+  @override
+  Widget build(BuildContext context) {
+    final budget = this.budget;
+    return InfoCard(
+      header: const Text("Budget"),
+      bodyPadding: Space.s400,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.s400,
+            vertical: Space.s300 / 2,
+          ),
+          // Amount left and period right; the period wraps below a long
+          // amount.
+          child: SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: Space.s400,
+              runSpacing: Space.s100,
+              children: [
+                Text(
+                  (budget != null)
+                      ? formatBudgetAmount(budget.limit)
+                      : "No limit",
+                  style: Fonts.fontUI.copyWith(
+                    fontSize: Fonts.size300,
+                    fontVariations: [Fonts.weightMedium],
+                    color: LxColors.foreground,
+                    height: 1.2,
+                  ),
+                ),
+                if (budget != null)
+                  Text(
+                    formatBudgetPeriod(
+                      interval: budget.reset?.interval,
+                      intervalCount: budget.reset?.intervalCount ?? 1,
+                    ),
+                    style: InfoRow.labelStyle,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// A credential's editable expiration and label, as rows of its "Details"
 /// [InfoCard].
 class CredentialDetailRows extends StatefulWidget {
@@ -1296,3 +2264,37 @@ String formatExpiration(int? expiresAtMs) => (expiresAtMs != null)
         DateTime.fromMillisecondsSinceEpoch(expiresAtMs),
       )
     : "Never";
+
+/// Format a budget amount, e.g. "₿100,000" or "$20.00 USD". Fiat carries its
+/// code: intl prints the same symbol for many currencies, e.g. "$" for USD,
+/// CAD, AUD and MXN.
+String formatBudgetAmount(BitcoinOrFiat amount) => switch (amount) {
+  BitcoinOrFiat_Bitcoin(:final amountMsats) => currency_format.formatMsatAmount(
+    amountMsats,
+  ),
+  BitcoinOrFiat_Fiat(:final amount, :final currency) =>
+    "${currency_format.formatFiat(double.parse(amount), currency)} $currency",
+};
+
+/// Format a budget's period, e.g. "every month", "every 2 weeks", or, for a
+/// null [interval], "in total".
+String formatBudgetPeriod({
+  required BudgetResetInterval? interval,
+  required int intervalCount,
+}) {
+  if (interval == null) return "in total";
+  final unit = formatBudgetUnit(interval, intervalCount);
+  return (intervalCount == 1) ? "every $unit" : "every $intervalCount $unit";
+}
+
+/// Format a reset interval's unit, pluralized for [count], e.g. "month" or
+/// "months".
+String formatBudgetUnit(BudgetResetInterval interval, int count) {
+  final unit = switch (interval) {
+    BudgetResetInterval.daily => "day",
+    BudgetResetInterval.weekly => "week",
+    BudgetResetInterval.monthly => "month",
+    BudgetResetInterval.yearly => "year",
+  };
+  return (count == 1) ? unit : "${unit}s";
+}

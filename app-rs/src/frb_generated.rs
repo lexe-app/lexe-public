@@ -1848,12 +1848,130 @@ impl SseDecode for crate::ffi::types::BestPaymentUriMethods {
     }
 }
 
+impl SseDecode for crate::ffi::types::BitcoinOrFiat {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_amountMsats = <u64>::sse_decode(deserializer);
+                return crate::ffi::types::BitcoinOrFiat::Bitcoin {
+                    amount_msats: var_amountMsats,
+                };
+            }
+            1 => {
+                let mut var_amount = <String>::sse_decode(deserializer);
+                let mut var_currency = <String>::sse_decode(deserializer);
+                return crate::ffi::types::BitcoinOrFiat::Fiat {
+                    amount: var_amount,
+                    currency: var_currency,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
+impl SseDecode for crate::ffi::types::Budget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_limit =
+            <crate::ffi::types::BitcoinOrFiat>::sse_decode(deserializer);
+        let mut var_reset =
+            <Option<crate::ffi::types::BudgetReset>>::sse_decode(deserializer);
+        return crate::ffi::types::Budget {
+            limit: var_limit,
+            reset: var_reset,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::BudgetInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_limit =
+            <crate::ffi::types::BitcoinOrFiat>::sse_decode(deserializer);
+        let mut var_reset =
+            <Option<crate::ffi::types::BudgetResetInfo>>::sse_decode(
+                deserializer,
+            );
+        let mut var_spendable =
+            <crate::ffi::types::BitcoinOrFiat>::sse_decode(deserializer);
+        return crate::ffi::types::BudgetInfo {
+            limit: var_limit,
+            reset: var_reset,
+            spendable: var_spendable,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::BudgetReset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_interval =
+            <crate::ffi::types::BudgetResetInterval>::sse_decode(deserializer);
+        let mut var_intervalCount = <u8>::sse_decode(deserializer);
+        return crate::ffi::types::BudgetReset {
+            interval: var_interval,
+            interval_count: var_intervalCount,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::BudgetResetInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_interval =
+            <crate::ffi::types::BudgetResetInterval>::sse_decode(deserializer);
+        let mut var_intervalCount = <u8>::sse_decode(deserializer);
+        let mut var_utcOffsetMins = <i32>::sse_decode(deserializer);
+        let mut var_nextReset = <i64>::sse_decode(deserializer);
+        return crate::ffi::types::BudgetResetInfo {
+            interval: var_interval,
+            interval_count: var_intervalCount,
+            utc_offset_mins: var_utcOffsetMins,
+            next_reset: var_nextReset,
+        };
+    }
+}
+
+impl SseDecode for crate::ffi::types::BudgetResetInterval {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ffi::types::BudgetResetInterval::Daily,
+            1 => crate::ffi::types::BudgetResetInterval::Weekly,
+            2 => crate::ffi::types::BudgetResetInterval::Monthly,
+            3 => crate::ffi::types::BudgetResetInterval::Yearly,
+            _ => unreachable!(
+                "Invalid variant for BudgetResetInterval: {}",
+                inner
+            ),
+        };
     }
 }
 
@@ -1980,10 +2098,13 @@ impl SseDecode for crate::ffi::api::CreateClientRequest {
         let mut var_label = <Option<String>>::sse_decode(deserializer);
         let mut var_scopes =
             <Vec<crate::ffi::types::Scope>>::sse_decode(deserializer);
+        let mut var_budget =
+            <Option<crate::ffi::types::Budget>>::sse_decode(deserializer);
         return crate::ffi::api::CreateClientRequest {
             expires_at: var_expiresAt,
             label: var_label,
             scopes: var_scopes,
+            budget: var_budget,
         };
     }
 }
@@ -2909,6 +3030,64 @@ impl SseDecode for Option<bool> {
     }
 }
 
+impl SseDecode for Option<crate::ffi::types::Budget> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::Budget>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::BudgetInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::BudgetInfo>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::BudgetReset> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::BudgetReset>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ffi::types::BudgetResetInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ffi::types::BudgetResetInfo>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ffi::types::ClaimMethod> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -3718,6 +3897,8 @@ impl SseDecode for crate::ffi::types::RevocableClient {
         let mut var_permissions = <Vec<String>>::sse_decode(deserializer);
         let mut var_effectivePermissions =
             <Vec<String>>::sse_decode(deserializer);
+        let mut var_budget =
+            <Option<crate::ffi::types::BudgetInfo>>::sse_decode(deserializer);
         return crate::ffi::types::RevocableClient {
             pubkey: var_pubkey,
             created_at: var_createdAt,
@@ -3726,6 +3907,7 @@ impl SseDecode for crate::ffi::types::RevocableClient {
             scopes: var_scopes,
             permissions: var_permissions,
             effective_permissions: var_effectivePermissions,
+            budget: var_budget,
         };
     }
 }
@@ -4326,6 +4508,146 @@ impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::BestPaymentUriMethods>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::BitcoinOrFiat {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::ffi::types::BitcoinOrFiat::Bitcoin { amount_msats } =>
+                [0.into_dart(), amount_msats.into_into_dart().into_dart()]
+                    .into_dart(),
+            crate::ffi::types::BitcoinOrFiat::Fiat { amount, currency } => [
+                1.into_dart(),
+                amount.into_into_dart().into_dart(),
+                currency.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::BitcoinOrFiat
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::BitcoinOrFiat>
+    for crate::ffi::types::BitcoinOrFiat
+{
+    fn into_into_dart(self) -> crate::ffi::types::BitcoinOrFiat {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::Budget {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.limit.into_into_dart().into_dart(),
+            self.reset.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::Budget
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::Budget>
+    for crate::ffi::types::Budget
+{
+    fn into_into_dart(self) -> crate::ffi::types::Budget {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::BudgetInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.limit.into_into_dart().into_dart(),
+            self.reset.into_into_dart().into_dart(),
+            self.spendable.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::BudgetInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::BudgetInfo>
+    for crate::ffi::types::BudgetInfo
+{
+    fn into_into_dart(self) -> crate::ffi::types::BudgetInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::BudgetReset {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.interval.into_into_dart().into_dart(),
+            self.interval_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::BudgetReset
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::BudgetReset>
+    for crate::ffi::types::BudgetReset
+{
+    fn into_into_dart(self) -> crate::ffi::types::BudgetReset {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::BudgetResetInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.interval.into_into_dart().into_dart(),
+            self.interval_count.into_into_dart().into_dart(),
+            self.utc_offset_mins.into_into_dart().into_dart(),
+            self.next_reset.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::BudgetResetInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::BudgetResetInfo>
+    for crate::ffi::types::BudgetResetInfo
+{
+    fn into_into_dart(self) -> crate::ffi::types::BudgetResetInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::ffi::types::BudgetResetInterval {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Daily => 0.into_dart(),
+            Self::Weekly => 1.into_dart(),
+            Self::Monthly => 2.into_dart(),
+            Self::Yearly => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::ffi::types::BudgetResetInterval
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::ffi::types::BudgetResetInterval>
+    for crate::ffi::types::BudgetResetInterval
+{
+    fn into_into_dart(self) -> crate::ffi::types::BudgetResetInterval {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::ffi::api::CancelPaymentRequest {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.index.into_into_dart().into_dart()].into_dart()
@@ -4482,6 +4804,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::api::CreateClientRequest {
             self.expires_at.into_into_dart().into_dart(),
             self.label.into_into_dart().into_dart(),
             self.scopes.into_into_dart().into_dart(),
+            self.budget.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -5973,6 +6296,7 @@ impl flutter_rust_bridge::IntoDart for crate::ffi::types::RevocableClient {
             self.scopes.into_into_dart().into_dart(),
             self.permissions.into_into_dart().into_dart(),
             self.effective_permissions.into_into_dart().into_dart(),
+            self.budget.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6529,6 +6853,29 @@ impl SseEncode for crate::ffi::types::BestPaymentUriMethods {
     }
 }
 
+impl SseEncode for crate::ffi::types::BitcoinOrFiat {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        match self {
+            crate::ffi::types::BitcoinOrFiat::Bitcoin { amount_msats } => {
+                <i32>::sse_encode(0, serializer);
+                <u64>::sse_encode(amount_msats, serializer);
+            }
+            crate::ffi::types::BitcoinOrFiat::Fiat { amount, currency } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(amount, serializer);
+                <String>::sse_encode(currency, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -6536,6 +6883,87 @@ impl SseEncode for bool {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
+impl SseEncode for crate::ffi::types::Budget {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::ffi::types::BitcoinOrFiat>::sse_encode(self.limit, serializer);
+        <Option<crate::ffi::types::BudgetReset>>::sse_encode(
+            self.reset, serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::ffi::types::BudgetInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::ffi::types::BitcoinOrFiat>::sse_encode(self.limit, serializer);
+        <Option<crate::ffi::types::BudgetResetInfo>>::sse_encode(
+            self.reset, serializer,
+        );
+        <crate::ffi::types::BitcoinOrFiat>::sse_encode(
+            self.spendable,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::ffi::types::BudgetReset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::ffi::types::BudgetResetInterval>::sse_encode(
+            self.interval,
+            serializer,
+        );
+        <u8>::sse_encode(self.interval_count, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::types::BudgetResetInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::ffi::types::BudgetResetInterval>::sse_encode(
+            self.interval,
+            serializer,
+        );
+        <u8>::sse_encode(self.interval_count, serializer);
+        <i32>::sse_encode(self.utc_offset_mins, serializer);
+        <i64>::sse_encode(self.next_reset, serializer);
+    }
+}
+
+impl SseEncode for crate::ffi::types::BudgetResetInterval {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(
+            match self {
+                crate::ffi::types::BudgetResetInterval::Daily => 0,
+                crate::ffi::types::BudgetResetInterval::Weekly => 1,
+                crate::ffi::types::BudgetResetInterval::Monthly => 2,
+                crate::ffi::types::BudgetResetInterval::Yearly => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -6651,6 +7079,10 @@ impl SseEncode for crate::ffi::api::CreateClientRequest {
         <Option<i64>>::sse_encode(self.expires_at, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
         <Vec<crate::ffi::types::Scope>>::sse_encode(self.scopes, serializer);
+        <Option<crate::ffi::types::Budget>>::sse_encode(
+            self.budget,
+            serializer,
+        );
     }
 }
 
@@ -7430,6 +7862,58 @@ impl SseEncode for Option<bool> {
     }
 }
 
+impl SseEncode for Option<crate::ffi::types::Budget> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::Budget>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::BudgetInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::BudgetInfo>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::BudgetReset> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::BudgetReset>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ffi::types::BudgetResetInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ffi::types::BudgetResetInfo>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::ffi::types::ClaimMethod> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -8153,6 +8637,10 @@ impl SseEncode for crate::ffi::types::RevocableClient {
         <Vec<crate::ffi::types::Scope>>::sse_encode(self.scopes, serializer);
         <Vec<String>>::sse_encode(self.permissions, serializer);
         <Vec<String>>::sse_encode(self.effective_permissions, serializer);
+        <Option<crate::ffi::types::BudgetInfo>>::sse_encode(
+            self.budget,
+            serializer,
+        );
     }
 }
 

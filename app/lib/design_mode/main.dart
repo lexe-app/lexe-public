@@ -20,6 +20,8 @@ import 'package:app_rs_dart/ffi/settings.dart' show WalletFundingState;
 import 'package:app_rs_dart/ffi/types.dart'
     show
         AppUserInfo,
+        BudgetReset,
+        BudgetResetInterval,
         ClaimMethod_LnurlWithdraw,
         ClientPaymentId,
         Config,
@@ -93,6 +95,7 @@ import 'package:lexeapp/route/clients.dart'
     show
         ClientRole,
         ClientsPage,
+        CreateClientBudgetPage,
         CreateClientFlow,
         CreateClientPage,
         CreateClientScopesPage,
@@ -1344,12 +1347,52 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         (_) => CreateClientScopesPage(app: mockApp, flow: CreateClientFlow()),
       ),
       Component(
+        "SdkCreateClientBudgetPage",
+        (_) => CreateClientBudgetPage(
+          app: mockApp,
+          flow: CreateClientFlow()..scopePicker.selectRole(ClientRole.spender),
+        ),
+        sublist: [
+          Component(
+            "SdkCreateClientBudgetPage",
+            subtitle: "every 2 weeks",
+            (_) => CreateClientBudgetPage(
+              app: mockApp,
+              flow: CreateClientFlow()
+                ..scopePicker.selectRole(ClientRole.spender)
+                ..budgetLimitMsats.value = 20000000
+                ..budgetResets.value = true
+                ..budgetReset.value = const BudgetReset(
+                  interval: BudgetResetInterval.weekly,
+                  intervalCount: 2,
+                ),
+            ),
+          ),
+          Component(
+            "SdkCreateClientBudgetPage",
+            subtitle: "without limit",
+            (_) => CreateClientBudgetPage(
+              app: mockApp,
+              flow: CreateClientFlow()
+                ..scopePicker.selectRole(ClientRole.spender)
+                ..budgetLimited.value = false,
+            ),
+          ),
+        ],
+      ),
+      Component(
         "SdkCreateClientSummaryPage",
         (_) => CreateClientSummaryPage(
           app: mockApp,
           flow: CreateClientFlow()
             ..labelController.text = "my-server"
-            ..scopePicker.selectRole(ClientRole.spender),
+            ..scopePicker.selectRole(ClientRole.spender)
+            ..budgetLimitMsats.value = 20000000
+            ..budgetResets.value = true
+            ..budgetReset.value = const BudgetReset(
+              interval: BudgetResetInterval.monthly,
+              intervalCount: 1,
+            ),
         ),
       ),
       Component(

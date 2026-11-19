@@ -16,7 +16,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_inner`, `new`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`, `try_from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `env_config`, `env_db_config`, `wallet_env`
 
 int get hbaClaimMinBalanceSats =>
@@ -86,6 +86,116 @@ class BestPaymentUriMethods {
           claimMethod == other.claimMethod &&
           authMethod == other.authMethod;
 }
+
+@freezed
+sealed class BitcoinOrFiat with _$BitcoinOrFiat {
+  const BitcoinOrFiat._();
+
+  const factory BitcoinOrFiat.bitcoin({required int amountMsats}) =
+      BitcoinOrFiat_Bitcoin;
+  const factory BitcoinOrFiat.fiat({
+    /// A decimal string, e.g. "20.50".
+    required String amount,
+    required String currency,
+  }) = BitcoinOrFiat_Fiat;
+}
+
+/// See `lexe::types::command::Budget`.
+class Budget {
+  final BitcoinOrFiat limit;
+  final BudgetReset? reset;
+
+  const Budget({required this.limit, this.reset});
+
+  @override
+  int get hashCode => limit.hashCode ^ reset.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Budget &&
+          runtimeType == other.runtimeType &&
+          limit == other.limit &&
+          reset == other.reset;
+}
+
+/// See `lexe::types::command::BudgetInfo`.
+class BudgetInfo {
+  final BitcoinOrFiat limit;
+  final BudgetResetInfo? reset;
+  final BitcoinOrFiat spendable;
+
+  const BudgetInfo({required this.limit, this.reset, required this.spendable});
+
+  @override
+  int get hashCode => limit.hashCode ^ reset.hashCode ^ spendable.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BudgetInfo &&
+          runtimeType == other.runtimeType &&
+          limit == other.limit &&
+          reset == other.reset &&
+          spendable == other.spendable;
+}
+
+/// See `lexe::types::command::BudgetReset`. Resets follow this device's
+/// timezone.
+class BudgetReset {
+  final BudgetResetInterval interval;
+  final int intervalCount;
+
+  const BudgetReset({required this.interval, required this.intervalCount});
+
+  @override
+  int get hashCode => interval.hashCode ^ intervalCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BudgetReset &&
+          runtimeType == other.runtimeType &&
+          interval == other.interval &&
+          intervalCount == other.intervalCount;
+}
+
+/// See `lexe::types::command::BudgetResetInfo`.
+class BudgetResetInfo {
+  final BudgetResetInterval interval;
+  final int intervalCount;
+  final int utcOffsetMins;
+
+  /// In ms since the UNIX epoch.
+  final int nextReset;
+
+  const BudgetResetInfo({
+    required this.interval,
+    required this.intervalCount,
+    required this.utcOffsetMins,
+    required this.nextReset,
+  });
+
+  @override
+  int get hashCode =>
+      interval.hashCode ^
+      intervalCount.hashCode ^
+      utcOffsetMins.hashCode ^
+      nextReset.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BudgetResetInfo &&
+          runtimeType == other.runtimeType &&
+          interval == other.interval &&
+          intervalCount == other.intervalCount &&
+          utcOffsetMins == other.utcOffsetMins &&
+          nextReset == other.nextReset;
+}
+
+/// See `lexe::types::command::BudgetResetInterval`.
+enum BudgetResetInterval { daily, weekly, monthly, yearly }
 
 @freezed
 sealed class ClaimMethod with _$ClaimMethod {
@@ -730,6 +840,9 @@ class RevocableClient {
   /// `scopes`' permissions plus the explicit `permissions`, by string id.
   final List<String> effectivePermissions;
 
+  /// [`None`] means no spending limit.
+  final BudgetInfo? budget;
+
   const RevocableClient({
     required this.pubkey,
     required this.createdAt,
@@ -738,6 +851,7 @@ class RevocableClient {
     required this.scopes,
     required this.permissions,
     required this.effectivePermissions,
+    this.budget,
   });
 
   @override
@@ -748,7 +862,8 @@ class RevocableClient {
       label.hashCode ^
       scopes.hashCode ^
       permissions.hashCode ^
-      effectivePermissions.hashCode;
+      effectivePermissions.hashCode ^
+      budget.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -761,7 +876,8 @@ class RevocableClient {
           label == other.label &&
           scopes == other.scopes &&
           permissions == other.permissions &&
-          effectivePermissions == other.effectivePermissions;
+          effectivePermissions == other.effectivePermissions &&
+          budget == other.budget;
 }
 
 /// The user's root seed from which we derive all child secrets.

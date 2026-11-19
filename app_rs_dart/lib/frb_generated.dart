@@ -4041,6 +4041,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  BitcoinOrFiat dco_decode_bitcoin_or_fiat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return BitcoinOrFiat_Bitcoin(
+          amountMsats: dco_decode_CastedPrimitive_u_64(raw[1]),
+        );
+      case 1:
+        return BitcoinOrFiat_Fiat(
+          amount: dco_decode_String(raw[1]),
+          currency: dco_decode_String(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
@@ -4074,6 +4092,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   bool dco_decode_box_autoadd_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  Budget dco_decode_box_autoadd_budget(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_budget(raw);
+  }
+
+  @protected
+  BudgetInfo dco_decode_box_autoadd_budget_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_budget_info(raw);
+  }
+
+  @protected
+  BudgetReset dco_decode_box_autoadd_budget_reset(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_budget_reset(raw);
+  }
+
+  @protected
+  BudgetResetInfo dco_decode_box_autoadd_budget_reset_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_budget_reset_info(raw);
   }
 
   @protected
@@ -4433,6 +4475,63 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Budget dco_decode_budget(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Budget(
+      limit: dco_decode_bitcoin_or_fiat(arr[0]),
+      reset: dco_decode_opt_box_autoadd_budget_reset(arr[1]),
+    );
+  }
+
+  @protected
+  BudgetInfo dco_decode_budget_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BudgetInfo(
+      limit: dco_decode_bitcoin_or_fiat(arr[0]),
+      reset: dco_decode_opt_box_autoadd_budget_reset_info(arr[1]),
+      spendable: dco_decode_bitcoin_or_fiat(arr[2]),
+    );
+  }
+
+  @protected
+  BudgetReset dco_decode_budget_reset(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BudgetReset(
+      interval: dco_decode_budget_reset_interval(arr[0]),
+      intervalCount: dco_decode_u_8(arr[1]),
+    );
+  }
+
+  @protected
+  BudgetResetInfo dco_decode_budget_reset_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BudgetResetInfo(
+      interval: dco_decode_budget_reset_interval(arr[0]),
+      intervalCount: dco_decode_u_8(arr[1]),
+      utcOffsetMins: dco_decode_i_32(arr[2]),
+      nextReset: dco_decode_CastedPrimitive_i_64(arr[3]),
+    );
+  }
+
+  @protected
+  BudgetResetInterval dco_decode_budget_reset_interval(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BudgetResetInterval.values[raw as int];
+  }
+
+  @protected
   CancelPaymentRequest dco_decode_cancel_payment_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4517,12 +4616,13 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   CreateClientRequest dco_decode_create_client_request(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return CreateClientRequest(
       expiresAt: dco_decode_opt_CastedPrimitive_i_64(arr[0]),
       label: dco_decode_opt_String(arr[1]),
       scopes: dco_decode_list_scope(arr[2]),
+      budget: dco_decode_opt_box_autoadd_budget(arr[3]),
     );
   }
 
@@ -5140,6 +5240,30 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Budget? dco_decode_opt_box_autoadd_budget(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_budget(raw);
+  }
+
+  @protected
+  BudgetInfo? dco_decode_opt_box_autoadd_budget_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_budget_info(raw);
+  }
+
+  @protected
+  BudgetReset? dco_decode_opt_box_autoadd_budget_reset(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_budget_reset(raw);
+  }
+
+  @protected
+  BudgetResetInfo? dco_decode_opt_box_autoadd_budget_reset_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_budget_reset_info(raw);
+  }
+
+  @protected
   ClaimMethod? dco_decode_opt_box_autoadd_claim_method(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_claim_method(raw);
@@ -5621,8 +5745,8 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   RevocableClient dco_decode_revocable_client(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return RevocableClient(
       pubkey: dco_decode_String(arr[0]),
       createdAt: dco_decode_CastedPrimitive_i_64(arr[1]),
@@ -5631,6 +5755,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       scopes: dco_decode_list_scope(arr[4]),
       permissions: dco_decode_list_String(arr[5]),
       effectivePermissions: dco_decode_list_String(arr[6]),
+      budget: dco_decode_opt_box_autoadd_budget_info(arr[7]),
     );
   }
 
@@ -6065,6 +6190,24 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  BitcoinOrFiat sse_decode_bitcoin_or_fiat(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_amountMsats = sse_decode_CastedPrimitive_u_64(deserializer);
+        return BitcoinOrFiat_Bitcoin(amountMsats: var_amountMsats);
+      case 1:
+        var var_amount = sse_decode_String(deserializer);
+        var var_currency = sse_decode_String(deserializer);
+        return BitcoinOrFiat_Fiat(amount: var_amount, currency: var_currency);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -6098,6 +6241,34 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_bool(deserializer));
+  }
+
+  @protected
+  Budget sse_decode_box_autoadd_budget(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_budget(deserializer));
+  }
+
+  @protected
+  BudgetInfo sse_decode_box_autoadd_budget_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_budget_info(deserializer));
+  }
+
+  @protected
+  BudgetReset sse_decode_box_autoadd_budget_reset(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_budget_reset(deserializer));
+  }
+
+  @protected
+  BudgetResetInfo sse_decode_box_autoadd_budget_reset_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_budget_reset_info(deserializer));
   }
 
   @protected
@@ -6511,6 +6682,62 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Budget sse_decode_budget(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_limit = sse_decode_bitcoin_or_fiat(deserializer);
+    var var_reset = sse_decode_opt_box_autoadd_budget_reset(deserializer);
+    return Budget(limit: var_limit, reset: var_reset);
+  }
+
+  @protected
+  BudgetInfo sse_decode_budget_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_limit = sse_decode_bitcoin_or_fiat(deserializer);
+    var var_reset = sse_decode_opt_box_autoadd_budget_reset_info(deserializer);
+    var var_spendable = sse_decode_bitcoin_or_fiat(deserializer);
+    return BudgetInfo(
+      limit: var_limit,
+      reset: var_reset,
+      spendable: var_spendable,
+    );
+  }
+
+  @protected
+  BudgetReset sse_decode_budget_reset(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_interval = sse_decode_budget_reset_interval(deserializer);
+    var var_intervalCount = sse_decode_u_8(deserializer);
+    return BudgetReset(
+      interval: var_interval,
+      intervalCount: var_intervalCount,
+    );
+  }
+
+  @protected
+  BudgetResetInfo sse_decode_budget_reset_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_interval = sse_decode_budget_reset_interval(deserializer);
+    var var_intervalCount = sse_decode_u_8(deserializer);
+    var var_utcOffsetMins = sse_decode_i_32(deserializer);
+    var var_nextReset = sse_decode_CastedPrimitive_i_64(deserializer);
+    return BudgetResetInfo(
+      interval: var_interval,
+      intervalCount: var_intervalCount,
+      utcOffsetMins: var_utcOffsetMins,
+      nextReset: var_nextReset,
+    );
+  }
+
+  @protected
+  BudgetResetInterval sse_decode_budget_reset_interval(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return BudgetResetInterval.values[inner];
+  }
+
+  @protected
   CancelPaymentRequest sse_decode_cancel_payment_request(
     SseDeserializer deserializer,
   ) {
@@ -6602,10 +6829,12 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_expiresAt = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     var var_label = sse_decode_opt_String(deserializer);
     var var_scopes = sse_decode_list_scope(deserializer);
+    var var_budget = sse_decode_opt_box_autoadd_budget(deserializer);
     return CreateClientRequest(
       expiresAt: var_expiresAt,
       label: var_label,
       scopes: var_scopes,
+      budget: var_budget,
     );
   }
 
@@ -7352,6 +7581,56 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  Budget? sse_decode_opt_box_autoadd_budget(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_budget(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BudgetInfo? sse_decode_opt_box_autoadd_budget_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_budget_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BudgetReset? sse_decode_opt_box_autoadd_budget_reset(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_budget_reset(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BudgetResetInfo? sse_decode_opt_box_autoadd_budget_reset_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_budget_reset_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   ClaimMethod? sse_decode_opt_box_autoadd_claim_method(
     SseDeserializer deserializer,
   ) {
@@ -8002,6 +8281,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     var var_scopes = sse_decode_list_scope(deserializer);
     var var_permissions = sse_decode_list_String(deserializer);
     var var_effectivePermissions = sse_decode_list_String(deserializer);
+    var var_budget = sse_decode_opt_box_autoadd_budget_info(deserializer);
     return RevocableClient(
       pubkey: var_pubkey,
       createdAt: var_createdAt,
@@ -8010,6 +8290,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
       scopes: var_scopes,
       permissions: var_permissions,
       effectivePermissions: var_effectivePermissions,
+      budget: var_budget,
     );
   }
 
@@ -8427,6 +8708,23 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_bitcoin_or_fiat(
+    BitcoinOrFiat self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case BitcoinOrFiat_Bitcoin(amountMsats: final amountMsats):
+        sse_encode_i_32(0, serializer);
+        sse_encode_CastedPrimitive_u_64(amountMsats, serializer);
+      case BitcoinOrFiat_Fiat(amount: final amount, currency: final currency):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(amount, serializer);
+        sse_encode_String(currency, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -8469,6 +8767,39 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_budget(Budget self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_budget(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_budget_info(
+    BudgetInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_budget_info(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_budget_reset(
+    BudgetReset self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_budget_reset(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_budget_reset_info(
+    BudgetResetInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_budget_reset_info(self, serializer);
   }
 
   @protected
@@ -8934,6 +9265,49 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_budget(Budget self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bitcoin_or_fiat(self.limit, serializer);
+    sse_encode_opt_box_autoadd_budget_reset(self.reset, serializer);
+  }
+
+  @protected
+  void sse_encode_budget_info(BudgetInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bitcoin_or_fiat(self.limit, serializer);
+    sse_encode_opt_box_autoadd_budget_reset_info(self.reset, serializer);
+    sse_encode_bitcoin_or_fiat(self.spendable, serializer);
+  }
+
+  @protected
+  void sse_encode_budget_reset(BudgetReset self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_budget_reset_interval(self.interval, serializer);
+    sse_encode_u_8(self.intervalCount, serializer);
+  }
+
+  @protected
+  void sse_encode_budget_reset_info(
+    BudgetResetInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_budget_reset_interval(self.interval, serializer);
+    sse_encode_u_8(self.intervalCount, serializer);
+    sse_encode_i_32(self.utcOffsetMins, serializer);
+    sse_encode_CastedPrimitive_i_64(self.nextReset, serializer);
+  }
+
+  @protected
+  void sse_encode_budget_reset_interval(
+    BudgetResetInterval self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_cancel_payment_request(
     CancelPaymentRequest self,
     SseSerializer serializer,
@@ -9016,6 +9390,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_opt_CastedPrimitive_i_64(self.expiresAt, serializer);
     sse_encode_opt_String(self.label, serializer);
     sse_encode_list_scope(self.scopes, serializer);
+    sse_encode_opt_box_autoadd_budget(self.budget, serializer);
   }
 
   @protected
@@ -9622,6 +9997,58 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_budget(
+    Budget? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_budget(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_budget_info(
+    BudgetInfo? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_budget_info(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_budget_reset(
+    BudgetReset? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_budget_reset(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_budget_reset_info(
+    BudgetResetInfo? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_budget_reset_info(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_claim_method(
     ClaimMethod? self,
     SseSerializer serializer,
@@ -10194,6 +10621,7 @@ class AppRsApiImpl extends AppRsApiImplPlatform implements AppRsApi {
     sse_encode_list_scope(self.scopes, serializer);
     sse_encode_list_String(self.permissions, serializer);
     sse_encode_list_String(self.effectivePermissions, serializer);
+    sse_encode_opt_box_autoadd_budget_info(self.budget, serializer);
   }
 
   @protected

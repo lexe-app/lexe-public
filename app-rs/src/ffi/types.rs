@@ -4,10 +4,17 @@ use anyhow::anyhow;
 use flutter_rust_bridge::RustOpaqueNom;
 use lexe::{
     config::{WalletEnv, WalletEnvConfig, WalletEnvDbConfig},
+    rust_decimal::Decimal,
     types::{
         auth::{RootSeed as SdkRootSeed, Scope as ScopeRs},
         bitcoin::LnurlWithdrawRequest as LnurlWithdrawRequestRs,
-        command::ClientInfo as ClientInfoRs,
+        command::{
+            BitcoinOrFiat as BitcoinOrFiatRs, Budget as BudgetRs,
+            BudgetInfo as BudgetInfoRs, BudgetReset as BudgetResetRs,
+            BudgetResetInfo as BudgetResetInfoRs,
+            BudgetResetInterval as BudgetResetIntervalRs,
+            ClientInfo as ClientInfoRs,
+        },
         payment::Payment as PaymentRs,
     },
 };
@@ -1376,6 +1383,8 @@ pub struct RevocableClient {
     /// Every permission this client currently holds: the union of all
     /// `scopes`' permissions plus the explicit `permissions`, by string id.
     pub effective_permissions: Vec<String>,
+    /// [`None`] means no spending limit.
+    pub budget: Option<BudgetInfo>,
 }
 
 impl From<ClientInfoRs> for RevocableClient {
@@ -1392,6 +1401,148 @@ impl From<ClientInfoRs> for RevocableClient {
                 .collect(),
             permissions: value.permissions,
             effective_permissions: value.effective_permissions,
+            budget: value.budget.map(BudgetInfo::from),
+        }
+    }
+}
+
+/// See `lexe::types::command::BudgetInfo`.
+pub struct BudgetInfo {
+    pub limit: BitcoinOrFiat,
+    pub reset: Option<BudgetResetInfo>,
+    pub spendable: BitcoinOrFiat,
+}
+
+/// See `lexe::types::command::BudgetResetInfo`.
+pub struct BudgetResetInfo {
+    pub interval: BudgetResetInterval,
+    pub interval_count: u8,
+    pub utc_offset_mins: i32,
+    /// In ms since the UNIX epoch.
+    pub next_reset: i64,
+}
+
+/// See `lexe::types::command::Budget`.
+pub struct Budget {
+    pub limit: BitcoinOrFiat,
+    pub reset: Option<BudgetReset>,
+}
+
+/// See `lexe::types::command::BitcoinOrFiat`.
+pub enum BitcoinOrFiat {
+    Bitcoin {
+        amount_msats: u64,
+    },
+    Fiat {
+        /// A decimal string, e.g. "20.50".
+        amount: String,
+        currency: String,
+    },
+}
+
+/// See `lexe::types::command::BudgetReset`. Resets follow this device's
+/// timezone.
+pub struct BudgetReset {
+    pub interval: BudgetResetInterval,
+    pub interval_count: u8,
+}
+
+/// See `lexe::types::command::BudgetResetInterval`.
+pub enum BudgetResetInterval {
+    Daily,
+    Weekly,
+    Monthly,
+    Yearly,
+}
+
+impl From<BudgetInfoRs> for BudgetInfo {
+    fn from(info: BudgetInfoRs) -> Self {
+        Self {
+            limit: BitcoinOrFiat::from(info.limit),
+            reset: info.reset.map(BudgetResetInfo::from),
+            spendable: BitcoinOrFiat::from(info.spendable),
+        }
+    }
+}
+
+impl From<BudgetResetInfoRs> for BudgetResetInfo {
+    fn from(reset: BudgetResetInfoRs) -> Self {
+        Self {
+            interval: BudgetResetInterval::from(reset.interval),
+            interval_count: reset.interval_count,
+            utc_offset_mins: reset.utc_offset_mins,
+            next_reset: reset.next_reset.to_i64(),
+        }
+    }
+}
+
+impl TryFrom<Budget> for BudgetRs {
+    type Error = anyhow::Error;
+    fn try_from(budget: Budget) -> anyhow::Result<Self> {
+        Ok(Self {
+            limit: BitcoinOrFiatRs::try_from(budget.limit)?,
+            reset: budget.reset.map(BudgetResetRs::from),
+        })
+    }
+}
+
+impl TryFrom<BitcoinOrFiat> for BitcoinOrFiatRs {
+    type Error = anyhow::Error;
+    fn try_from(value: BitcoinOrFiat) -> anyhow::Result<Self> {
+        match value {
+            BitcoinOrFiat::Bitcoin { amount_msats } =>
+                Ok(Self::Bitcoin(AmountRs::from_msat(amount_msats))),
+            BitcoinOrFiat::Fiat { amount, currency } => {
+                let amount = Decimal::from_str(&amount)
+                    .map_err(|e| anyhow!("Invalid fiat amount: {e}"))?;
+                Ok(Self::Fiat { amount, currency })
+            }
+        }
+    }
+}
+
+impl From<BitcoinOrFiatRs> for BitcoinOrFiat {
+    fn from(value: BitcoinOrFiatRs) -> Self {
+        match value {
+            BitcoinOrFiatRs::Bitcoin(amount) => Self::Bitcoin {
+                amount_msats: amount.msat(),
+            },
+            BitcoinOrFiatRs::Fiat { amount, currency } => Self::Fiat {
+                amount: amount.normalize().to_string(),
+                currency,
+            },
+        }
+    }
+}
+
+impl From<BudgetReset> for BudgetResetRs {
+    fn from(reset: BudgetReset) -> Self {
+        Self {
+            interval: BudgetResetIntervalRs::from(reset.interval),
+            interval_count: Some(reset.interval_count),
+            utc_offset_mins: None,
+        }
+    }
+}
+
+impl From<BudgetResetInterval> for BudgetResetIntervalRs {
+    fn from(value: BudgetResetInterval) -> Self {
+        match value {
+            BudgetResetInterval::Daily => Self::Daily,
+            BudgetResetInterval::Weekly => Self::Weekly,
+            BudgetResetInterval::Monthly => Self::Monthly,
+            BudgetResetInterval::Yearly => Self::Yearly,
+        }
+    }
+}
+
+impl From<BudgetResetIntervalRs> for BudgetResetInterval {
+    fn from(value: BudgetResetIntervalRs) -> Self {
+        match value {
+            BudgetResetIntervalRs::Daily => Self::Daily,
+            BudgetResetIntervalRs::Weekly => Self::Weekly,
+            BudgetResetIntervalRs::Monthly => Self::Monthly,
+            BudgetResetIntervalRs::Yearly => Self::Yearly,
         }
     }
 }

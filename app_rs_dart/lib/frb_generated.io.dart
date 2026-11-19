@@ -140,6 +140,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   BestPaymentUriMethods dco_decode_best_payment_uri_methods(dynamic raw);
 
   @protected
+  BitcoinOrFiat dco_decode_bitcoin_or_fiat(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -156,6 +159,18 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
+  Budget dco_decode_box_autoadd_budget(dynamic raw);
+
+  @protected
+  BudgetInfo dco_decode_box_autoadd_budget_info(dynamic raw);
+
+  @protected
+  BudgetReset dco_decode_box_autoadd_budget_reset(dynamic raw);
+
+  @protected
+  BudgetResetInfo dco_decode_box_autoadd_budget_reset_info(dynamic raw);
 
   @protected
   CancelPaymentRequest dco_decode_box_autoadd_cancel_payment_request(
@@ -340,6 +355,21 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   WithdrawLnurlRequest dco_decode_box_autoadd_withdraw_lnurl_request(
     dynamic raw,
   );
+
+  @protected
+  Budget dco_decode_budget(dynamic raw);
+
+  @protected
+  BudgetInfo dco_decode_budget_info(dynamic raw);
+
+  @protected
+  BudgetReset dco_decode_budget_reset(dynamic raw);
+
+  @protected
+  BudgetResetInfo dco_decode_budget_reset_info(dynamic raw);
+
+  @protected
+  BudgetResetInterval dco_decode_budget_reset_interval(dynamic raw);
 
   @protected
   CancelPaymentRequest dco_decode_cancel_payment_request(dynamic raw);
@@ -545,6 +575,18 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  Budget? dco_decode_opt_box_autoadd_budget(dynamic raw);
+
+  @protected
+  BudgetInfo? dco_decode_opt_box_autoadd_budget_info(dynamic raw);
+
+  @protected
+  BudgetReset? dco_decode_opt_box_autoadd_budget_reset(dynamic raw);
+
+  @protected
+  BudgetResetInfo? dco_decode_opt_box_autoadd_budget_reset_info(dynamic raw);
 
   @protected
   ClaimMethod? dco_decode_opt_box_autoadd_claim_method(dynamic raw);
@@ -847,6 +889,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  BitcoinOrFiat sse_decode_bitcoin_or_fiat(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -863,6 +908,20 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  Budget sse_decode_box_autoadd_budget(SseDeserializer deserializer);
+
+  @protected
+  BudgetInfo sse_decode_box_autoadd_budget_info(SseDeserializer deserializer);
+
+  @protected
+  BudgetReset sse_decode_box_autoadd_budget_reset(SseDeserializer deserializer);
+
+  @protected
+  BudgetResetInfo sse_decode_box_autoadd_budget_reset_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   CancelPaymentRequest sse_decode_box_autoadd_cancel_payment_request(
@@ -1101,6 +1160,23 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   WithdrawLnurlRequest sse_decode_box_autoadd_withdraw_lnurl_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Budget sse_decode_budget(SseDeserializer deserializer);
+
+  @protected
+  BudgetInfo sse_decode_budget_info(SseDeserializer deserializer);
+
+  @protected
+  BudgetReset sse_decode_budget_reset(SseDeserializer deserializer);
+
+  @protected
+  BudgetResetInfo sse_decode_budget_reset_info(SseDeserializer deserializer);
+
+  @protected
+  BudgetResetInterval sse_decode_budget_reset_interval(
     SseDeserializer deserializer,
   );
 
@@ -1360,6 +1436,24 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  Budget? sse_decode_opt_box_autoadd_budget(SseDeserializer deserializer);
+
+  @protected
+  BudgetInfo? sse_decode_opt_box_autoadd_budget_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BudgetReset? sse_decode_opt_box_autoadd_budget_reset(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BudgetResetInfo? sse_decode_opt_box_autoadd_budget_reset_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ClaimMethod? sse_decode_opt_box_autoadd_claim_method(
@@ -1718,6 +1812,9 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   );
 
   @protected
+  void sse_encode_bitcoin_or_fiat(BitcoinOrFiat self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -1743,6 +1840,27 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_budget(Budget self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_budget_info(
+    BudgetInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_budget_reset(
+    BudgetReset self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_budget_reset_info(
+    BudgetResetInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_cancel_payment_request(
@@ -2035,6 +2153,27 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
   @protected
   void sse_encode_box_autoadd_withdraw_lnurl_request(
     WithdrawLnurlRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_budget(Budget self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_budget_info(BudgetInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_budget_reset(BudgetReset self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_budget_reset_info(
+    BudgetResetInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_budget_reset_interval(
+    BudgetResetInterval self,
     SseSerializer serializer,
   );
 
@@ -2349,6 +2488,30 @@ abstract class AppRsApiImplPlatform extends BaseApiImpl<AppRsWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_budget(
+    Budget? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_budget_info(
+    BudgetInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_budget_reset(
+    BudgetReset? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_budget_reset_info(
+    BudgetResetInfo? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_claim_method(
