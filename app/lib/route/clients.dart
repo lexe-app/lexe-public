@@ -10,6 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
+        AccessItem,
+        AccessKind,
+        AccessRow,
         AnimatedFillButton,
         EditableInfoRow,
         ErrorMessage,
@@ -34,6 +37,7 @@ import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/lexe_connect.dart'
     show LexeConnectFlowResult, LexeConnectScanPage;
 import 'package:lexeapp/service/clients.dart' show ClientsService;
+import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// This page lets users add, edit, and revoke client credentials.
@@ -287,6 +291,28 @@ class ClientListEntry extends StatelessWidget {
   }
 }
 
+/// The create-client flow's inputs, shared by its pages so that going back
+/// and forth keeps them. Owned by [CreateClientPage], the flow's first page.
+class CreateClientFlow {
+  final TextEditingController labelController = TextEditingController();
+
+  /// In ms since the UNIX epoch, or null to never expire. Defaults to one
+  /// year out.
+  final ValueNotifier<int?> expiresAtMs = ValueNotifier(
+    DateTime.now().addMonths(12).millisecondsSinceEpoch,
+  );
+
+  final ScopePickerController scopePicker = ScopePickerController(
+    ClientRole.receiver.scopes()!,
+  );
+
+  void dispose() {
+    this.labelController.dispose();
+    this.expiresAtMs.dispose();
+    this.scopePicker.dispose();
+  }
+}
+
 /// Create-client flow, page 1: collect an optional label and expiration for
 /// the new client.
 class CreateClientPage extends StatefulWidget {
@@ -299,33 +325,20 @@ class CreateClientPage extends StatefulWidget {
 }
 
 class _CreateClientPageState extends State<CreateClientPage> {
-  final GlobalKey<FormFieldState<String>> labelFieldKey = GlobalKey();
-
-  /// In ms since the UNIX epoch, or null to never expire. Defaults to one
-  /// year out.
-  final ValueNotifier<int?> expiresAtMs = ValueNotifier(
-    DateTime.now().addMonths(12).millisecondsSinceEpoch,
-  );
+  final CreateClientFlow flow = CreateClientFlow();
 
   @override
   void dispose() {
-    this.expiresAtMs.dispose();
+    this.flow.dispose();
     super.dispose();
   }
 
   Future<void> onNext() async {
-    final labelField = this.labelFieldKey.currentState!;
-    if (!labelField.validate()) return;
-    final label = labelField.value;
-
     final CreateClientResponse? flowResult = await Navigator.of(this.context)
         .push(
           MaterialPageRoute(
-            builder: (context) => CreateClientScopesPage(
-              app: this.widget.app,
-              expiresAtMs: this.expiresAtMs.value,
-              label: (label != null && label.isNotEmpty) ? label : null,
-            ),
+            builder: (context) =>
+                CreateClientScopesPage(app: this.widget.app, flow: this.flow),
           ),
         );
     if (!this.mounted || flowResult == null) return;
@@ -351,7 +364,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
 
           // Label field
           TextFormField(
-            key: this.labelFieldKey,
+            controller: this.flow.labelController,
             autofocus: true,
             maxLines: 1,
             maxLength: 64,
@@ -377,7 +390,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
             bodyPadding: Space.s400,
             children: [
               ExpirationRow(
-                expiresAtMs: this.expiresAtMs,
+                expiresAtMs: this.flow.expiresAtMs,
                 bodyPadding: Space.s400,
               ),
             ],
@@ -386,7 +399,7 @@ class _CreateClientPageState extends State<CreateClientPage> {
         // Next button
         bottom: Padding(
           padding: const EdgeInsets.only(top: Space.s500),
-          child: LxFilledButton.strong(
+          child: LxFilledButton(
             label: const Text("Next"),
             icon: const Icon(LxIcons.next),
             onTap: this.onNext,
@@ -397,32 +410,115 @@ class _CreateClientPageState extends State<CreateClientPage> {
   }
 }
 
-/// Create-client flow, page 2: choose the scopes to grant, then create
-/// the client.
+/// Create-client flow, page 2: choose the scopes to grant.
 class CreateClientScopesPage extends StatefulWidget {
   const CreateClientScopesPage({
     super.key,
     required this.app,
-    required this.expiresAtMs,
-    required this.label,
+    required this.flow,
   });
 
   final AppHandle app;
-
-  /// In ms since the UNIX epoch, or null to never expire.
-  final int? expiresAtMs;
-
-  final String? label;
+  final CreateClientFlow flow;
 
   @override
   State<CreateClientScopesPage> createState() => _CreateClientScopesPageState();
 }
 
 class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
-  final ScopePickerController scopePicker = ScopePickerController(
-    ClientRole.receiver.scopes()!,
-  );
+  final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
+  @override
+  void dispose() {
+    this.errorMessage.dispose();
+    super.dispose();
+  }
+
+  Future<void> onNext() async {
+    this.errorMessage.value = null;
+
+    if (this.widget.flow.scopePicker.scopes.isEmpty) {
+      this.errorMessage.value = const ErrorMessage(
+        title: "Select at least one scope",
+      );
+      return;
+    }
+
+    final CreateClientResponse? flowResult = await Navigator.of(this.context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => CreateClientSummaryPage(
+              app: this.widget.app,
+              flow: this.widget.flow,
+            ),
+          ),
+        );
+    if (!this.mounted || flowResult == null) return;
+
+    // Return the response to the previous page.
+    await Navigator.of(this.context).maybePop(flowResult);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(isLeading: true),
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Choose credential scopes"),
+          const SubheadingText(
+            text:
+                "Anyone holding these credentials gets the scopes you grant below.",
+          ),
+          const SizedBox(height: Space.s600),
+
+          // Scope picker
+          ScopePicker(controller: this.widget.flow.scopePicker),
+
+          // Error message
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.s400),
+            child: ValueListenableBuilder(
+              valueListenable: this.errorMessage,
+              builder: (_context, errorMessage, _widget) =>
+                  ErrorMessageSection(errorMessage),
+            ),
+          ),
+        ],
+        // Next button
+        bottom: Padding(
+          padding: const EdgeInsets.only(top: Space.s500),
+          child: LxFilledButton(
+            label: const Text("Next"),
+            icon: const Icon(LxIcons.next),
+            onTap: this.onNext,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Create-client flow, page 3: review the new client, then create it.
+class CreateClientSummaryPage extends StatefulWidget {
+  const CreateClientSummaryPage({
+    super.key,
+    required this.app,
+    required this.flow,
+  });
+
+  final AppHandle app;
+  final CreateClientFlow flow;
+
+  @override
+  State<CreateClientSummaryPage> createState() =>
+      _CreateClientSummaryPageState();
+}
+
+class _CreateClientSummaryPageState extends State<CreateClientSummaryPage> {
   final ValueNotifier<bool> isPending = ValueNotifier(false);
   final ValueNotifier<ErrorMessage?> errorMessage = ValueNotifier(null);
 
@@ -430,28 +526,19 @@ class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
   void dispose() {
     this.errorMessage.dispose();
     this.isPending.dispose();
-    this.scopePicker.dispose();
     super.dispose();
   }
 
-  Future<void> onSubmit() async {
+  Future<void> onCreate() async {
     if (this.isPending.value) return;
     this.errorMessage.value = null;
-
-    final scopes = this.scopePicker.scopes;
-    if (scopes.isEmpty) {
-      this.errorMessage.value = const ErrorMessage(
-        title: "Select at least one scope",
-      );
-      return;
-    }
-
     this.isPending.value = true;
 
+    final flow = this.widget.flow;
     final req = CreateClientRequest(
-      expiresAt: this.widget.expiresAtMs,
-      label: this.widget.label,
-      scopes: this.scopePicker.scopesList(),
+      expiresAt: flow.expiresAtMs.value,
+      label: flow.labelController.text.trim().nonEmpty(),
+      scopes: flow.scopePicker.scopesList(),
     );
     final res = await Result.tryFfiAsync(
       () => this.widget.app.createClient(req: req),
@@ -476,43 +563,67 @@ class _CreateClientScopesPageState extends State<CreateClientScopesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(isLeading: true),
-      ),
-      body: ScrollableSinglePageBody(
-        body: [
-          const HeadingText(text: "Choose credential scopes"),
-          const SubheadingText(
-            text:
-                "Anyone holding these credentials gets the scopes you grant below.",
-          ),
-          const SizedBox(height: Space.s600),
+    final flow = this.widget.flow;
+    final scopes = flow.scopePicker.scopesList();
 
-          // Scope picker
-          ScopePicker(controller: this.scopePicker),
+    return ValueListenableBuilder(
+      valueListenable: this.isPending,
+      // Leaving mid-create would drop the new credentials unseen.
+      builder: (context, isPending, child) =>
+          PopScope(canPop: !isPending, child: child!),
+      child: Scaffold(
+        appBar: AppBar(
+          leadingWidth: Space.appBarLeadingWidth,
+          leading: const LxBackButton(isLeading: true),
+        ),
+        body: ScrollableSinglePageBody(
+          body: [
+            const HeadingText(text: "Review new credentials"),
+            const SizedBox(height: Space.s200),
 
-          // Error message
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: Space.s400),
-            child: ValueListenableBuilder(
-              valueListenable: this.errorMessage,
-              builder: (_context, errorMessage, _widget) =>
-                  ErrorMessageSection(errorMessage),
+            AccessCard(items: [for (final scope in scopes) scope.accessItem()]),
+
+            InfoCard(
+              header: const Text("Details"),
+              bodyPadding: Space.s400,
+              children: [
+                ValueListenableBuilder(
+                  valueListenable: this.isPending,
+                  builder: (context, isPending, _) => CredentialDetailRows(
+                    expiresAtMs: flow.expiresAtMs,
+                    labelController: flow.labelController,
+                    enabled: !isPending,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-        // Create button
-        bottom: Padding(
-          padding: const EdgeInsets.only(top: Space.s500),
-          child: ValueListenableBuilder(
-            valueListenable: this.isPending,
-            builder: (context, isPending, _widget) => AnimatedFillButton(
-              onTap: this.onSubmit,
-              loading: isPending,
-              label: const Text("Create"),
-              icon: const Icon(LxIcons.add),
+
+            // Error message
+            Padding(
+              padding: const EdgeInsets.only(top: Space.s400),
+              child: ValueListenableBuilder(
+                valueListenable: this.errorMessage,
+                builder: (context, errorMessage, _) =>
+                    ErrorMessageSection(errorMessage, bodyPadding: Space.s400),
+              ),
+            ),
+          ],
+          // Create button
+          bottom: Padding(
+            padding: const EdgeInsets.only(top: Space.s500),
+            child: ValueListenableBuilder(
+              valueListenable: this.isPending,
+              builder: (context, isPending, _) => AnimatedFillButton(
+                onTap: this.onCreate,
+                loading: isPending,
+                label: const Text("Create"),
+                icon: const Icon(LxIcons.add),
+                style: FilledButton.styleFrom(
+                  backgroundColor: LxColors.foreground,
+                  foregroundColor: LxColors.background,
+                  iconColor: LxColors.background,
+                ),
+              ),
             ),
           ),
         ),
@@ -695,8 +806,16 @@ extension ClientRoleExt on ClientRole {
   };
 }
 
-/// User-facing display strings for [Scope].
+/// App-side helpers for [Scope].
 extension ScopeExt on Scope {
+  IconData icon() => switch (this) {
+    Scope.readInfo || Scope.readPayments || Scope.read => LxIcons.view,
+    Scope.receive => LxIcons.receive,
+    Scope.manageChannels => LxIcons.openCloseChannel,
+    Scope.spend => LxIcons.send,
+    Scope.full => LxIcons.key,
+  };
+
   String title() => switch (this) {
     Scope.readInfo => "Read info",
     Scope.readPayments => "Read payments",
@@ -719,6 +838,14 @@ extension ScopeExt on Scope {
       "Pay invoices, offers, and on-chain addresses; update payment notes.",
     Scope.full => "Full control of your wallet. Use carefully!",
   };
+
+  /// This scope's row in an [AccessCard].
+  AccessItem accessItem() => (
+    icon: this.icon(),
+    title: Text(this.title()),
+    description: Text(this.description()),
+    kind: AccessKind.scope,
+  );
 }
 
 class ShowCredentialsPage extends StatefulWidget {
@@ -781,6 +908,152 @@ class _ShowCredentialsPageState extends State<ShowCredentialsPage> {
       ),
     );
   }
+}
+
+/// The "Access" card: what a credential grants, one [AccessRow] per item.
+class AccessCard extends StatefulWidget {
+  const AccessCard({super.key, required this.items});
+
+  final List<AccessItem> items;
+
+  @override
+  State<AccessCard> createState() => _AccessCardState();
+}
+
+class _AccessCardState extends State<AccessCard> {
+  /// Indices of the collapsed [AccessCard.items].
+  final ValueNotifier<Set<int>> collapsedItems = ValueNotifier(const {});
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => this.collapseItemsIfOverflowing(),
+    );
+  }
+
+  @override
+  void dispose() {
+    this.collapsedItems.dispose();
+    super.dispose();
+  }
+
+  /// Collapses the scope rows if the fully expanded page has to scroll. The
+  /// API permissions row stays expanded, so they can't be skimmed past.
+  void collapseItemsIfOverflowing() {
+    if (!this.mounted) return;
+    final position = Scrollable.maybeOf(this.context)?.position;
+    if (position == null || position.maxScrollExtent <= 0) return;
+    this.collapsedItems.value = {
+      for (final (index, item) in this.widget.items.indexed)
+        if (item.kind == AccessKind.scope) index,
+    };
+  }
+
+  void toggleItem(int index) {
+    final collapsed = {...this.collapsedItems.value};
+    if (!collapsed.remove(index)) collapsed.add(index);
+    this.collapsedItems.value = collapsed;
+  }
+
+  @override
+  Widget build(BuildContext context) => InfoCard(
+    header: const Text("Access"),
+    bodyPadding: Space.s400,
+    children: [
+      ValueListenableBuilder(
+        valueListenable: this.collapsedItems,
+        builder: (context, collapsed, _) => Column(
+          children: [
+            for (final (index, item) in this.widget.items.indexed)
+              AccessRow(
+                item: item,
+                // Error rows always show why.
+                expanded:
+                    item.kind == AccessKind.error || !collapsed.contains(index),
+                onTap: (item.kind == AccessKind.error)
+                    ? null
+                    : () => this.toggleItem(index),
+              ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+/// A credential's editable expiration and label, as rows of its "Details"
+/// [InfoCard].
+class CredentialDetailRows extends StatefulWidget {
+  const CredentialDetailRows({
+    super.key,
+    required this.expiresAtMs,
+    this.requestedExpiresAtMs,
+    required this.labelController,
+    required this.enabled,
+  });
+
+  /// See [ExpirationRow.expiresAtMs].
+  final ValueNotifier<int?> expiresAtMs;
+
+  /// See [ExpirationRow.requestedMs].
+  final int? requestedExpiresAtMs;
+
+  final TextEditingController labelController;
+
+  final bool enabled;
+
+  @override
+  State<CredentialDetailRows> createState() => _CredentialDetailRowsState();
+}
+
+class _CredentialDetailRowsState extends State<CredentialDetailRows> {
+  final FocusNode labelFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    this.labelFocusNode.dispose();
+    super.dispose();
+  }
+
+  /// Focuses the label with the cursor at the end, rather than wherever an
+  /// earlier edit through the same controller left it.
+  void onLabelTap() {
+    final label = this.widget.labelController;
+    label.selection = TextSelection.collapsed(offset: label.text.length);
+    this.labelFocusNode.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      ExpirationRow(
+        expiresAtMs: this.widget.expiresAtMs,
+        requestedMs: this.widget.requestedExpiresAtMs,
+        enabled: this.widget.enabled,
+        bodyPadding: Space.s400,
+      ),
+      EditableInfoRow(
+        label: "Label",
+        bodyPadding: Space.s400,
+        onTap: this.widget.enabled ? this.onLabelTap : null,
+        child: TextField(
+          controller: this.widget.labelController,
+          focusNode: this.labelFocusNode,
+          enabled: this.widget.enabled,
+          maxLines: 1,
+          maxLength: 64,
+          enableSuggestions: false,
+          autocorrect: false,
+          style: InfoRow.valueStyle,
+          decoration: const InputDecoration.collapsed(
+            hintText: "Optional",
+            hintStyle: TextStyle(color: LxColors.grey650),
+          ).copyWith(counterText: ""),
+        ),
+      ),
+    ],
+  );
 }
 
 /// An [EditableInfoRow] that picks a credential's expiration.

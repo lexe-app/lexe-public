@@ -470,7 +470,7 @@ class LxBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = IconButton(
       icon: const Icon(LxIcons.back),
-      onPressed: () => Navigator.of(context).pop(),
+      onPressed: () => Navigator.of(context).maybePop(),
     );
 
     if (this.isLeading) {

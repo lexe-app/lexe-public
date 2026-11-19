@@ -90,7 +90,13 @@ import 'package:lexeapp/route/claim/state.dart'
         ClaimState_NeedAmount,
         ClaimState_NeedConfirm;
 import 'package:lexeapp/route/clients.dart'
-    show ClientsPage, CreateClientPage, CreateClientScopesPage;
+    show
+        ClientRole,
+        ClientsPage,
+        CreateClientFlow,
+        CreateClientPage,
+        CreateClientScopesPage,
+        CreateClientSummaryPage;
 import 'package:lexeapp/route/close_channel.dart'
     show CloseChannelConfirmPage, CloseChannelPage;
 import 'package:lexeapp/route/initial_deposit/page.dart'
@@ -1335,10 +1341,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       Component("SdkCreateClientPage", (_) => CreateClientPage(app: mockApp)),
       Component(
         "SdkCreateClientScopesPage",
-        (_) => CreateClientScopesPage(
+        (_) => CreateClientScopesPage(app: mockApp, flow: CreateClientFlow()),
+      ),
+      Component(
+        "SdkCreateClientSummaryPage",
+        (_) => CreateClientSummaryPage(
           app: mockApp,
-          expiresAtMs: null,
-          label: "my-server",
+          flow: CreateClientFlow()
+            ..labelController.text = "my-server"
+            ..scopePicker.selectRole(ClientRole.spender),
         ),
       ),
       Component(

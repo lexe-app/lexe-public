@@ -24,9 +24,7 @@ import 'package:lexeapp/components.dart'
     show
         AccessItem,
         AccessKind,
-        AccessRow,
         AnimatedFillButton,
-        EditableInfoRow,
         ErrorMessage,
         ErrorMessageSection,
         HeadingText,
@@ -42,7 +40,7 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/date_time_ext.dart';
 import 'package:lexeapp/prelude.dart';
 import 'package:lexeapp/route/clients.dart'
-    show ExpirationRow, ScopeExt, formatExpiration;
+    show AccessCard, CredentialDetailRows, ScopeExt, formatExpiration;
 import 'package:lexeapp/route/scan.dart' show QrScanner;
 import 'package:lexeapp/string_ext.dart';
 import 'package:lexeapp/style.dart'
@@ -68,7 +66,6 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
   late final TextEditingController labelController = TextEditingController(
     text: this.widget.request.label ?? this.defaultLabel(),
   );
-  final FocusNode labelFocusNode = FocusNode();
 
   /// The credential's expiration in ms since the UNIX epoch, or null to never
   /// expire. Prefilled from the request, else one year out.
@@ -87,25 +84,12 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
 
   late final List<AccessItem> accessItems = this.buildAccessItems();
 
-  /// Indices of the collapsed [accessItems].
-  final ValueNotifier<Set<int>> collapsedItems = ValueNotifier(const {});
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => this.collapseItemsIfOverflowing(),
-    );
-  }
-
   @override
   void dispose() {
-    this.collapsedItems.dispose();
     this.errorMessage.dispose();
     this.expiresAtMs.dispose();
     this.labelController.dispose();
     this.pendingDecision.dispose();
-    this.labelFocusNode.dispose();
     super.dispose();
   }
 
@@ -171,13 +155,7 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
     }
 
     return [
-      for (final scope in this.displayedScopes())
-        (
-          icon: scope.icon(),
-          title: Text(scope.title()),
-          description: Text(scope.description()),
-          kind: AccessKind.scope,
-        ),
+      for (final scope in this.displayedScopes()) scope.accessItem(),
       if (this.widget.request.permissions case final permissions
           when permissions.isNotEmpty)
         (
@@ -190,28 +168,6 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
           kind: AccessKind.permissions,
         ),
     ];
-  }
-
-  /// Collapses the scope rows if the fully expanded page has to scroll. The
-  /// API permissions row stays expanded, so they can't be skimmed past.
-  void collapseItemsIfOverflowing() {
-    if (!this.mounted) return;
-    final controller = PrimaryScrollController.maybeOf(this.context);
-    final overflows =
-        controller != null &&
-        controller.positions.any((position) => position.maxScrollExtent > 0);
-    if (overflows) {
-      this.collapsedItems.value = {
-        for (final (index, item) in this.accessItems.indexed)
-          if (item.kind == AccessKind.scope) index,
-      };
-    }
-  }
-
-  void toggleItem(int index) {
-    final collapsed = {...this.collapsedItems.value};
-    if (!collapsed.remove(index)) collapsed.add(index);
-    this.collapsedItems.value = collapsed;
   }
 
   Future<void> onApprove() => this.respond(
@@ -302,30 +258,7 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
             ),
 
           // Access
-          InfoCard(
-            header: const Text("Access"),
-            bodyPadding: Space.s400,
-            children: [
-              ValueListenableBuilder(
-                valueListenable: this.collapsedItems,
-                builder: (context, collapsed, _) => Column(
-                  children: [
-                    for (final (index, item) in this.accessItems.indexed)
-                      AccessRow(
-                        item: item,
-                        // Error rows always show why.
-                        expanded:
-                            item.kind == AccessKind.error ||
-                            !collapsed.contains(index),
-                        onTap: (item.kind == AccessKind.error)
-                            ? null
-                            : () => this.toggleItem(index),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          AccessCard(items: this.accessItems),
 
           // Details, read-only if the request can't be approved
           InfoCard(
@@ -341,40 +274,13 @@ class _LexeConnectPageState extends State<LexeConnectPage> {
               if (canApprove)
                 ValueListenableBuilder(
                   valueListenable: this.pendingDecision,
-                  builder: (context, pendingDecision, _) {
-                    final isPending = pendingDecision != null;
-                    return Column(
-                      children: [
-                        ExpirationRow(
-                          expiresAtMs: this.expiresAtMs,
-                          requestedMs: request.expiresAt,
-                          enabled: !isPending,
-                          bodyPadding: Space.s400,
-                        ),
-                        EditableInfoRow(
-                          label: "Label",
-                          bodyPadding: Space.s400,
-                          onTap: isPending
-                              ? null
-                              : this.labelFocusNode.requestFocus,
-                          child: TextField(
-                            controller: this.labelController,
-                            focusNode: this.labelFocusNode,
-                            enabled: !isPending,
-                            maxLines: 1,
-                            maxLength: 64,
-                            enableSuggestions: false,
-                            autocorrect: false,
-                            style: InfoRow.valueStyle,
-                            decoration: const InputDecoration.collapsed(
-                              hintText: "Optional",
-                              hintStyle: TextStyle(color: LxColors.grey650),
-                            ).copyWith(counterText: ""),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                  builder: (context, pendingDecision, _) =>
+                      CredentialDetailRows(
+                        expiresAtMs: this.expiresAtMs,
+                        requestedExpiresAtMs: request.expiresAt,
+                        labelController: this.labelController,
+                        enabled: pendingDecision == null,
+                      ),
                 )
               else ...[
                 // In requested order, unrecognized last.
@@ -685,13 +591,3 @@ class DestinationRow extends StatelessWidget {
 
 /// Monospace for raw ids, keeping the surrounding size and color.
 final TextStyle _monoStyle = TextStyle(fontFamily: Fonts.fontUIMono.fontFamily);
-
-extension on Scope {
-  IconData icon() => switch (this) {
-    Scope.readInfo || Scope.readPayments || Scope.read => LxIcons.view,
-    Scope.receive => LxIcons.receive,
-    Scope.manageChannels => LxIcons.openCloseChannel,
-    Scope.spend => LxIcons.send,
-    Scope.full => LxIcons.key,
-  };
-}
