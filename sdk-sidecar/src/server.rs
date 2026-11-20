@@ -28,6 +28,8 @@ use lexe::types::{
         PayableDetails as SdkPayableDetails, PaymentSyncSummary,
         RevokeClientRequest, UpdateClientRequest as SdkUpdateClientRequest,
         UpdatePersonalNoteRequest,
+        UpdateUserSettingsRequest as SdkUpdateUserSettingsRequest,
+        UserSettings,
         WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
         WaitForNextPaymentResponse,
         WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
@@ -48,8 +50,8 @@ use crate::{
         AnalyzeResponse, CheckAddressRequest, ClaimableDetails,
         HealthCheckResponse, ListPaymentsRequest, PayLnurlRequest, PayRequest,
         PayableDetails, SignupRequest, UpdateClientRequest,
-        UpdateHumanBitcoinAddressRequest, WaitForNextPaymentRequest,
-        WaitForPaymentRequest, WithdrawLnurlRequest,
+        UpdateHumanBitcoinAddressRequest, UpdateUserSettingsRequest,
+        WaitForNextPaymentRequest, WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     extract::{
         AuthExtractor, RequestAuth, WalletAndCredentialsExtractor,
@@ -143,6 +145,10 @@ pub(crate) fn router(state: Arc<RouterState>) -> Router<()> {
         .route("/v2/node/create_client", post(node::create_client))
         .route("/v2/node/update_client", put(node::update_client))
         .route("/v2/node/revoke_client", post(node::revoke_client))
+        .route(
+            "/v2/node/user_settings",
+            get(node::get_user_settings).put(node::update_user_settings),
+        )
         // v1 (legacy)
         .route("/v1/health", get(sidecar::health))
         .route("/v1/node/node_info", get(node::node_info))
@@ -966,6 +972,39 @@ mod node {
     ) -> Result<LxJson<ClientInfoResponse>, SdkApiError> {
         let resp = wallet
             .revoke_client(req)
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(get-user-settings)")]
+    pub(crate) async fn get_user_settings(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+    ) -> Result<LxJson<UserSettings>, SdkApiError> {
+        let resp = wallet
+            .get_user_settings()
+            .await
+            .map_err(SdkApiError::command)?;
+        Ok(LxJson(resp))
+    }
+
+    #[instrument(skip_all, name = "(update-user-settings)")]
+    pub(crate) async fn update_user_settings(
+        State(_): State<Arc<RouterState>>,
+        WalletExtractor(wallet): WalletExtractor,
+        LxJson(req): LxJson<UpdateUserSettingsRequest>,
+    ) -> Result<LxJson<UserSettings>, SdkApiError> {
+        let req = SdkUpdateUserSettingsRequest::new(
+            req.auto_withdraw_destination,
+            req.clear_auto_withdraw_destination,
+            req.auto_withdraw_threshold,
+            req.clear_auto_withdraw_threshold,
+            req.preferred_fiat_currency,
+        )
+        .map_err(SdkApiError::command)?;
+        let resp = wallet
+            .update_user_settings(req)
             .await
             .map_err(SdkApiError::command)?;
         Ok(LxJson(resp))

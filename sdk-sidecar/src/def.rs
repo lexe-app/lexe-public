@@ -22,7 +22,7 @@ use lexe::types::{
         NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
         PayOfferRequest, PayOnchainPreflightRequest,
         PayOnchainPreflightResponse, PayOnchainRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdatePersonalNoteRequest,
+        RevokeClientRequest, UpdatePersonalNoteRequest, UserSettings,
         WaitForNextPaymentResponse,
     },
     payment::Payment,
@@ -33,7 +33,8 @@ use crate::api::{
     AnalyzeResponse, CheckAddressRequest, HealthCheckResponse,
     ListPaymentsRequest, PayLnurlRequest, PayRequest, SignupRequest,
     UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
-    WaitForNextPaymentRequest, WaitForPaymentRequest, WithdrawLnurlRequest,
+    UpdateUserSettingsRequest, WaitForNextPaymentRequest,
+    WaitForPaymentRequest, WithdrawLnurlRequest,
 };
 
 /// The API that `lexe-sidecar` exposes to the SDK user.
@@ -480,4 +481,19 @@ pub trait UserSidecarApi {
         &self,
         req: &RevokeClientRequest,
     ) -> Result<ClientInfoResponse, SdkApiError>;
+
+    /// GET /v2/node/user_settings [`Empty`] -> [`UserSettings`]
+    ///
+    /// Get the node's [`UserSettings`].
+    async fn get_user_settings(&self) -> Result<UserSettings, SdkApiError>;
+
+    /// PUT /v2/node/user_settings [`UpdateUserSettingsRequest`]
+    ///                         -> [`UserSettings`]
+    ///
+    /// Update the node's [`UserSettings`], returning the updated settings.
+    /// Omitted settings are unchanged.
+    async fn update_user_settings(
+        &self,
+        req: &UpdateUserSettingsRequest,
+    ) -> Result<UserSettings, SdkApiError>;
 }

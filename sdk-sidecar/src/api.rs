@@ -13,8 +13,8 @@ use lexe::{
         auth::{Scope, UserPk},
         bitcoin::Amount,
         command::{
-            BitcoinOrFiat, BudgetReset, BudgetResetInterval,
-            PayLnurlRequest as SdkPayLnurlRequest,
+            AutoWithdrawDestination, BitcoinOrFiat, BudgetReset,
+            BudgetResetInterval, PayLnurlRequest as SdkPayLnurlRequest,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
         },
         payment::{
@@ -321,4 +321,18 @@ impl UpdateClientRequest {
             utc_offset_mins: self.budget_utc_offset_mins,
         }))
     }
+}
+
+/// Mirrors [`lexe::types::command::UpdateUserSettingsRequest`], but uses
+/// explicit set/clear flags in place of its `Option<Option<_>>` fields, which
+/// JSON cannot easily express.
+#[derive(Serialize, Deserialize)]
+pub struct UpdateUserSettingsRequest {
+    pub auto_withdraw_destination: Option<AutoWithdrawDestination>,
+    #[serde(default)]
+    pub clear_auto_withdraw_destination: bool,
+    pub auto_withdraw_threshold: Option<Amount>,
+    #[serde(default)]
+    pub clear_auto_withdraw_threshold: bool,
+    pub preferred_fiat_currency: Option<String>,
 }

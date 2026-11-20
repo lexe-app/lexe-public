@@ -15,7 +15,7 @@ use lexe::types::{
         NodeInfo, OpenChannelRequest, OpenChannelResponse, PayInvoiceRequest,
         PayOfferRequest, PayOnchainPreflightRequest,
         PayOnchainPreflightResponse, PayOnchainRequest, PaymentSyncSummary,
-        RevokeClientRequest, UpdatePersonalNoteRequest,
+        RevokeClientRequest, UpdatePersonalNoteRequest, UserSettings,
         WaitForNextPaymentResponse,
     },
     payment::Payment,
@@ -31,7 +31,8 @@ use crate::{
         AnalyzeResponse, CheckAddressRequest, HealthCheckResponse,
         ListPaymentsRequest, PayLnurlRequest, PayRequest, SignupRequest,
         UpdateClientRequest, UpdateHumanBitcoinAddressRequest,
-        WaitForNextPaymentRequest, WaitForPaymentRequest, WithdrawLnurlRequest,
+        UpdateUserSettingsRequest, WaitForNextPaymentRequest,
+        WaitForPaymentRequest, WithdrawLnurlRequest,
     },
     def::UserSidecarApi,
 };
@@ -442,6 +443,23 @@ impl UserSidecarApi for SidecarClient {
         let sidecar = &self.sidecar_url;
         let url = format!("{sidecar}/v2/node/revoke_client");
         let http_req = self.rest.post(url, req);
+        self.rest.send(http_req).await
+    }
+
+    async fn get_user_settings(&self) -> Result<UserSettings, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/user_settings");
+        let http_req = self.rest.get(url, &Empty {});
+        self.rest.send(http_req).await
+    }
+
+    async fn update_user_settings(
+        &self,
+        req: &UpdateUserSettingsRequest,
+    ) -> Result<UserSettings, SdkApiError> {
+        let sidecar = &self.sidecar_url;
+        let url = format!("{sidecar}/v2/node/user_settings");
+        let http_req = self.rest.put(url, req);
         self.rest.send(http_req).await
     }
 }
