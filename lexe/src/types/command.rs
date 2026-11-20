@@ -1628,22 +1628,22 @@ impl UpdateClientRequest {
         new_scopes: Option<BTreeSet<Scope>>,
         new_permissions: Option<BTreeSet<String>>,
     ) -> anyhow::Result<Self> {
-        let new_label = Self::set_or_clear(
+        let new_label = helpers::set_or_clear(
             label,
             clear_label,
             "`label` and `clear_label`",
         )?;
-        let new_expires_at = Self::set_or_clear(
+        let new_expires_at = helpers::set_or_clear(
             expires_at,
             clear_expiration,
             "the expiration and `clear_expiration`",
         )?;
-        let new_budget_limit = Self::set_or_clear(
+        let new_budget_limit = helpers::set_or_clear(
             budget_limit,
             clear_budget,
             "`budget_limit` and `clear_budget`",
         )?;
-        let new_budget_reset = Self::set_or_clear(
+        let new_budget_reset = helpers::set_or_clear(
             budget_reset,
             clear_budget_reset,
             "a reset schedule and `clear_budget_reset`",
@@ -1658,18 +1658,6 @@ impl UpdateClientRequest {
             new_budget_limit,
             new_budget_reset,
         })
-    }
-
-    /// The `Option<Option<_>>` for a `value` and its `clear` flag:
-    /// `Some(None)` clears the field and `None` leaves it unchanged. Errors if
-    /// both are set, naming them `what`.
-    fn set_or_clear<T>(
-        value: Option<T>,
-        clear: bool,
-        what: &str,
-    ) -> anyhow::Result<Option<Option<T>>> {
-        ensure!(!(clear && value.is_some()), "Set only one of {what}");
-        Ok(if clear { Some(None) } else { value.map(Some) })
     }
 }
 
@@ -2127,6 +2115,36 @@ const_assert_usize_eq!(
     100_000
 );
 
+impl UpdateUserSettingsRequest {
+    /// Build a request from explicit set/clear flags, for wrappers whose
+    /// serialization can't express the `Option<Option<_>>` fields. A value and
+    /// its `clear_*` flag can't both be set.
+    pub fn new(
+        auto_withdraw_destination: Option<AutoWithdrawDestination>,
+        clear_auto_withdraw_destination: bool,
+        auto_withdraw_threshold: Option<Amount>,
+        clear_auto_withdraw_threshold: bool,
+        new_preferred_fiat_currency: Option<String>,
+    ) -> anyhow::Result<Self> {
+        let new_auto_withdraw_destination = helpers::set_or_clear(
+            auto_withdraw_destination,
+            clear_auto_withdraw_destination,
+            "the destination and `clear_auto_withdraw_destination`",
+        )?;
+        let new_auto_withdraw_threshold = helpers::set_or_clear(
+            auto_withdraw_threshold,
+            clear_auto_withdraw_threshold,
+            "the threshold and `clear_auto_withdraw_threshold`",
+        )?;
+
+        Ok(Self {
+            new_auto_withdraw_destination,
+            new_auto_withdraw_threshold,
+            new_preferred_fiat_currency,
+        })
+    }
+}
+
 impl TryFrom<UpdateUserSettingsRequest> for command::UpdateUserSettingsRequest {
     type Error = anyhow::Error;
 
@@ -2141,6 +2159,22 @@ impl TryFrom<UpdateUserSettingsRequest> for command::UpdateUserSettingsRequest {
             auto_withdraw_threshold: req.new_auto_withdraw_threshold,
             preferred_fiat_currency,
         })
+    }
+}
+
+mod helpers {
+    use super::*;
+
+    /// The `Option<Option<_>>` for a `value` and its `clear` flag:
+    /// `Some(None)` clears the field and `None` leaves it unchanged. Errors if
+    /// both are set, naming them `what`.
+    pub(super) fn set_or_clear<T>(
+        value: Option<T>,
+        clear: bool,
+        what: &str,
+    ) -> anyhow::Result<Option<Option<T>>> {
+        ensure!(!(clear && value.is_some()), "Set only one of {what}");
+        Ok(if clear { Some(None) } else { value.map(Some) })
     }
 }
 

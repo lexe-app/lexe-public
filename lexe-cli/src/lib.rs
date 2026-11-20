@@ -24,9 +24,10 @@ use lexe::{
             UserChannelId,
         },
         command::{
-            AnalyzeRequest, AnalyzeResponse, BitcoinOrFiat, Budget, BudgetInfo,
-            BudgetReset, BudgetResetInterval, CancelPaymentRequest,
-            CashAppBuyRequest, ChannelDetails, ClientInfo, CloseChannelRequest,
+            AnalyzeRequest, AnalyzeResponse, AutoWithdrawDestination,
+            BitcoinOrFiat, Budget, BudgetInfo, BudgetReset,
+            BudgetResetInterval, CancelPaymentRequest, CashAppBuyRequest,
+            ChannelDetails, ClientInfo, CloseChannelRequest,
             CreateClientRequest, CreateInvoiceRequest, CreateOfferRequest,
             CreatePayerProofRequest, CredentialKind, GetPaymentByIdRequest,
             GetPaymentRequest, GetUpdatedPaymentsRequest, OpenChannelRequest,
@@ -34,7 +35,8 @@ use lexe::{
             PayOnchainPreflightRequest, PayOnchainRequest, PayRequest,
             PayerProofDisclosures, PaymentSyncSummary, RevokeClientRequest,
             UpdateClientRequest, UpdatePersonalNoteRequest,
-            WaitForNextPaymentRequest, WithdrawLnurlRequest,
+            UpdateUserSettingsRequest, WaitForNextPaymentRequest,
+            WithdrawLnurlRequest,
         },
         payment::{
             ClientPaymentId, Order, Payment, PaymentCreatedIndex,
@@ -207,6 +209,8 @@ pub enum LexeCommand {
     CreateClient(CreateClientArgs),
     UpdateClient(UpdateClientArgs),
     RevokeClient(RevokeClientArgs),
+    GetUserSettings(GetUserSettingsArgs),
+    UpdateUserSettings(UpdateUserSettingsArgs),
     Export(ExportArgs),
 }
 
@@ -381,6 +385,8 @@ pub async fn run(mut lexe_args: LexeArgs) -> anyhow::Result<()> {
         LexeCommand::CreateClient(a) => a.run(&wallet).await,
         LexeCommand::UpdateClient(a) => a.run(&wallet).await,
         LexeCommand::RevokeClient(a) => a.run(&wallet).await,
+        LexeCommand::GetUserSettings(a) => a.run(&wallet).await,
+        LexeCommand::UpdateUserSettings(a) => a.run(&wallet).await,
         LexeCommand::Export(a) => a.run(&credentials),
     }
 }
@@ -3232,6 +3238,109 @@ impl RevokeClientArgs {
         println!("Client revoked.");
         println!();
         helpers::print_client_info(&resp.client)
+    }
+}
+
+// --- `get-user-settings` --- //
+
+const USER_SETTINGS_HELP: &str = "\
+Supported settings:
+
+Auto-withdraw
+    Set an auto-withdraw threshold and destination to run
+    auto-withdrawals. While online, the node periodically checks its
+    total balance (on-chain and Lightning), and once the balance
+    exceeds the threshold, the node withdraws all funds to the
+    destination. Auto-withdrawals will be paused while on-chain fees
+    are high.
+
+Preferred fiat currency
+    Set a preferred fiat currency for the node to default to when
+    needed. Apps such as the Lexe app may also use it, e.g. to display
+    fiat amounts.";
+
+#[derive(Parser)]
+#[command(
+    about = "Get your node's user settings",
+    long_about = format!(
+        "Get your node's user settings.\n\n{USER_SETTINGS_HELP}"
+    ),
+    help_template = HELP_TEMPLATE,
+)]
+pub struct GetUserSettingsArgs {}
+
+impl GetUserSettingsArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let settings = wallet.get_user_settings().await?;
+        helpers::print_json_pretty(&settings)
+    }
+}
+
+// --- `update-user-settings` --- //
+
+#[derive(Parser)]
+#[command(
+    about = "Update your node's user settings",
+    long_about = format!(
+        "Update your node's user settings.\n\
+        \n\
+        Omitted settings are unchanged.\n\
+        \n\
+        {USER_SETTINGS_HELP}"
+    ),
+    help_template = HELP_TEMPLATE,
+)]
+pub struct UpdateUserSettingsArgs {
+    #[arg(
+        long,
+        conflicts_with = "clear_auto_withdraw_destination",
+        help = "Set the auto-withdraw destination to this on-chain address.\n\
+        Must be valid for the network this wallet is configured for.\n\
+        Requires the close_channel and pay_onchain permissions, and a\n\
+        client with no spending limit."
+    )]
+    auto_withdraw_address: Option<Address<NetworkUnchecked>>,
+
+    /// Clear the auto-withdraw destination.
+    #[arg(long)]
+    clear_auto_withdraw_destination: bool,
+
+    #[arg(
+        long,
+        conflicts_with = "clear_auto_withdraw_threshold",
+        help = "Set the total balance, in satoshis, above which\n\
+        auto-withdrawal runs. Minimum: 100,000.\n\
+        Requires the close_channel and pay_onchain permissions, and a\n\
+        client with no spending limit."
+    )]
+    auto_withdraw_threshold_sats: Option<Amount>,
+
+    /// Clear the auto-withdraw threshold.
+    #[arg(long)]
+    clear_auto_withdraw_threshold: bool,
+
+    #[arg(
+        long,
+        help = "Set the preferred fiat currency, as an uppercase ISO 4217\n\
+        code, e.g. \"USD\"."
+    )]
+    preferred_fiat_currency: Option<String>,
+}
+
+impl UpdateUserSettingsArgs {
+    async fn run(self, wallet: &LexeWallet) -> anyhow::Result<()> {
+        let auto_withdraw_destination = self
+            .auto_withdraw_address
+            .map(|address| AutoWithdrawDestination::Address { address });
+        let req = UpdateUserSettingsRequest::new(
+            auto_withdraw_destination,
+            self.clear_auto_withdraw_destination,
+            self.auto_withdraw_threshold_sats,
+            self.clear_auto_withdraw_threshold,
+            self.preferred_fiat_currency,
+        )?;
+        let settings = wallet.update_user_settings(req).await?;
+        helpers::print_json_pretty(&settings)
     }
 }
 
