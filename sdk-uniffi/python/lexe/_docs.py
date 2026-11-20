@@ -1638,6 +1638,64 @@ Raises:
     FfiError: If ``client_pk`` is malformed or the request fails.
 """)
 
+_set_method_doc(LexeWallet, "get_user_settings", """\
+Get the node's :class:`UserSettings`.
+
+Returns:
+    The node's current :class:`UserSettings`.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    settings = wallet.get_user_settings()
+    print(settings.auto_withdraw_destination)
+""")
+
+_set_method_doc(LexeWallet, "update_user_settings", """\
+Update the node's :class:`UserSettings`, returning the updated settings.
+Omitted settings are unchanged.
+
+Args:
+    auto_withdraw_destination: A new :class:`AutoWithdrawDestination`, or
+        ``None`` to leave it unchanged. Requires the ``close_channel`` and
+        ``pay_onchain`` permissions, and a client with no spending limit.
+    clear_auto_withdraw_destination: Remove the auto-withdraw destination.
+        Conflicts with ``auto_withdraw_destination``.
+    auto_withdraw_threshold_sats: A new auto-withdraw threshold, in satoshis,
+        or ``None`` to leave it unchanged. Must be at least 100,000. Requires
+        the ``close_channel`` and ``pay_onchain`` permissions, and a client
+        with no spending limit.
+    clear_auto_withdraw_threshold: Remove the auto-withdraw threshold.
+        Conflicts with ``auto_withdraw_threshold_sats``.
+    preferred_fiat_currency: A new preferred fiat currency, as an uppercase
+        ISO 4217 code, e.g. ``"USD"``, or ``None`` to leave it unchanged.
+
+Returns:
+    The updated :class:`UserSettings`.
+
+Raises:
+    FfiError: If the address or currency code is malformed, the arguments
+        conflict, or the request fails.
+
+Example::
+
+    # Withdraw everything to a fixed address once the balance exceeds
+    # 1,000,000 sats.
+    settings = wallet.update_user_settings(
+        auto_withdraw_destination=AutoWithdrawDestination.ADDRESS(
+            address="bc1q...",
+        ),
+        auto_withdraw_threshold_sats=1_000_000,
+    )
+
+    # Clear the auto-withdraw destination, disabling auto-withdraws.
+    settings = wallet.update_user_settings(
+        clear_auto_withdraw_destination=True,
+    )
+""")
+
 # ======================= #
 # --- AsyncLexeWallet --- #
 # ======================= #
@@ -2779,6 +2837,64 @@ Raises:
     FfiError: If ``client_pk`` is malformed or the request fails.
 """)
 
+_set_method_doc(AsyncLexeWallet, "get_user_settings", """\
+Get the node's :class:`UserSettings`.
+
+Returns:
+    The node's current :class:`UserSettings`.
+
+Raises:
+    FfiError: If the request fails.
+
+Example::
+
+    settings = await wallet.get_user_settings()
+    print(settings.auto_withdraw_destination)
+""")
+
+_set_method_doc(AsyncLexeWallet, "update_user_settings", """\
+Update the node's :class:`UserSettings`, returning the updated settings.
+Omitted settings are unchanged.
+
+Args:
+    auto_withdraw_destination: A new :class:`AutoWithdrawDestination`, or
+        ``None`` to leave it unchanged. Requires the ``close_channel`` and
+        ``pay_onchain`` permissions, and a client with no spending limit.
+    clear_auto_withdraw_destination: Remove the auto-withdraw destination.
+        Conflicts with ``auto_withdraw_destination``.
+    auto_withdraw_threshold_sats: A new auto-withdraw threshold, in satoshis,
+        or ``None`` to leave it unchanged. Must be at least 100,000. Requires
+        the ``close_channel`` and ``pay_onchain`` permissions, and a client
+        with no spending limit.
+    clear_auto_withdraw_threshold: Remove the auto-withdraw threshold.
+        Conflicts with ``auto_withdraw_threshold_sats``.
+    preferred_fiat_currency: A new preferred fiat currency, as an uppercase
+        ISO 4217 code, e.g. ``"USD"``, or ``None`` to leave it unchanged.
+
+Returns:
+    The updated :class:`UserSettings`.
+
+Raises:
+    FfiError: If the address or currency code is malformed, the arguments
+        conflict, or the request fails.
+
+Example::
+
+    # Withdraw everything to a fixed address once the balance exceeds
+    # 1,000,000 sats.
+    settings = await wallet.update_user_settings(
+        auto_withdraw_destination=AutoWithdrawDestination.ADDRESS(
+            address="bc1q...",
+        ),
+        auto_withdraw_threshold_sats=1_000_000,
+    )
+
+    # Clear the auto-withdraw destination, disabling auto-withdraws.
+    settings = await wallet.update_user_settings(
+        clear_auto_withdraw_destination=True,
+    )
+""")
+
 # ================ #
 # --- Payments --- #
 # ================ #
@@ -3486,6 +3602,56 @@ How often a budget's limit resets.
 - **WEEKLY** -- At the start of each week, on Sunday.
 - **MONTHLY** -- At the start of each month.
 - **YEARLY** -- At the start of each year.
+"""
+
+# ===================== #
+# --- User settings --- #
+# ===================== #
+
+lexe.UserSettings.__doc__ = """\
+The user's node settings.
+
+**Supported settings**
+
+**Auto-withdraw**: Set ``auto_withdraw_threshold_sats`` and
+``auto_withdraw_destination`` to run auto-withdrawals. While online, the node
+periodically checks its total balance (on-chain and Lightning), and once the
+balance exceeds ``auto_withdraw_threshold_sats``, the node withdraws all funds
+to ``auto_withdraw_destination``. Auto-withdrawals will be paused while
+on-chain fees are high.
+
+**Preferred fiat currency**: Set a ``preferred_fiat_currency`` for the node to
+default to when needed. Apps such as the Lexe app may also use it, e.g. to
+display fiat amounts.
+
+Attributes:
+    auto_withdraw_destination: Where auto-withdrawals are sent, as an
+        :class:`AutoWithdrawDestination`. ``None`` if not set.
+    auto_withdraw_threshold_sats: The total balance, in satoshis, above which
+        auto-withdrawal runs. At least 100,000. ``None`` if not set.
+    preferred_fiat_currency: The preferred fiat currency, as an ISO 4217
+        code, e.g. ``"USD"``. ``None`` if never set.
+"""
+
+lexe.AutoWithdrawDestination.__doc__ = """\
+Where auto-withdrawals are sent.
+
+Variants:
+
+- **ADDRESS** -- A fixed on-chain address, valid for the node's network. Every
+  withdrawal pays the same address. Attributes:
+
+  - ``address``: The on-chain address.
+
+- **UNKNOWN** -- Unknown destination from a newer node version.
+
+Example::
+
+    match settings.auto_withdraw_destination:
+        case AutoWithdrawDestination.ADDRESS(address=address):
+            print(f"Auto-withdraw address: {address}")
+        case None:
+            print("No auto-withdraw destination")
 """
 
 # ================= #

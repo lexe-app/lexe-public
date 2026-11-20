@@ -45,6 +45,7 @@ use lexe::{
         command::{
             AnalyzeRequest as SdkAnalyzeRequest,
             AnalyzeResponse as SdkAnalyzeResponse,
+            AutoWithdrawDestination as SdkAutoWithdrawDestination,
             BitcoinOrFiat as SdkBitcoinOrFiat, Budget as SdkBudget,
             BudgetInfo as SdkBudgetInfo, BudgetReset as SdkBudgetReset,
             BudgetResetInterval as SdkBudgetResetInterval,
@@ -88,6 +89,8 @@ use lexe::{
             RevokeClientRequest as SdkRevokeClientRequest,
             UpdateClientRequest as SdkUpdateClientRequest,
             UpdatePersonalNoteRequest,
+            UpdateUserSettingsRequest as SdkUpdateUserSettingsRequest,
+            UserSettings as SdkUserSettings,
             WaitForNextPaymentRequest as SdkWaitForNextPaymentRequest,
             WaitForNextPaymentResponse as SdkWaitForNextPaymentResponse,
             WithdrawLnurlRequest as SdkWithdrawLnurlRequest,
@@ -2017,6 +2020,56 @@ impl AsyncLexeWallet {
         let resp = self.inner.revoke_client(req).await?;
         Ok(ClientInfo::from(resp.client))
     }
+
+    // --- User settings --- //
+
+    /// Get the node's [`UserSettings`].
+    pub async fn get_user_settings(&self) -> Result<UserSettings, FfiError> {
+        let resp = self.inner.get_user_settings().await?;
+        Ok(UserSettings::from(resp))
+    }
+
+    /// Update the node's [`UserSettings`], returning the updated settings.
+    /// Omitted settings are unchanged.
+    ///
+    /// Set `clear_auto_withdraw_destination` to remove the destination
+    /// (conflicts with `auto_withdraw_destination`). Set
+    /// `clear_auto_withdraw_threshold` to remove the threshold (conflicts with
+    /// `auto_withdraw_threshold_sats`). Setting `auto_withdraw_destination` or
+    /// `auto_withdraw_threshold_sats` requires the `close_channel` and
+    /// `pay_onchain` permissions, and a client with no spending limit.
+    #[uniffi::method(default(
+        auto_withdraw_destination = None,
+        clear_auto_withdraw_destination = false,
+        auto_withdraw_threshold_sats = None,
+        clear_auto_withdraw_threshold = false,
+        preferred_fiat_currency = None,
+    ))]
+    pub async fn update_user_settings(
+        &self,
+        auto_withdraw_destination: Option<AutoWithdrawDestination>,
+        clear_auto_withdraw_destination: bool,
+        auto_withdraw_threshold_sats: Option<u64>,
+        clear_auto_withdraw_threshold: bool,
+        preferred_fiat_currency: Option<String>,
+    ) -> Result<UserSettings, FfiError> {
+        let auto_withdraw_destination = auto_withdraw_destination
+            .map(SdkAutoWithdrawDestination::try_from)
+            .transpose()?;
+        let auto_withdraw_threshold = auto_withdraw_threshold_sats
+            .map(SdkAmount::try_from_sats_u64)
+            .transpose()
+            .context("Invalid auto_withdraw_threshold")?;
+        let req = SdkUpdateUserSettingsRequest::new(
+            auto_withdraw_destination,
+            clear_auto_withdraw_destination,
+            auto_withdraw_threshold,
+            clear_auto_withdraw_threshold,
+            preferred_fiat_currency,
+        )?;
+        let resp = self.inner.update_user_settings(req).await?;
+        Ok(UserSettings::from(resp))
+    }
 }
 
 // ========================== //
@@ -3306,6 +3359,56 @@ impl BlockingLexeWallet {
         let req = SdkRevokeClientRequest { client_pk };
         let resp = self.inner.revoke_client(req)?;
         Ok(ClientInfo::from(resp.client))
+    }
+
+    // --- User settings --- //
+
+    /// Get the node's [`UserSettings`].
+    pub fn get_user_settings(&self) -> Result<UserSettings, FfiError> {
+        let resp = self.inner.get_user_settings()?;
+        Ok(UserSettings::from(resp))
+    }
+
+    /// Update the node's [`UserSettings`], returning the updated settings.
+    /// Omitted settings are unchanged.
+    ///
+    /// Set `clear_auto_withdraw_destination` to remove the destination
+    /// (conflicts with `auto_withdraw_destination`). Set
+    /// `clear_auto_withdraw_threshold` to remove the threshold (conflicts with
+    /// `auto_withdraw_threshold_sats`). Setting `auto_withdraw_destination` or
+    /// `auto_withdraw_threshold_sats` requires the `close_channel` and
+    /// `pay_onchain` permissions, and a client with no spending limit.
+    #[uniffi::method(default(
+        auto_withdraw_destination = None,
+        clear_auto_withdraw_destination = false,
+        auto_withdraw_threshold_sats = None,
+        clear_auto_withdraw_threshold = false,
+        preferred_fiat_currency = None,
+    ))]
+    pub fn update_user_settings(
+        &self,
+        auto_withdraw_destination: Option<AutoWithdrawDestination>,
+        clear_auto_withdraw_destination: bool,
+        auto_withdraw_threshold_sats: Option<u64>,
+        clear_auto_withdraw_threshold: bool,
+        preferred_fiat_currency: Option<String>,
+    ) -> Result<UserSettings, FfiError> {
+        let auto_withdraw_destination = auto_withdraw_destination
+            .map(SdkAutoWithdrawDestination::try_from)
+            .transpose()?;
+        let auto_withdraw_threshold = auto_withdraw_threshold_sats
+            .map(SdkAmount::try_from_sats_u64)
+            .transpose()
+            .context("Invalid auto_withdraw_threshold")?;
+        let req = SdkUpdateUserSettingsRequest::new(
+            auto_withdraw_destination,
+            clear_auto_withdraw_destination,
+            auto_withdraw_threshold,
+            clear_auto_withdraw_threshold,
+            preferred_fiat_currency,
+        )?;
+        let resp = self.inner.update_user_settings(req)?;
+        Ok(UserSettings::from(resp))
     }
 }
 
@@ -4928,5 +5031,71 @@ impl BudgetArgs {
             interval_count: self.interval_count,
             utc_offset_mins: self.utc_offset_mins,
         }))
+    }
+}
+
+// ===================== //
+// --- User settings --- //
+// ===================== //
+
+/// The user's node settings.
+#[derive(Clone, uniffi::Record)]
+pub struct UserSettings {
+    /// Where auto-withdrawals are sent. `None` if not set.
+    pub auto_withdraw_destination: Option<AutoWithdrawDestination>,
+    /// The total balance, in satoshis, above which auto-withdrawal runs. At
+    /// least 100,000. `None` if not set.
+    pub auto_withdraw_threshold_sats: Option<u64>,
+    /// The preferred fiat currency, as an ISO 4217 code. `None` if never set.
+    pub preferred_fiat_currency: Option<String>,
+}
+
+impl From<SdkUserSettings> for UserSettings {
+    fn from(settings: SdkUserSettings) -> Self {
+        Self {
+            auto_withdraw_destination: settings
+                .auto_withdraw_destination
+                .map(AutoWithdrawDestination::from),
+            auto_withdraw_threshold_sats: settings
+                .auto_withdraw_threshold
+                .map(|amt| amt.sats_u64()),
+            preferred_fiat_currency: settings.preferred_fiat_currency,
+        }
+    }
+}
+
+/// Where auto-withdrawals are sent.
+#[derive(Clone, uniffi::Enum)]
+pub enum AutoWithdrawDestination {
+    /// A fixed on-chain address, valid for the node's network. Every
+    /// withdrawal pays the same address.
+    Address { address: String },
+    /// Unknown destination from a newer version of node.
+    Unknown,
+}
+
+impl From<SdkAutoWithdrawDestination> for AutoWithdrawDestination {
+    fn from(destination: SdkAutoWithdrawDestination) -> Self {
+        match destination {
+            SdkAutoWithdrawDestination::Address { address } => Self::Address {
+                address: address.assume_checked_ref().to_string(),
+            },
+            SdkAutoWithdrawDestination::Unknown => Self::Unknown,
+        }
+    }
+}
+
+impl TryFrom<AutoWithdrawDestination> for SdkAutoWithdrawDestination {
+    type Error = anyhow::Error;
+
+    fn try_from(destination: AutoWithdrawDestination) -> anyhow::Result<Self> {
+        match destination {
+            AutoWithdrawDestination::Address { address } => {
+                let address = SdkAddress::from_str(&address)
+                    .context("Invalid address")?;
+                Ok(Self::Address { address })
+            }
+            AutoWithdrawDestination::Unknown => Ok(Self::Unknown),
+        }
     }
 }
