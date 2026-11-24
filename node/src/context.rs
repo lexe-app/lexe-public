@@ -198,7 +198,6 @@ impl MegaContext {
         ) = tokio::join!(
             LexeEsplora::init_any(
                 crate::client::USER_AGENT_EXTERNAL,
-                rng,
                 esplora_urls,
                 untrusted_network,
                 mega_shutdown.clone(),

@@ -20,7 +20,7 @@ pub struct RecoveryArgs {
     /// required if the recovery dir has one from a previous run.
     pub channel_manager_path: Option<PathBuf>,
     pub close_mode: CloseMode,
-    /// Esplora API URLs, tried in a random order until one works.
+    /// Esplora API URLs, tried in order until one works.
     pub esplora_urls: Vec<String>,
     /// The encrypted channel monitor backups from the user's Google Drive.
     pub monitor_paths: Vec<PathBuf>,

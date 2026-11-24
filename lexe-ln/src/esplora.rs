@@ -17,7 +17,6 @@ use lexe_common::{
         priority::{ConfirmationPriority, ToNumBlocks},
     },
 };
-use lexe_crypto::rng::{RngCore, RngSliceExt};
 use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FEERATE_FLOOR_SATS_PER_KW, FeeEstimator,
@@ -44,6 +43,12 @@ const FALLBACK_FEE_RATE: bitcoin::FeeRate =
 
 /// The timeout we'll use for requests to our Esplora backends.
 pub const ESPLORA_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// How long [`LexeEsplora::init_any`] gives each Esplora url to initialize.
+// Long enough for the client's full retry backoff (~16s) against a url that
+// fails fast, and short enough that a slow url leaves the urls after it time
+// before a meganode's boot deadline.
+const INIT_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Whether this Esplora URL is contained in the whitelist for this network.
 /// `include_lexe` also allows Lexe-operated mainnet Esplora endpoints.
@@ -247,28 +252,26 @@ pub struct LexeEsplora {
 }
 
 impl LexeEsplora {
-    /// Try initializing a [`LexeEsplora`] from *any* of the given Esplora urls,
-    /// trying all of the URLs until one succeeds or all fail. If successful,
-    /// returns the client, the fee refresher task, and the chosen esplora url.
+    /// Try initializing a [`LexeEsplora`] from the given Esplora urls in
+    /// priority order, until one succeeds or all fail. If successful, returns
+    /// the client, the fee refresher task, and the chosen esplora url.
     pub async fn init_any(
         user_agent: &'static str,
-        rng: &mut impl RngCore,
-        mut esplora_urls: Vec<String>,
+        esplora_urls: Vec<String>,
         network: Network,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>, String)>
     {
-        // Randomize the URL ordering for some basic load balancing
-        esplora_urls.shuffle(rng);
-
         ensure!(!esplora_urls.is_empty(), "No urls provided");
 
         let mut err_msgs = Vec::new();
         for url in esplora_urls {
             info!("Initializing Esplora from url: {url}");
-            let init_result =
-                Self::init(user_agent, url.clone(), network, shutdown.clone())
-                    .await;
+            let init =
+                Self::init(user_agent, url.clone(), network, shutdown.clone());
+            let init_result = time::timeout(INIT_TIMEOUT, init)
+                .await
+                .unwrap_or_else(|_| Err(anyhow!("Timed out")));
 
             match init_result {
                 Ok((client, fee_estimates, task)) => {

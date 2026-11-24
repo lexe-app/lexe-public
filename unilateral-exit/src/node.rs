@@ -123,7 +123,6 @@ impl RecoveryNode {
         let (esplora, fee_estimates, refresh_fees_task, _esplora_url) =
             LexeEsplora::init_any(
                 "unilateral-exit",
-                &mut rng,
                 args.esplora_urls.clone(),
                 network,
                 shutdown.clone(),
