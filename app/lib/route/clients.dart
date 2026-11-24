@@ -10,6 +10,7 @@ import 'package:app_rs_dart/ffi/types.dart'
         BitcoinOrFiat_Bitcoin,
         BitcoinOrFiat_Fiat,
         Budget,
+        BudgetInfo,
         BudgetReset,
         BudgetResetInterval,
         Network,
@@ -271,6 +272,20 @@ class ClientListEntry extends StatelessWidget {
     String formatFull(int ms) => date_format.formatDateFull(
       DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true),
     );
+    List<String> budgetLines(BudgetInfo budget) {
+      final reset = budget.reset;
+      final limit = formatBudgetLimit(
+        budget.limit,
+        interval: reset?.interval,
+        intervalCount: reset?.intervalCount ?? 1,
+      );
+      return [
+        "budget: $limit",
+        "remaining: ${formatBudgetAmount(budget.spendable)}",
+        if (reset != null) "next reset: ${formatFull(reset.nextReset)}",
+      ];
+    }
+
     final expiresAtMs = client.expiresAt;
 
     final subtitleLines = [
@@ -278,6 +293,7 @@ class ClientListEntry extends StatelessWidget {
         "scopes: ${client.scopes.map((scope) => scope.toStringId()).join(" ")}",
       if (client.permissions.isNotEmpty)
         "permissions: ${client.permissions.join(" ")}",
+      if (client.budget case final budget?) ...budgetLines(budget),
       "created: ${formatFull(client.createdAt)}",
       if (expiresAtMs != null) "expires: ${formatFull(expiresAtMs)}",
       "public key: ${client.pubkey.substring(0, 12)}…",
@@ -2275,6 +2291,21 @@ String formatBudgetAmount(BitcoinOrFiat amount) => switch (amount) {
   BitcoinOrFiat_Fiat(:final amount, :final currency) =>
     "${currency_format.formatFiat(double.parse(amount), currency)} $currency",
 };
+
+/// Format a budget's limit and period, e.g. "₿20,000 every month",
+/// "$20.00 USD every 2 weeks", or, for a null [interval], "₿20,000 in total".
+String formatBudgetLimit(
+  BitcoinOrFiat limit, {
+  required BudgetResetInterval? interval,
+  required int intervalCount,
+}) {
+  final amount = formatBudgetAmount(limit);
+  final period = formatBudgetPeriod(
+    interval: interval,
+    intervalCount: intervalCount,
+  );
+  return "$amount $period";
+}
 
 /// Format a budget's period, e.g. "every month", "every 2 weeks", or, for a
 /// null [interval], "in total".
