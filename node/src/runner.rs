@@ -959,6 +959,7 @@ mod helpers {
         let MegaArgs {
             mega_id: _,
             backend_url,
+            blockstream_token: _,
 
             lease_lifetime_secs,
             lease_renewal_interval_secs,

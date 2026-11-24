@@ -30,6 +30,7 @@ pub async fn run(rng: &mut impl Crng, args: MegaArgs) -> anyhow::Result<()> {
         args.lsp_url.clone(),
         args.lsp.node_pk,
         args.runner_url.clone(),
+        args.blockstream_token.clone(),
         args.oauth.clone(),
         args.partners.clone(),
         args.usernode_sync_timeout_secs,

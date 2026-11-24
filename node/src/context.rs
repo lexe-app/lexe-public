@@ -6,7 +6,10 @@ use std::{
 
 use anyhow::{Context, anyhow, ensure};
 use lexe_api::{
-    cli::{OAuthConfig, node::VssProviderConfig},
+    cli::{
+        OAuthConfig,
+        node::{BlockstreamToken, VssProviderConfig},
+    },
     def::NodeLspApi,
     types::{UserLeaseId, partners::PartnersInfo},
 };
@@ -109,6 +112,7 @@ impl MegaContext {
         lsp_url: String,
         lsp_node_pk: NodePk,
         runner_url: String,
+        blockstream_token: Option<BlockstreamToken>,
         gdrive_oauth_config: Option<OAuthConfig>,
         partners: PartnersInfo,
         usernode_sync_timeout_secs: Option<u64>,
@@ -199,6 +203,7 @@ impl MegaContext {
             LexeEsplora::init_any(
                 crate::client::USER_AGENT_EXTERNAL,
                 esplora_urls,
+                blockstream_token.as_ref().map(|token| token.0.as_str()),
                 untrusted_network,
                 mega_shutdown.clone(),
             ),

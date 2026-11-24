@@ -156,9 +156,9 @@ pub const STAGING_LSP_DNS: &str = "lsp.staging.lexe.app";
 // e.g. "https://testnet.ltbl.io/api/fee-estimates"
 
 pub const MAINNET_LEXE_MEMPOOL_ESPLORA: &str = "https://lexe.mempool.space/api";
-// Introduced in node-v0.6.8, lsp-v0.6.28
-pub const MAINNET_LEXE_BLOCKSTREAM_ESPLORA: &str =
-    "https://ipwl.blockstream.info/api";
+// Requires a bearer token. Introduced in node-v0.10.10
+pub const MAINNET_ENTERPRISE_BLOCKSTREAM_ESPLORA: &str =
+    "https://enterprise.blockstream.info/api";
 pub const MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/api";
 // Introduced in node-v0.10.8
@@ -171,7 +171,7 @@ pub const MAINNET_LEXE_ESPLORA: [&str; 3] = [
 /// Usernode mainnet esplora whitelist.
 pub const MAINNET_ESPLORA_WHITELIST: [&str; 4] = [
     MAINNET_LEXE_MEMPOOL_ESPLORA,
-    MAINNET_LEXE_BLOCKSTREAM_ESPLORA,
+    MAINNET_ENTERPRISE_BLOCKSTREAM_ESPLORA,
     MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA,
     MAINNET_PUBLIC_MEMPOOL_ESPLORA,
 ];
@@ -183,16 +183,15 @@ pub const MAINNET_ESPLORA_WHITELIST_INCLUDING_LEXE: [&str; 7] =
 // Introduced in node-v0.7.12
 pub const TESTNET3_LEXE_MEMPOOL_ESPLORA: &str =
     "https://lexe.mempool.space/testnet/api";
-// Introduced in node-v0.6.8, lsp-v0.6.28
-// NOTE: our ipwl doesn't currently work for testnet3
-pub const TESTNET3_LEXE_BLOCKSTREAM_ESPLORA: &str =
-    "https://ipwl.blockstream.info/testnet/api";
+// Requires a bearer token. Introduced in node-v0.10.10
+pub const TESTNET3_ENTERPRISE_BLOCKSTREAM_ESPLORA: &str =
+    "https://enterprise.blockstream.info/testnet/api";
 pub const TESTNET3_PUBLIC_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
 pub const TESTNET3_LTBL_ESPLORA: &str = "https://testnet.ltbl.io/api";
 pub const TESTNET3_LEXE_ESPLORA: &str = "https://esplora.staging.lexe.app/api";
 pub const TESTNET3_ESPLORA_WHITELIST: [&str; 5] = [
-    TESTNET3_LEXE_BLOCKSTREAM_ESPLORA,
+    TESTNET3_ENTERPRISE_BLOCKSTREAM_ESPLORA,
     TESTNET3_PUBLIC_BLOCKSTREAM_ESPLORA,
     TESTNET3_LEXE_ESPLORA,
     TESTNET3_LEXE_MEMPOOL_ESPLORA,

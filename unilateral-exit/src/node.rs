@@ -124,6 +124,7 @@ impl RecoveryNode {
             LexeEsplora::init_any(
                 "unilateral-exit",
                 args.esplora_urls.clone(),
+                None,
                 network,
                 shutdown.clone(),
             )

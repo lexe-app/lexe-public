@@ -247,6 +247,7 @@ mod helpers {
         let mega_args = MegaArgs {
             mega_id: rng.gen_u16(),
             backend_url: String::new(),
+            blockstream_token: None,
             // DEFAULT_USER_LEASE_LIFETIME
             lease_lifetime_secs: 60,
             // DEFAULT_USER_LEASE_RENEWAL_INTERVAL

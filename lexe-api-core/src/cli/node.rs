@@ -24,6 +24,12 @@ pub struct MegaArgs {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub backend_url: String,
 
+    /// Bearer token for Blockstream's enterprise Esplora, which is skipped
+    /// without one.
+    // compat: Added in node-v0.10.10.
+    #[serde(default)]
+    pub blockstream_token: Option<BlockstreamToken>,
+
     /// Maximum duration for user node leases (in seconds).
     pub lease_lifetime_secs: u64,
 
@@ -133,6 +139,15 @@ pub struct MegaArgs {
     pub vss_providers: Vec<VssProviderConfig>,
 }
 
+/// A bearer token for Blockstream's enterprise Esplora.
+#[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Eq, PartialEq, Arbitrary))]
+#[serde(transparent)]
+pub struct BlockstreamToken(
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
+    pub String,
+);
+
 /// Resolved configuration for a VSS backup provider.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Eq, PartialEq, Arbitrary))]
@@ -159,6 +174,13 @@ pub struct VssProviderConfig {
 
 impl EnclaveArgs for MegaArgs {
     const NAME: &str = "mega";
+}
+
+// Manual impl to avoid logging the token.
+impl fmt::Debug for BlockstreamToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("BlockstreamToken(..)")
+    }
 }
 
 // Manual impl to avoid logging secrets in `headers`.

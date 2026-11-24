@@ -21,6 +21,10 @@ use lexe_tokio::{notify_once::NotifyOnce, task::LxTask};
 use lightning::chain::chaininterface::{
     ConfirmationTarget, FEERATE_FLOOR_SATS_PER_KW, FeeEstimator,
 };
+use reqwest::{
+    header::{AUTHORIZATION, HeaderMap, HeaderValue},
+    redirect,
+};
 use tokio::time;
 use tracing::{debug, info, instrument, warn};
 
@@ -76,6 +80,16 @@ pub fn url_is_whitelisted(
         // Regtest can use whatever
         Network::Regtest => true,
     }
+}
+
+/// Whether this is Blockstream's enterprise Esplora, which requires a bearer
+/// token.
+fn url_is_enterprise_blockstream(esplora_url: &str) -> bool {
+    [
+        constants::MAINNET_ENTERPRISE_BLOCKSTREAM_ESPLORA,
+        constants::TESTNET3_ENTERPRISE_BLOCKSTREAM_ESPLORA,
+    ]
+    .contains(&esplora_url)
 }
 
 /// The minimum information about a [`bitcoin::Transaction`] required to query
@@ -253,11 +267,14 @@ pub struct LexeEsplora {
 
 impl LexeEsplora {
     /// Try initializing a [`LexeEsplora`] from the given Esplora urls in
-    /// priority order, until one succeeds or all fail. If successful, returns
-    /// the client, the fee refresher task, and the chosen esplora url.
+    /// priority order, until one succeeds or all fail. Blockstream's
+    /// enterprise Esplora is skipped without a `blockstream_token`. If
+    /// successful, returns the client, the fee refresher task, and the chosen
+    /// esplora url.
     pub async fn init_any(
         user_agent: &'static str,
         esplora_urls: Vec<String>,
+        blockstream_token: Option<&str>,
         network: Network,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>, String)>
@@ -266,9 +283,26 @@ impl LexeEsplora {
 
         let mut err_msgs = Vec::new();
         for url in esplora_urls {
+            let bearer_token = match (
+                url_is_enterprise_blockstream(&url),
+                blockstream_token,
+            ) {
+                (false, _) => None,
+                (true, Some(token)) => Some(token),
+                (true, None) => {
+                    err_msgs.push(format!("({url}, No Blockstream token)"));
+                    continue;
+                }
+            };
+
             info!("Initializing Esplora from url: {url}");
-            let init =
-                Self::init(user_agent, url.clone(), network, shutdown.clone());
+            let init = Self::init(
+                user_agent,
+                url.clone(),
+                bearer_token,
+                network,
+                shutdown.clone(),
+            );
             let init_result = time::timeout(INIT_TIMEOUT, init)
                 .await
                 .unwrap_or_else(|_| Err(anyhow!("Timed out")));
@@ -297,9 +331,13 @@ impl LexeEsplora {
     //
     // [`LexeEsplora::init_any`] relies on (2) to gracefully recover from 'bad'
     // Esplora URLs (which have likely been fixed in a later version).
-    pub async fn init(
+    //
+    // Private so that a bearer token only reaches the url which
+    // [`LexeEsplora::init_any`] pairs it with.
+    async fn init(
         user_agent: &'static str,
         esplora_url: String,
+        bearer_token: Option<&str>,
         network: Network,
         shutdown: NotifyOnce,
     ) -> anyhow::Result<(Arc<Self>, Arc<FeeEstimates>, LxTask<()>)> {
@@ -308,17 +346,26 @@ impl LexeEsplora {
         let tls_config = lexe_tls_core::external_client_config();
 
         // LexeEsplora wraps AsyncClient which in turn wraps reqwest::Client.
-        let reqwest_client = {
-            reqwest::Client::builder()
-                .user_agent(user_agent)
-                // Regtest esploras are local or self-hosted; only they may
-                // use plain http.
-                .https_only(network != Network::Regtest)
-                .timeout(ESPLORA_REQUEST_TIMEOUT)
-                .use_preconfigured_tls(tls_config)
-                .build()
-                .expect("Failed to build esplora reqwest client")
-        };
+        let mut builder = reqwest::Client::builder()
+            .user_agent(user_agent)
+            // Regtest esploras are local or self-hosted; only they may
+            // use plain http.
+            .https_only(network != Network::Regtest)
+            .timeout(ESPLORA_REQUEST_TIMEOUT)
+            .use_preconfigured_tls(tls_config);
+        if let Some(token) = bearer_token {
+            let mut auth = HeaderValue::from_str(&format!("Bearer {token}"))
+                // This error doesn't contain the token.
+                .context("Bearer token is not a valid header value")?;
+            auth.set_sensitive(true);
+            builder = builder
+                .default_headers(HeaderMap::from_iter([(AUTHORIZATION, auth)]))
+                // A redirect could carry the token to another host.
+                .redirect(redirect::Policy::none());
+        }
+        let reqwest_client = builder
+            .build()
+            .expect("Failed to build esplora reqwest client");
         let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
         // Initial cached fee estimates
@@ -587,8 +634,28 @@ mod test {
         })
     }
 
-    /// Smoke tests [`LexeEsplora::init`] against a real Esplora backend.
-    /// Set `$ESPLORA_TEST_URL` to hit a different one.
+    /// Without a token, Blockstream's enterprise Esplora is skipped before any
+    /// request is made.
+    #[tokio::test]
+    async fn init_any_skips_blockstream_without_token() {
+        let urls =
+            vec![constants::MAINNET_ENTERPRISE_BLOCKSTREAM_ESPLORA.to_owned()];
+        let result = LexeEsplora::init_any(
+            "lexe-ln-test",
+            urls,
+            None,
+            Network::Mainnet,
+            NotifyOnce::new(),
+        )
+        .await;
+
+        let error = result.err().expect("Init should have failed");
+        assert!(format!("{error:#}").contains("No Blockstream token"));
+    }
+
+    /// Smoke tests [`LexeEsplora::init_any`] against a real Esplora backend.
+    /// Set `$ESPLORA_TEST_URL` to hit a different one. Blockstream's enterprise
+    /// Esplora also needs `$ESPLORA_TEST_BLOCKSTREAM_TOKEN`.
     ///
     /// ```bash
     /// $ cargo test -p lexe-ln --lib -- --ignored esplora_init --nocapture
@@ -600,10 +667,14 @@ mod test {
             constants::MAINNET_PUBLIC_BLOCKSTREAM_ESPLORA.into()
         });
 
+        let blockstream_token =
+            std::env::var("ESPLORA_TEST_BLOCKSTREAM_TOKEN").ok();
+
         let shutdown = NotifyOnce::new();
-        let (_esplora, fee_estimates, task) = LexeEsplora::init(
+        let (_esplora, fee_estimates, task, _url) = LexeEsplora::init_any(
             "lexe-ln-test",
-            url,
+            vec![url],
+            blockstream_token.as_deref(),
             Network::Mainnet,
             shutdown.clone(),
         )
