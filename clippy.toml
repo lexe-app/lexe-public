@@ -30,6 +30,9 @@ disallowed-methods = [
     { path = "sea_orm_migration::prelude::ColumnDef::var_binary", reason = "Use `.binary()` for consistency. See crate docs." },
     { path = "sea_orm_migration::prelude::ColumnDef::blob",       reason = "Use `.binary()` for consistency. See crate docs." },
     { path = "sea_orm_migration::prelude::ColumnDef::decimal", reason = "Use `decimal_len(AMOUNT_PRECISION, AMOUNT_SCALE)`" },
+
+    { path = "url::Url::origin",    reason = "RUSTSEC-2026-0592: stack overflow on nested blob: URLs in url < 2.5.9" },
+    { path = "url::quirks::origin", reason = "RUSTSEC-2026-0592: stack overflow on nested blob: URLs in url < 2.5.9" },
 ]
 disallowed-types = [
     # Ban implementors of axum::extract::FromRequest[Parts] bc their rejections are incompatible.
