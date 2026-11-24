@@ -4833,7 +4833,7 @@ impl From<SdkBudgetInfo> for BudgetInfo {
 fn flat_amount(amount: SdkBitcoinOrFiat) -> (String, String) {
     match amount {
         SdkBitcoinOrFiat::Bitcoin(amount) =>
-            (amount.sats().normalize().to_string(), "sats".to_owned()),
+            (amount.sats().to_string(), "sats".to_owned()),
         SdkBitcoinOrFiat::Fiat { amount, currency } =>
             (amount.to_string(), currency),
     }

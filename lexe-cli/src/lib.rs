@@ -3642,9 +3642,7 @@ mod helpers {
     pub fn format_budget_amount(amount: &BitcoinOrFiat) -> String {
         match amount {
             BitcoinOrFiat::Bitcoin(amount) => {
-                // Amounts converted from BTC can carry trailing zeros,
-                // e.g. `100000.000`.
-                let sats = amount.sats().normalize();
+                let sats = amount.sats();
                 format!("{sats} sats")
             }
             BitcoinOrFiat::Fiat { amount, currency } =>

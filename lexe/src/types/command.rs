@@ -1646,7 +1646,7 @@ impl UpdateClientRequest {
         let new_budget_reset = Self::set_or_clear(
             budget_reset,
             clear_budget_reset,
-            "`budget_reset` and `clear_budget_reset`",
+            "a reset schedule and `clear_budget_reset`",
         )?;
 
         Ok(Self {
@@ -1965,8 +1965,7 @@ impl BitcoinOrFiat {
     /// or the fiat amount and its ISO 4217 code.
     fn into_wire(self) -> (Decimal, String) {
         match self {
-            Self::Bitcoin(amount) =>
-                (amount.sats().normalize(), "sats".to_owned()),
+            Self::Bitcoin(amount) => (amount.sats(), "sats".to_owned()),
             Self::Fiat { amount, currency } => (amount, currency),
         }
     }
@@ -1997,7 +1996,8 @@ impl BitcoinOrFiat {
                     })?;
                 ensure!(
                     code != IsoCurrencyCode::BTC,
-                    "Bitcoin amounts use `BitcoinOrFiat::Bitcoin`"
+                    "\"BTC\" is not a fiat currency; \
+                     denominate Bitcoin budgets in sats"
                 );
                 Ok((amount, BudgetCurrency::Fiat(code)))
             }
@@ -2011,9 +2011,12 @@ impl BitcoinOrFiat {
     ) -> anyhow::Result<Self> {
         match currency {
             BudgetCurrency::Bitcoin => {
+                // Converting from BTC leaves trailing zeros, so 0.001 BTC
+                // would print as "100000.000" sats. Rebuilding from the whole
+                // msat count drops them.
                 let amount = Amount::try_from_btc(amount)
                     .context("Node returned an invalid BTC amount")?;
-                Ok(Self::Bitcoin(amount))
+                Ok(Self::Bitcoin(Amount::from_msat(amount.msat())))
             }
             BudgetCurrency::Fiat(currency) => Ok(Self::Fiat {
                 amount,
