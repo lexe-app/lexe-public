@@ -22,7 +22,7 @@ use lightning::chain::chaininterface::{
     ConfirmationTarget, FEERATE_FLOOR_SATS_PER_KW, FeeEstimator,
 };
 use reqwest::{
-    header::{AUTHORIZATION, HeaderMap, HeaderValue},
+    header::{self, HeaderMap, HeaderValue},
     redirect,
 };
 use tokio::time;
@@ -48,11 +48,11 @@ const FALLBACK_FEE_RATE: bitcoin::FeeRate =
 /// The timeout we'll use for requests to our Esplora backends.
 pub const ESPLORA_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// How long [`LexeEsplora::init_any`] gives each Esplora url to initialize.
-// Long enough for the client's full retry backoff (~16s) against a url that
-// fails fast, and short enough that a slow url leaves the urls after it time
-// before a meganode's boot deadline.
-const INIT_TIMEOUT: Duration = Duration::from_secs(20);
+/// How long [`LexeEsplora::init_any`] waits on an Esplora url which has
+/// another url to fall back to.
+// A user may be waiting on a meganode's boot, and a healthy url responds well
+// within this. Left to itself, a failing url can take 10-20s to give up.
+const INIT_FALLBACK_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// Whether this Esplora URL is contained in the whitelist for this network.
 /// `include_lexe` also allows Lexe-operated mainnet Esplora endpoints.
@@ -268,9 +268,9 @@ pub struct LexeEsplora {
 impl LexeEsplora {
     /// Try initializing a [`LexeEsplora`] from the given Esplora urls in
     /// priority order, until one succeeds or all fail. Blockstream's
-    /// enterprise Esplora is skipped without a `blockstream_token`. If
-    /// successful, returns the client, the fee refresher task, and the chosen
-    /// esplora url.
+    /// enterprise Esplora is skipped without a `blockstream_token`. A url with
+    /// another to fall back to gets `INIT_FALLBACK_TIMEOUT`. If successful,
+    /// returns the client, the fee refresher task, and the chosen esplora url.
     pub async fn init_any(
         user_agent: &'static str,
         esplora_urls: Vec<String>,
@@ -281,16 +281,26 @@ impl LexeEsplora {
     {
         ensure!(!esplora_urls.is_empty(), "No urls provided");
 
+        let bearer_token_for = |url: &str| match (
+            url_is_enterprise_blockstream(url),
+            blockstream_token,
+        ) {
+            (false, _) => Ok(None),
+            (true, Some(token)) => Ok(Some(token)),
+            (true, None) => Err("No Blockstream token"),
+        };
+
+        // The last url we can use has nothing to fall back to.
+        let last_usable_idx = esplora_urls
+            .iter()
+            .rposition(|url| bearer_token_for(url).is_ok());
+
         let mut err_msgs = Vec::new();
-        for url in esplora_urls {
-            let bearer_token = match (
-                url_is_enterprise_blockstream(&url),
-                blockstream_token,
-            ) {
-                (false, _) => None,
-                (true, Some(token)) => Some(token),
-                (true, None) => {
-                    err_msgs.push(format!("({url}, No Blockstream token)"));
+        for (idx, url) in esplora_urls.into_iter().enumerate() {
+            let bearer_token = match bearer_token_for(&url) {
+                Ok(token) => token,
+                Err(reason) => {
+                    err_msgs.push(format!("({url}, {reason})"));
                     continue;
                 }
             };
@@ -303,9 +313,13 @@ impl LexeEsplora {
                 network,
                 shutdown.clone(),
             );
-            let init_result = time::timeout(INIT_TIMEOUT, init)
-                .await
-                .unwrap_or_else(|_| Err(anyhow!("Timed out")));
+            let init_result = if Some(idx) == last_usable_idx {
+                init.await
+            } else {
+                time::timeout(INIT_FALLBACK_TIMEOUT, init)
+                    .await
+                    .unwrap_or_else(|_| Err(anyhow!("Timed out")))
+            };
 
             match init_result {
                 Ok((client, fee_estimates, task)) => {
@@ -359,7 +373,10 @@ impl LexeEsplora {
                 .context("Bearer token is not a valid header value")?;
             auth.set_sensitive(true);
             builder = builder
-                .default_headers(HeaderMap::from_iter([(AUTHORIZATION, auth)]))
+                .default_headers(HeaderMap::from_iter([(
+                    header::AUTHORIZATION,
+                    auth,
+                )]))
                 // A redirect could carry the token to another host.
                 .redirect(redirect::Policy::none());
         }
